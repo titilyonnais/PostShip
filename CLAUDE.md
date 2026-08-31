@@ -30,6 +30,7 @@ pnpm build
 - `src/lib/checks/` one file per check type
 - `src/lib/ssrf.ts` URL allow/deny — used by every outbound fetch
 - `src/lib/db/` Supabase server helpers
+- `supabase/migrations/` SQL migrations (mirrors `docs/DATA_MODEL.md`)
 - `docs/` product specs
 
 ## Rules — never violate

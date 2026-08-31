@@ -1,12 +1,33 @@
-export default function AppLayout({
+import { createClient } from "@/lib/db/server";
+import { signOut } from "./actions";
+
+export default async function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border px-6 py-3">
+      <header className="flex items-center justify-between border-b border-border px-6 py-3">
         <span className="font-mono text-sm text-foreground">PostShip</span>
+        {user && (
+          <form action={signOut} className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {user.email}
+            </span>
+            <button
+              type="submit"
+              className="text-xs text-muted-foreground underline"
+            >
+              Déconnexion
+            </button>
+          </form>
+        )}
       </header>
       <div className="p-6">{children}</div>
     </div>
