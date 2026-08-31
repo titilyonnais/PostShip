@@ -30,6 +30,8 @@ Decision: Vercel Cron + `check_jobs`, not Inngest. Reason: no extra account/serv
 
 Vercel Cron hits `/api/cron/tick` with `CRON_SECRET`, selects due projects (interval by plan: 30 min free, 5 min paid), inserts `check_jobs`, processes a batch.
 
+Trigger caveat: Vercel Hobby plan caps Cron Jobs at once/day, which can't drive a 5-minute interval. Until the project is on Vercel Pro, `.github/workflows/cron.yml` calls `/api/cron/tick` every 5 minutes instead (`CRON_SECRET` and `APP_URL` as GitHub Actions secrets). Swap back to `vercel.json` crons once Pro is active.
+
 Per target:
 
 1. Validate URL (ssrf.ts)

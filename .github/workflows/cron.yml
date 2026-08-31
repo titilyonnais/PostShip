@@ -1,0 +1,17 @@
+name: PostShip cron tick
+
+on:
+  schedule:
+    # Vercel Hobby plan caps Cron Jobs at once/day, so we trigger
+    # /api/cron/tick from here instead (see docs/ARCHITECTURE.md — Runner).
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/cron/tick
+        run: |
+          curl -fsS -X GET "${{ secrets.APP_URL }}/api/cron/tick" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
