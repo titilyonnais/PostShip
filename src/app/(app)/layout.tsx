@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/db/server";
 import { signOut } from "./actions";
 
@@ -14,7 +15,19 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen">
       <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <span className="font-mono text-sm text-foreground">PostShip</span>
+        <div className="flex items-center gap-4">
+          <Link href="/app" className="font-mono text-sm text-foreground">
+            PostShip
+          </Link>
+          {user && (
+            <Link
+              href="/app/billing"
+              className="text-xs text-muted-foreground underline"
+            >
+              Abonnement
+            </Link>
+          )}
+        </div>
         {user && (
           <form action={signOut} className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
