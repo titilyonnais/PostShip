@@ -1,0 +1,130 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { StatusDot } from "@/components/status-dot";
+import { createClient } from "@/lib/db/server";
+import { deleteProject, renameProject } from "../actions";
+import { AddTargetForm } from "./add-target-form";
+import { toggleTarget } from "./actions";
+
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { projectId } = await params;
+  const { error } = await searchParams;
+
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) notFound();
+
+  const { data: targets } = await supabase
+    .from("check_targets")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("created_at");
+
+  const { data: recentRuns } = await supabase
+    .from("check_runs")
+    .select("target_id, outcome, started_at")
+    .eq("project_id", projectId)
+    .order("started_at", { ascending: false })
+    .limit(200);
+
+  const latestOutcomeByTarget = new Map<string, string>();
+  for (const run of recentRuns ?? []) {
+    if (!latestOutcomeByTarget.has(run.target_id)) {
+      latestOutcomeByTarget.set(run.target_id, run.outcome);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold">{project.name}</h1>
+          <p className="font-mono text-sm text-muted-foreground">
+            {project.base_url}
+          </p>
+        </div>
+        <form action={deleteProject.bind(null, project.id)}>
+          <Button type="submit" variant="outline">
+            Supprimer le projet
+          </Button>
+        </form>
+      </div>
+
+      <form
+        action={renameProject.bind(null, project.id)}
+        className="flex max-w-sm gap-2"
+      >
+        <Input name="name" defaultValue={project.name} />
+        <Button type="submit" variant="outline">
+          Renommer
+        </Button>
+      </form>
+
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-muted-foreground">
+          URLs surveillées
+        </h2>
+
+        {targets && targets.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {targets.map((target) => (
+              <li
+                key={target.id}
+                className="flex items-center justify-between border border-border px-3 py-2"
+              >
+                <Link
+                  href={`/app/${projectId}/${target.id}`}
+                  className="font-mono text-sm hover:underline"
+                >
+                  {target.url}
+                </Link>
+                <div className="flex items-center gap-3">
+                  <StatusDot
+                    status={latestOutcomeByTarget.get(target.id) ?? null}
+                  />
+                  <Badge variant={target.enabled ? "default" : "outline"}>
+                    {target.enabled ? "Actif" : "Désactivé"}
+                  </Badge>
+                  <form
+                    action={toggleTarget.bind(
+                      null,
+                      projectId,
+                      target.id,
+                      target.enabled,
+                    )}
+                  >
+                    <Button type="submit" size="sm" variant="ghost">
+                      {target.enabled ? "Désactiver" : "Activer"}
+                    </Button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Aucune URL surveillée pour le moment.
+          </p>
+        )}
+
+        <AddTargetForm projectId={projectId} />
+      </div>
+    </div>
+  );
+}
