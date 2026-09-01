@@ -4,6 +4,7 @@ import { Coins, ScanSearch } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
 import { ScanLaunchForm } from "../scan-launch-form";
 
 export const metadata = {
@@ -25,32 +26,24 @@ export default async function ProjectScansPage({
   const { projectId } = await params;
 
   const supabase = await createClient();
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id, base_url")
-    .eq("id", projectId)
-    .single();
+
+  const [project, user, { data: scans }] = await Promise.all([
+    getProject(projectId),
+    getAuthUser(),
+    supabase
+      .from("site_scans")
+      .select(
+        "id, seed_url, status, pages_scanned, total_pages, pages_ok, pages_failed, created_at",
+      )
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
 
   if (!project) notFound();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("token_balance")
-    .eq("id", user?.id)
-    .single();
+  const profile = user ? await getProfile(user.id) : null;
   const tokenBalance = profile?.token_balance ?? 0;
-
-  const { data: scans } = await supabase
-    .from("site_scans")
-    .select(
-      "id, seed_url, status, pages_scanned, total_pages, pages_ok, pages_failed, created_at",
-    )
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false })
-    .limit(50);
 
   const hasActiveScan = (scans ?? []).some(
     (s) => s.status === "queued" || s.status === "running",

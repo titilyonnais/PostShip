@@ -4,22 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { BackToProjectLink } from "@/components/back-to-project-link";
 import { CheckoutReturnToast } from "@/components/checkout-return-toast";
 import { SubmitButton } from "@/components/submit-button";
-import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
 import { changePlan, openBillingPortal } from "./actions";
 
 export default async function BillingPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, stripe_customer_id")
-    .eq("id", user?.id)
-    .single();
+  const user = await getAuthUser();
+  const profile = user ? await getProfile(user.id) : null;
 
   const plan = (profile?.plan as Plan) ?? "free";
   const limits = getPlanLimits(plan);

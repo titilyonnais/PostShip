@@ -14,20 +14,21 @@ async function windowSince(
   projectId: string,
   sinceIso: string,
 ): Promise<UptimeWindow> {
-  const { count: total } = await supabase
-    .from("check_runs")
-    .select("id", { count: "exact", head: true })
-    .eq("project_id", projectId)
-    .gte("started_at", sinceIso);
+  const [{ count: total }, { count: passing }] = await Promise.all([
+    supabase
+      .from("check_runs")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", projectId)
+      .gte("started_at", sinceIso),
+    supabase
+      .from("check_runs")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", projectId)
+      .eq("outcome", "pass")
+      .gte("started_at", sinceIso),
+  ]);
 
   if (!total) return { pct: null, count: 0 };
-
-  const { count: passing } = await supabase
-    .from("check_runs")
-    .select("id", { count: "exact", head: true })
-    .eq("project_id", projectId)
-    .eq("outcome", "pass")
-    .gte("started_at", sinceIso);
 
   return { pct: ((passing ?? 0) / total) * 100, count: total };
 }

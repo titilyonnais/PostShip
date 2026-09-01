@@ -1,7 +1,7 @@
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
-import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { IdentitySection } from "../identity-section";
 import { TeamSizeSelect } from "../team-size-select";
 import { updateDisplayName, updateProfile } from "../actions";
@@ -11,16 +11,8 @@ export const metadata = {
 };
 
 export default async function AccountProfilePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username, avatar_seed, display_name, full_name, company_name, phone, team_size")
-    .eq("id", user?.id)
-    .single();
+  const user = await getAuthUser();
+  const profile = user ? await getProfile(user.id) : null;
 
   return (
     <div className="flex flex-col gap-6">

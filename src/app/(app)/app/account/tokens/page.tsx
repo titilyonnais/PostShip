@@ -1,6 +1,6 @@
 import { Coins } from "lucide-react";
 import { SubmitButton } from "@/components/submit-button";
-import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { TOKEN_PACKS, type TokenPackId } from "@/lib/stripe";
 import { buyTokens } from "../tokens-actions";
 
@@ -11,16 +11,8 @@ export const metadata = {
 const TOKEN_PACK_IDS: TokenPackId[] = ["500", "1000", "5000"];
 
 export default async function AccountTokensPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("token_balance")
-    .eq("id", user?.id)
-    .single();
+  const user = await getAuthUser();
+  const profile = user ? await getProfile(user.id) : null;
 
   const tokenBalance = profile?.token_balance ?? 0;
 

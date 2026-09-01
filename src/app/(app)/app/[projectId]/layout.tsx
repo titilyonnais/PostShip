@@ -3,7 +3,7 @@ import { PauseCircle, Play } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/submit-button";
-import { createClient } from "@/lib/db/server";
+import { getProject } from "@/lib/db/loaders";
 import { runProjectNow } from "./actions";
 
 export default async function ProjectLayout({
@@ -15,12 +15,7 @@ export default async function ProjectLayout({
 }) {
   const { projectId } = await params;
 
-  const supabase = await createClient();
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id, name, base_url, paused")
-    .eq("id", projectId)
-    .single();
+  const project = await getProject(projectId);
 
   if (!project) notFound();
 

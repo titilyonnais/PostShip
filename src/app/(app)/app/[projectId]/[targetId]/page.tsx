@@ -13,21 +13,22 @@ export default async function TargetPage({
   const { projectId, targetId } = await params;
   const supabase = await createClient();
 
-  const { data: target } = await supabase
-    .from("check_targets")
-    .select("*")
-    .eq("id", targetId)
-    .eq("project_id", projectId)
-    .single();
+  const [{ data: target }, { data: runs }] = await Promise.all([
+    supabase
+      .from("check_targets")
+      .select("*")
+      .eq("id", targetId)
+      .eq("project_id", projectId)
+      .single(),
+    supabase
+      .from("check_runs")
+      .select("*")
+      .eq("target_id", targetId)
+      .order("started_at", { ascending: false })
+      .limit(50),
+  ]);
 
   if (!target) notFound();
-
-  const { data: runs } = await supabase
-    .from("check_runs")
-    .select("*")
-    .eq("target_id", targetId)
-    .order("started_at", { ascending: false })
-    .limit(50);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">

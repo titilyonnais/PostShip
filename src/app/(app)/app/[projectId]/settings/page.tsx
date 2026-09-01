@@ -11,7 +11,7 @@ import {
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
-import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import {
   deleteProject,
@@ -32,23 +32,14 @@ export default async function ProjectSettingsPage({
 }) {
   const { projectId } = await params;
 
-  const supabase = await createClient();
-  const { data: project } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("id", projectId)
-    .single();
+  const [project, user] = await Promise.all([
+    getProject(projectId),
+    getAuthUser(),
+  ]);
 
   if (!project) notFound();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan")
-    .eq("id", user?.id)
-    .single();
+  const profile = user ? await getProfile(user.id) : null;
   const plan = (profile?.plan as Plan) ?? "free";
   const limits = getPlanLimits(plan);
   const backTo = `/app/${projectId}`;

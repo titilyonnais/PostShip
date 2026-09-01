@@ -1,30 +1,19 @@
 import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { avatarUrl } from "@/lib/avatar";
-import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile, getUserProjects } from "@/lib/db/loaders";
 
 export default async function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getAuthUser();
   if (!user) redirect("/login");
 
-  const [{ data: profile }, { data: projects }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("username, display_name, email, avatar_seed")
-      .eq("id", user.id)
-      .single(),
-    supabase
-      .from("projects")
-      .select("id, name, base_url, last_status")
-      .order("created_at"),
+  const [profile, projects] = await Promise.all([
+    getProfile(user.id),
+    getUserProjects(),
   ]);
 
   return (
@@ -37,7 +26,7 @@ export default async function AppLayout({
       </a>
 
       <AppSidebar
-        projects={projects ?? []}
+        projects={projects}
         profile={{
           displayName:
             profile?.username || profile?.display_name || user.email || "Compte",
@@ -46,7 +35,7 @@ export default async function AppLayout({
         }}
       />
 
-      <main id="main" className="p-6 md:ml-60">
+      <main id="main" className="min-w-0 overflow-x-hidden p-6 md:ml-60">
         {children}
       </main>
     </div>

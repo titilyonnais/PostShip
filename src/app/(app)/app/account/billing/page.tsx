@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
-import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { type Plan } from "@/lib/entitlements";
 import { updateBillingAddress } from "../actions";
 
@@ -25,16 +25,8 @@ type BillingAddress = {
 } | null;
 
 export default async function AccountBillingPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, billing_address")
-    .eq("id", user?.id)
-    .single();
+  const user = await getAuthUser();
+  const profile = user ? await getProfile(user.id) : null;
 
   const plan = (profile?.plan as Plan) ?? "free";
   const billingAddress = (profile?.billing_address as BillingAddress) ?? null;

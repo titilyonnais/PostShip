@@ -57,7 +57,7 @@ function SidebarContent({
   const { project: activeProject, subSegment, pathname } = useActiveProject(projects);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-w-0 flex-col">
       <Link
         href="/app"
         onClick={onNavigate}
@@ -66,7 +66,7 @@ function SidebarContent({
         <Logo className="h-5" />
       </Link>
 
-      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 pb-4">
+      <nav className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-hidden overflow-y-auto px-3 pb-4">
         {activeProject ? (
           <div className="flex flex-col gap-2">
             <ProjectSwitcher
@@ -87,14 +87,14 @@ function SidebarContent({
                     onClick={onNavigate}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                      "flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
                       isActive
                         ? "bg-secondary font-medium text-foreground"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    {item.label}
+                    <span className="truncate">{item.label}</span>
                   </Link>
                 );
               })}
@@ -111,7 +111,7 @@ function SidebarContent({
                   key={p.id}
                   href={`/app/${p.id}`}
                   onClick={onNavigate}
-                  className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <span
                     className={cn(
@@ -131,10 +131,10 @@ function SidebarContent({
               <Link
                 href="/app"
                 onClick={onNavigate}
-                className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <Plus className="size-4 shrink-0" aria-hidden="true" />
-                Nouveau projet
+                <span className="truncate">Nouveau projet</span>
               </Link>
             </div>
           </div>
@@ -158,14 +158,14 @@ function SidebarContent({
                   onClick={onNavigate}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                    "flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
                     isActive
                       ? "bg-secondary font-medium text-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
                   <Icon className="size-4 shrink-0" aria-hidden="true" />
-                  {item.label}
+                  <span className="truncate">{item.label}</span>
                 </Link>
               );
             })}
@@ -173,13 +173,13 @@ function SidebarContent({
         </div>
       </nav>
 
-      <div className="shrink-0 border-t border-border p-3">
+      <div className="min-w-0 shrink-0 border-t border-border p-3">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-muted"
+                className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-muted"
               />
             }
           >
@@ -237,7 +237,7 @@ function ProjectSwitcher({
         render={
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-foreground/25"
+            className="flex w-full min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-foreground/25"
           />
         }
       >
@@ -300,7 +300,7 @@ export function AppSidebar({
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-border bg-card md:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 overflow-hidden border-r border-border bg-card md:flex">
         <SidebarContent projects={projects} profile={profile} />
       </aside>
 
@@ -321,8 +321,8 @@ export function AppSidebar({
       <DialogPrimitive.Root open={mobileOpen} onOpenChange={setMobileOpen}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Backdrop className="fixed inset-0 z-40 bg-black/40 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 md:hidden" />
-          <DialogPrimitive.Popup className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[80vw] flex-col bg-card outline-none data-open:animate-in data-open:slide-in-from-left data-closed:animate-out data-closed:slide-out-to-left md:hidden">
-            <div className="flex justify-end p-2">
+          <DialogPrimitive.Popup className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[80vw] flex-col overflow-hidden bg-card outline-none data-open:animate-in data-open:slide-in-from-left data-closed:animate-out data-closed:slide-out-to-left md:hidden">
+            <div className="flex shrink-0 justify-end p-2">
               <DialogPrimitive.Close
                 render={
                   <button
@@ -335,7 +335,7 @@ export function AppSidebar({
                 <X className="size-4" aria-hidden="true" />
               </DialogPrimitive.Close>
             </div>
-            <div className="min-h-0 flex-1">
+            <div className="min-h-0 min-w-0 flex-1">
               <SidebarContent
                 projects={projects}
                 profile={profile}

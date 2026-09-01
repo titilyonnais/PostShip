@@ -1,6 +1,6 @@
 import { Coins, Download } from "lucide-react";
 import { avatarUrl } from "@/lib/avatar";
-import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 
 const PLAN_LABEL: Record<Plan, string> = {
@@ -10,16 +10,8 @@ const PLAN_LABEL: Record<Plan, string> = {
 };
 
 export default async function AccountOverviewPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("email, username, full_name, avatar_seed, plan, token_balance")
-    .eq("id", user?.id)
-    .single();
+  const user = await getAuthUser();
+  const profile = user ? await getProfile(user.id) : null;
 
   const plan = (profile?.plan as Plan) ?? "free";
   const limits = getPlanLimits(plan);

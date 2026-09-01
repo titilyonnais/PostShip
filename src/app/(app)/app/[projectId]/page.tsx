@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusDot } from "@/components/status-dot";
 import { FailureDetails, type CheckRunDetails } from "@/components/failure-details";
 import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { getUptimeStats } from "@/lib/uptime";
 import { AddTargetForm } from "./add-target-form";
@@ -41,39 +42,48 @@ export default async function ProjectOverviewPage({
 }) {
   const { projectId } = await params;
 
-  const supabase = await createClient();
-  const { data: project } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("id", projectId)
-    .single();
-
+  const project = await getProject(projectId);
   if (!project) notFound();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, token_balance")
-    .eq("id", user?.id)
-    .single();
+  const supabase = await createClient();
+
+  const [
+    user,
+    { data: targets },
+    { data: recentRuns },
+    uptime,
+    { count: urlCount },
+    { data: latestScan },
+  ] = await Promise.all([
+    getAuthUser(),
+    supabase
+      .from("check_targets")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("created_at"),
+    supabase
+      .from("check_runs")
+      .select(
+        "target_id, outcome, started_at, http_status, ttfb_ms, fingerprint, details",
+      )
+      .eq("project_id", projectId)
+      .order("started_at", { ascending: false })
+      .limit(200),
+    getUptimeStats(supabase, projectId),
+    supabase.from("check_targets").select("id", { count: "exact", head: true }),
+    supabase
+      .from("site_scans")
+      .select("id, status, pages_scanned, total_pages, created_at")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const profile = user ? await getProfile(user.id) : null;
   const plan = (profile?.plan as Plan) ?? "free";
   const limits = getPlanLimits(plan);
   const tokenBalance = profile?.token_balance ?? 0;
-
-  const { data: targets } = await supabase
-    .from("check_targets")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("created_at");
-
-  const { data: recentRuns } = await supabase
-    .from("check_runs")
-    .select("target_id, outcome, started_at, http_status, ttfb_ms, fingerprint, details")
-    .eq("project_id", projectId)
-    .order("started_at", { ascending: false })
-    .limit(200);
 
   const latestRunByTarget = new Map<string, RunRow>();
   for (const run of (recentRuns ?? []) as RunRow[]) {
@@ -81,12 +91,6 @@ export default async function ProjectOverviewPage({
       latestRunByTarget.set(run.target_id, run);
     }
   }
-
-  const uptime = await getUptimeStats(supabase, projectId);
-
-  const { count: urlCount } = await supabase
-    .from("check_targets")
-    .select("id", { count: "exact", head: true });
 
   const urlsUsed = urlCount ?? 0;
   const nearUrlLimit = urlsUsed >= limits.urls * 0.8;
@@ -97,14 +101,6 @@ export default async function ProjectOverviewPage({
     const days = run?.details?.daysRemaining;
     return typeof days === "number" && days < 14;
   });
-
-  const { data: latestScan } = await supabase
-    .from("site_scans")
-    .select("id, status, pages_scanned, total_pages, created_at")
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
 
   const scanActive =
     latestScan?.status === "queued" || latestScan?.status === "running";

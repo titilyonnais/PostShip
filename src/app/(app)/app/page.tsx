@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, Rocket } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
-import { createClient } from "@/lib/db/server";
+import { getUserProjects } from "@/lib/db/loaders";
 import { CreateProjectForm } from "./create-project-form";
 
 export default async function AppHomePage({
@@ -11,11 +11,7 @@ export default async function AppHomePage({
 }) {
   const { error, success } = await searchParams;
 
-  const supabase = await createClient();
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("*")
-    .order("created_at");
+  const projects = await getUserProjects();
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">

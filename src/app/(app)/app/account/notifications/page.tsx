@@ -1,6 +1,6 @@
 import { ActionForm } from "@/components/action-form";
 import { SubmitButton } from "@/components/submit-button";
-import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { LocaleSelect } from "../locale-select";
 import { updateNotificationPrefs } from "../actions";
 
@@ -9,16 +9,8 @@ export const metadata = {
 };
 
 export default async function AccountNotificationsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("email_alerts_enabled, locale")
-    .eq("id", user?.id)
-    .single();
+  const user = await getAuthUser();
+  const profile = user ? await getProfile(user.id) : null;
 
   return (
     <ActionForm action={updateNotificationPrefs} className="flex flex-col gap-5">

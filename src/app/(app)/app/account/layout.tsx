@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { BackToProjectLink } from "@/components/back-to-project-link";
 import { CheckoutReturnToast } from "@/components/checkout-return-toast";
-import { createClient } from "@/lib/db/server";
+import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 
 const PLAN_LABEL: Record<Plan, string> = {
@@ -15,15 +15,8 @@ export default async function AccountLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("email, plan")
-    .eq("id", user?.id)
-    .single();
+  const user = await getAuthUser();
+  const profile = user ? await getProfile(user.id) : null;
 
   const plan = (profile?.plan as Plan) ?? "free";
   const limits = getPlanLimits(plan);
