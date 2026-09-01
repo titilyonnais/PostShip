@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { AlertTriangle, Coins } from "lucide-react";
+import { AlertTriangle, Coins, Download } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
+import { BackToProjectLink } from "@/components/back-to-project-link";
 import { CheckoutReturnToast } from "@/components/checkout-return-toast";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
-import { TOKENS_PER_PACK } from "@/lib/stripe";
+import { TOKEN_PACKS, type TokenPackId } from "@/lib/stripe";
 import { AccountTabs } from "./account-tabs";
 import { DeleteAccountButton } from "./delete-account-button";
+import { LocaleSelect } from "./locale-select";
+import { TeamSizeSelect } from "./team-size-select";
 import {
   updateBillingAddress,
   updateDisplayName,
@@ -24,15 +27,7 @@ const PLAN_LABEL: Record<Plan, string> = {
   team: "Team",
 };
 
-const TEAM_SIZES: { value: string; label: string }[] = [
-  { value: "solo", label: "Solo" },
-  { value: "2-5", label: "2 à 5 personnes" },
-  { value: "6-20", label: "6 à 20 personnes" },
-  { value: "20+", label: "20 personnes et plus" },
-];
-
-const selectClassName =
-  "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+const TOKEN_PACK_IDS: TokenPackId[] = ["500", "1000", "5000"];
 
 type BillingAddress = {
   line1?: string;
@@ -57,23 +52,78 @@ export default async function AccountPage() {
     .single();
 
   const plan = (profile?.plan as Plan) ?? "free";
+  const limits = getPlanLimits(plan);
   const billingAddress = (profile?.billing_address as BillingAddress) ?? null;
+  const tokenBalance = profile?.token_balance ?? 0;
+  const profileComplete = Boolean(profile?.full_name);
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       <Suspense fallback={null}>
         <CheckoutReturnToast />
+      </Suspense>
+      <Suspense fallback={null}>
+        <BackToProjectLink />
       </Suspense>
 
       <div>
         <h1 className="text-lg font-semibold">Compte</h1>
         <p className="text-sm text-muted-foreground">
           {profile?.email ?? user?.email} — plan {PLAN_LABEL[plan]} (
-          {getPlanLimits(plan).retentionDays} jours de rétention)
+          {limits.retentionDays} jours de rétention)
         </p>
       </div>
 
       <AccountTabs
+        overview={
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md border border-border bg-card p-4">
+                <p className="text-xs text-muted-foreground">Abonnement</p>
+                <p className="mt-1 text-lg font-medium">{PLAN_LABEL[plan]}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {limits.projects} projet(s) · {limits.urls} URL(s)
+                </p>
+              </div>
+              <div className="rounded-md border border-border bg-card p-4">
+                <p className="text-xs text-muted-foreground">Tokens</p>
+                <p className="mt-1 flex items-center gap-1.5 text-lg font-medium">
+                  <Coins className="size-4 text-muted-foreground" aria-hidden="true" />
+                  {tokenBalance}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Pour les scans complets de site
+                </p>
+              </div>
+              <div className="rounded-md border border-border bg-card p-4">
+                <p className="text-xs text-muted-foreground">Profil</p>
+                <p className="mt-1 text-lg font-medium">
+                  {profileComplete ? "Complet" : "À compléter"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {profile?.full_name || profile?.email}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-border bg-card p-4">
+              <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Vos données
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Téléchargez une copie de votre profil, vos projets et vos URLs
+                surveillées au format JSON.
+              </p>
+              <a
+                href="/api/account/export"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs text-foreground underline underline-offset-2"
+              >
+                <Download className="size-3.5" aria-hidden="true" />
+                Exporter mes données
+              </a>
+            </div>
+          </div>
+        }
         profile={
           <div className="flex flex-col gap-6">
             <ActionForm
@@ -152,19 +202,7 @@ export default async function AccountPage() {
                 >
                   Taille de l&apos;équipe
                 </label>
-                <select
-                  id="team_size"
-                  name="team_size"
-                  defaultValue={profile?.team_size ?? ""}
-                  className={selectClassName}
-                >
-                  <option value="">Non précisé</option>
-                  {TEAM_SIZES.map((size) => (
-                    <option key={size.value} value={size.value}>
-                      {size.label}
-                    </option>
-                  ))}
-                </select>
+                <TeamSizeSelect defaultValue={profile?.team_size ?? ""} />
               </div>
               <div>
                 <SubmitButton pendingText="Enregistrement...">
@@ -284,19 +322,11 @@ export default async function AccountPage() {
               </span>
             </label>
 
-            <div className="flex max-w-[10rem] flex-col gap-1">
+            <div className="flex max-w-[12rem] flex-col gap-1">
               <label htmlFor="locale" className="text-xs text-muted-foreground">
                 Langue de l&apos;interface
               </label>
-              <select
-                id="locale"
-                name="locale"
-                defaultValue={profile?.locale ?? "fr"}
-                className={selectClassName}
-              >
-                <option value="fr">Français</option>
-                <option value="en">English</option>
-              </select>
+              <LocaleSelect defaultValue={profile?.locale ?? "fr"} />
             </div>
 
             <div>
@@ -307,26 +337,62 @@ export default async function AccountPage() {
           </ActionForm>
         }
         tokens={
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-1 rounded-md border border-border bg-card p-4">
               <span className="text-xs text-muted-foreground">
                 Solde de tokens
               </span>
               <span className="flex items-center gap-2 font-mono text-2xl">
                 <Coins className="size-5 text-muted-foreground" aria-hidden="true" />
-                {profile?.token_balance ?? 0}
+                {tokenBalance}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Indépendants de votre abonnement — 1 token = 1 page scannée
+                lors d&apos;un scan complet de site, disponible depuis chaque
+                projet.
               </span>
             </div>
-            <p className="max-w-md text-xs text-muted-foreground">
-              Les tokens sont indépendants de votre abonnement — ils servent à
-              lancer un scan complet d&apos;un site (1 token = 1 page
-              scannée), disponible depuis chaque projet.
-            </p>
-            <form action={buyTokens}>
-              <SubmitButton pendingText="Redirection...">
-                Acheter {TOKENS_PER_PACK} tokens — 5€
-              </SubmitButton>
-            </form>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              {TOKEN_PACK_IDS.map((packId) => {
+                const pack = TOKEN_PACKS[packId];
+                const highlight = packId === "1000";
+                return (
+                  <div
+                    key={packId}
+                    className={`flex flex-col gap-3 rounded-md border p-4 ${
+                      highlight
+                        ? "border-foreground/30 bg-card"
+                        : "border-border"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-mono text-lg">{pack.tokens}</h3>
+                      {highlight && (
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[0.65rem] text-muted-foreground">
+                          Populaire
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      tokens — {pack.priceLabel}
+                    </p>
+                    <p className="flex-1 text-xs text-muted-foreground">
+                      {pack.blurb}
+                    </p>
+                    <form action={buyTokens.bind(null, packId)}>
+                      <SubmitButton
+                        variant={highlight ? "default" : "outline"}
+                        className="w-full"
+                        pendingText="Redirection..."
+                      >
+                        Acheter — {pack.priceLabel}
+                      </SubmitButton>
+                    </form>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         }
         danger={

@@ -3,6 +3,13 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { addTarget, type TargetFormState } from "./actions";
 
 const initialState: TargetFormState = { error: null };
@@ -38,18 +45,22 @@ export function AddTargetForm({ projectId }: { projectId: string }) {
       <label htmlFor="target-kind" className="sr-only">
         Type de vérification
       </label>
-      <select
-        id="target-kind"
-        name="kind"
-        defaultValue="http"
-        className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        {KIND_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <Select name="kind" defaultValue="http">
+        <SelectTrigger id="target-kind" className="sm:w-56">
+          <SelectValue>
+            {(value: string) =>
+              KIND_OPTIONS.find((o) => o.value === value)?.label ?? value
+            }
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {KIND_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Button type="submit" disabled={pending}>
         {pending ? "Ajout..." : "Ajouter une URL"}
       </Button>

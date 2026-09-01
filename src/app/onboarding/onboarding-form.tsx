@@ -2,6 +2,13 @@
 
 import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SubmitButton } from "@/components/submit-button";
 import { completeOnboarding, type OnboardingState } from "./actions";
 
@@ -51,19 +58,24 @@ export function OnboardingForm({ plan }: { plan: string | null }) {
           <label htmlFor="team_size" className="text-xs text-muted-foreground">
             Taille de l&apos;équipe
           </label>
-          <select
-            id="team_size"
-            name="team_size"
-            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            defaultValue=""
-          >
-            <option value="">Non précisé</option>
-            {TEAM_SIZES.map((size) => (
-              <option key={size.value} value={size.value}>
-                {size.label}
-              </option>
-            ))}
-          </select>
+          <Select name="team_size" defaultValue="">
+            <SelectTrigger id="team_size">
+              <SelectValue placeholder="Non précisé">
+                {(value: string) =>
+                  TEAM_SIZES.find((s) => s.value === value)?.label ??
+                  "Non précisé"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Non précisé</SelectItem>
+              {TEAM_SIZES.map((size) => (
+                <SelectItem key={size.value} value={size.value}>
+                  {size.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

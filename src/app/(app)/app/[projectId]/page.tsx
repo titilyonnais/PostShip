@@ -5,7 +5,9 @@ import {
   Coins,
   ExternalLink,
   MessageSquare,
+  PauseCircle,
   Play,
+  PlayCircle,
   Rocket,
   ScanSearch,
   ShieldAlert,
@@ -21,7 +23,7 @@ import { FailureDetails, type CheckRunDetails } from "@/components/failure-detai
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { getUptimeStats } from "@/lib/uptime";
-import { deleteProject, renameProject } from "../actions";
+import { deleteProject, renameProject, toggleProjectPause, updateProjectBaseUrl } from "../actions";
 import { AddTargetForm } from "./add-target-form";
 import { ProjectTabs } from "./project-tabs";
 import { TargetActionsMenu } from "./target-actions-menu";
@@ -125,11 +127,21 @@ export default async function ProjectPage({
     .order("created_at", { ascending: false })
     .limit(5);
 
+  const backTo = `/app/${projectId}`;
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-lg font-semibold">{project.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold">{project.name}</h1>
+            {project.paused && (
+              <Badge variant="outline" className="gap-1 text-amber-600 dark:text-amber-400">
+                <PauseCircle className="size-3" aria-hidden="true" />
+                En pause
+              </Badge>
+            )}
+          </div>
           <p className="font-mono text-sm text-muted-foreground">
             {project.base_url}
           </p>
@@ -162,7 +174,10 @@ export default async function ProjectPage({
                   <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                   <span>
                     {urlsUsed}/{limits.urls} URLs utilisées sur votre plan.{" "}
-                    <Link href="/app/billing" className="underline underline-offset-2">
+                    <Link
+                      href={`/app/billing?from=${encodeURIComponent(backTo)}`}
+                      className="underline underline-offset-2"
+                    >
                       Passer à un plan supérieur
                     </Link>
                   </span>
@@ -320,7 +335,7 @@ export default async function ProjectPage({
                   Solde : {tokenBalance} token(s)
                   {tokenBalance === 0 && (
                     <Link
-                      href="/app/account"
+                      href={`/app/account?tab=tokens&from=${encodeURIComponent(backTo)}`}
                       className="text-foreground underline underline-offset-2"
                     >
                       en acheter
@@ -377,23 +392,75 @@ export default async function ProjectPage({
         }
         settings={
           <div className="flex flex-col gap-6">
-            <ActionForm
-              action={renameProject.bind(null, project.id)}
-              className="flex max-w-sm items-end gap-2"
-            >
-              <div className="flex flex-1 flex-col gap-1">
-                <label
-                  htmlFor="project-name"
-                  className="text-xs text-muted-foreground"
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ActionForm
+                action={renameProject.bind(null, project.id)}
+                className="flex items-end gap-2"
+              >
+                <div className="flex flex-1 flex-col gap-1">
+                  <label
+                    htmlFor="project-name"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Nom du projet
+                  </label>
+                  <Input id="project-name" name="name" defaultValue={project.name} />
+                </div>
+                <SubmitButton variant="outline" pendingText="...">
+                  Renommer
+                </SubmitButton>
+              </ActionForm>
+
+              <ActionForm
+                action={updateProjectBaseUrl.bind(null, project.id)}
+                className="flex items-end gap-2"
+              >
+                <div className="flex flex-1 flex-col gap-1">
+                  <label
+                    htmlFor="project-base-url"
+                    className="text-xs text-muted-foreground"
+                  >
+                    URL de base
+                  </label>
+                  <Input
+                    id="project-base-url"
+                    name="base_url"
+                    type="url"
+                    defaultValue={project.base_url}
+                  />
+                </div>
+                <SubmitButton variant="outline" pendingText="...">
+                  Enregistrer
+                </SubmitButton>
+              </ActionForm>
+            </div>
+
+            <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+              <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                {project.paused ? (
+                  <PauseCircle className="size-3.5" aria-hidden="true" />
+                ) : (
+                  <PlayCircle className="size-3.5" aria-hidden="true" />
+                )}
+                Mode maintenance
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Suspend les vérifications automatiques et les alertes pour ce
+                projet — utile pendant un déploiement planifié. &laquo;
+                Lancer maintenant &raquo; reste disponible pendant la pause.
+              </p>
+              <div>
+                <ActionForm
+                  action={toggleProjectPause.bind(null, project.id, project.paused)}
                 >
-                  Nom du projet
-                </label>
-                <Input id="project-name" name="name" defaultValue={project.name} />
+                  <SubmitButton variant="outline" pendingText="...">
+                    {project.paused
+                      ? "Réactiver les vérifications"
+                      : "Activer le mode maintenance"}
+                  </SubmitButton>
+                </ActionForm>
               </div>
-              <SubmitButton variant="outline" pendingText="...">
-                Renommer
-              </SubmitButton>
-            </ActionForm>
+            </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
@@ -433,7 +500,7 @@ export default async function ProjectPage({
                   <p className="text-xs text-muted-foreground">
                     Disponible à partir du plan Solo.{" "}
                     <Link
-                      href="/app/billing"
+                      href={`/app/billing?from=${encodeURIComponent(backTo)}`}
                       className="text-foreground underline underline-offset-2"
                     >
                       Passer à Solo/Team
@@ -488,7 +555,7 @@ export default async function ProjectPage({
                   <p className="text-xs text-muted-foreground">
                     Disponible à partir du plan Solo.{" "}
                     <Link
-                      href="/app/billing"
+                      href={`/app/billing?from=${encodeURIComponent(backTo)}`}
                       className="text-foreground underline underline-offset-2"
                     >
                       Passer à Solo/Team

@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { BackToProjectLink } from "@/components/back-to-project-link";
 import { CheckoutReturnToast } from "@/components/checkout-return-toast";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
-import { openBillingPortal, startCheckout } from "./actions";
+import { changePlan, openBillingPortal } from "./actions";
 
 export default async function BillingPage() {
   const supabase = await createClient();
@@ -27,6 +28,9 @@ export default async function BillingPage() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       <Suspense fallback={null}>
         <CheckoutReturnToast />
+      </Suspense>
+      <Suspense fallback={null}>
+        <BackToProjectLink />
       </Suspense>
 
       <div>
@@ -66,18 +70,16 @@ export default async function BillingPage() {
                   </li>
                 ))}
               </ul>
-              {item.id !== "free" && (
-                <form action={startCheckout.bind(null, item.id)}>
-                  <SubmitButton
-                    className="w-full"
-                    variant={isCurrent ? "outline" : "default"}
-                    disabled={isCurrent || (item.id === "solo" && plan === "team")}
-                    pendingText="Redirection..."
-                  >
-                    {isCurrent ? "Plan actuel" : `Passer à ${PLAN_LABEL[item.id]}`}
-                  </SubmitButton>
-                </form>
-              )}
+              <form action={changePlan.bind(null, item.id)}>
+                <SubmitButton
+                  className="w-full"
+                  variant={isCurrent ? "outline" : "default"}
+                  disabled={isCurrent}
+                  pendingText="Redirection..."
+                >
+                  {isCurrent ? "Plan actuel" : `Passer à ${PLAN_LABEL[item.id]}`}
+                </SubmitButton>
+              </form>
             </div>
           );
         })}
@@ -86,7 +88,7 @@ export default async function BillingPage() {
       {profile?.stripe_customer_id && (
         <form action={openBillingPortal}>
           <SubmitButton variant="outline" pendingText="Redirection...">
-            Gérer mon abonnement
+            Gérer mon abonnement (factures, moyen de paiement, résiliation)
           </SubmitButton>
         </form>
       )}

@@ -17,10 +17,33 @@ export const STRIPE_PRICE_IDS: Record<"solo" | "team", string | undefined> = {
   team: process.env.STRIPE_PRICE_TEAM,
 };
 
-// 1 token pack = 1000 tokens, one-time payment, independent of the
-// subscription plan — see src/lib/scan.ts (1 token spent per page scanned).
-export const TOKENS_PER_PACK = 1000;
-export const STRIPE_PRICE_TOKENS_1000 = process.env.STRIPE_PRICE_TOKENS_1000;
+// Token packs: one-time payment, independent of the subscription plan —
+// see src/lib/scan.ts (1 token spent per page scanned).
+export type TokenPackId = "500" | "1000" | "5000";
+
+export const TOKEN_PACKS: Record<
+  TokenPackId,
+  { tokens: number; priceLabel: string; priceId: string | undefined; blurb: string }
+> = {
+  "500": {
+    tokens: 500,
+    priceLabel: "3€",
+    priceId: process.env.STRIPE_PRICE_TOKENS_500,
+    blurb: "Pour scanner ponctuellement un petit site.",
+  },
+  "1000": {
+    tokens: 1000,
+    priceLabel: "5€",
+    priceId: process.env.STRIPE_PRICE_TOKENS_1000,
+    blurb: "Quelques scans réguliers sur vos projets.",
+  },
+  "5000": {
+    tokens: 5000,
+    priceLabel: "20€",
+    priceId: process.env.STRIPE_PRICE_TOKENS_5000,
+    blurb: "Usage intensif, plusieurs sites ou audits fréquents.",
+  },
+};
 
 export function planFromPriceId(priceId?: string | null): "solo" | "team" | null {
   if (priceId && priceId === process.env.STRIPE_PRICE_SOLO) return "solo";

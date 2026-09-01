@@ -7,6 +7,7 @@ import { advanceSiteScans } from "@/lib/scan";
 type DueProjectRow = {
   id: string;
   last_checked_at: string | null;
+  paused: boolean;
   profiles: { plan: Plan } | null;
 };
 
@@ -21,13 +22,14 @@ export async function GET(request: Request) {
 
   const { data: projects, error } = await supabase
     .from("projects")
-    .select("id, last_checked_at, profiles(plan)");
+    .select("id, last_checked_at, paused, profiles(plan)");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   const dueProjectIds = ((projects ?? []) as unknown as DueProjectRow[])
+    .filter((project) => !project.paused)
     .filter((project) => {
       const plan = project.profiles?.plan ?? "free";
       const intervalMs = getPlanLimits(plan).intervalMinutes * 60_000;

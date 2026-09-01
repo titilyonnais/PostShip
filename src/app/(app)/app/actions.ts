@@ -91,6 +91,52 @@ export async function renameProject(
   return { success: "Nom mis à jour." };
 }
 
+export async function updateProjectBaseUrl(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = httpsUrlSchema.safeParse(formData.get("base_url"));
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "URL invalide." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ base_url: parsed.data })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}`);
+  revalidatePath("/app");
+  return { success: "URL de base mise à jour." };
+}
+
+export async function toggleProjectPause(
+  projectId: string,
+  paused: boolean,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ paused: !paused })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}`);
+  revalidatePath("/app");
+  return {
+    success: paused
+      ? "Projet réactivé — les vérifications automatiques reprennent."
+      : "Mode maintenance activé — vérifications automatiques et alertes suspendues.",
+  };
+}
+
 export async function deleteProject(projectId: string) {
   const supabase = await createClient();
   await supabase.from("projects").delete().eq("id", projectId);
