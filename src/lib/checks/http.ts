@@ -15,29 +15,30 @@ export type HttpCheckTarget = {
   expect_not_contains: string | null;
 };
 
+// title/description/canonical are informational only — plenty of
+// legitimate pages skip them, so their absence alone must not flip the
+// outcome to "fail" (verified live: example.com always lacks them, which
+// would otherwise make every check against it fail forever). Only a
+// genuinely broken condition — invalid JSON-LD — counts as a failure.
 function extractHtmlMeta(html: string) {
-  const missing: string[] = [];
   let root;
   try {
     root = parseHtml(html);
   } catch {
-    return { missing: ["html_unparsable"], meta: {} };
+    return { failing: ["html_unparsable"], meta: {} };
   }
 
   const title = root.querySelector("title")?.text.trim() || null;
-  if (!title) missing.push("title");
 
   const description =
     root
       .querySelector('meta[name="description" i]')
       ?.getAttribute("content")
       ?.trim() || null;
-  if (!description) missing.push("meta_description");
 
   const canonical =
     root.querySelector('link[rel="canonical" i]')?.getAttribute("href") ||
     null;
-  if (!canonical) missing.push("canonical");
 
   const robots =
     root.querySelector('meta[name="robots" i]')?.getAttribute("content") ||
@@ -46,19 +47,24 @@ function extractHtmlMeta(html: string) {
   const jsonLdScripts = root.querySelectorAll(
     'script[type="application/ld+json"]',
   );
-  const jsonLdErrors: string[] = [];
+  const failing: string[] = [];
   for (const script of jsonLdScripts) {
     try {
       JSON.parse(script.textContent);
     } catch {
-      jsonLdErrors.push("json_ld_syntax_error");
+      failing.push("json_ld_syntax_error");
     }
   }
-  if (jsonLdErrors.length > 0) missing.push(...jsonLdErrors);
 
   return {
-    missing,
-    meta: { title, description, canonical, robots, jsonLdCount: jsonLdScripts.length },
+    failing,
+    meta: {
+      title,
+      description,
+      canonical,
+      robots,
+      jsonLdCount: jsonLdScripts.length,
+    },
   };
 }
 
@@ -114,7 +120,7 @@ export async function runHttpCheck(
     let htmlMeta: ReturnType<typeof extractHtmlMeta> | null = null;
     if (contentType.includes("text/html")) {
       htmlMeta = extractHtmlMeta(bodyText);
-      missing.push(...htmlMeta.missing);
+      missing.push(...htmlMeta.failing);
     }
 
     const statusOk = response.status === target.expect_status;
