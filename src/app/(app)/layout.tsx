@@ -1,8 +1,7 @@
-import Link from "next/link";
-import { Logo } from "@/components/logo";
+import { redirect } from "next/navigation";
+import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { avatarUrl } from "@/lib/avatar";
 import { createClient } from "@/lib/db/server";
-import { UserMenu } from "./user-menu";
 
 export default async function AppLayout({
   children,
@@ -14,13 +13,19 @@ export default async function AppLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = user
-    ? await supabase
-        .from("profiles")
-        .select("username, display_name, email, avatar_seed")
-        .eq("id", user.id)
-        .single()
-    : { data: null };
+  if (!user) redirect("/login");
+
+  const [{ data: profile }, { data: projects }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("username, display_name, email, avatar_seed")
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("projects")
+      .select("id, name, base_url, last_status")
+      .order("created_at"),
+  ]);
 
   return (
     <div className="min-h-screen">
@@ -30,33 +35,18 @@ export default async function AppLayout({
       >
         Aller au contenu
       </a>
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <div className="flex items-center gap-6">
-          <Link href="/app">
-            <Logo />
-          </Link>
-          {user && (
-            <nav aria-label="Principale" className="flex items-center gap-4">
-              <Link
-                href="/app"
-                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Projets
-              </Link>
-            </nav>
-          )}
-        </div>
-        {user && (
-          <UserMenu
-            displayName={
-              profile?.username || profile?.display_name || user.email || "Compte"
-            }
-            email={profile?.email ?? user.email ?? ""}
-            avatarUrl={avatarUrl(profile?.avatar_seed ?? user.id)}
-          />
-        )}
-      </header>
-      <main id="main" className="p-6">
+
+      <AppSidebar
+        projects={projects ?? []}
+        profile={{
+          displayName:
+            profile?.username || profile?.display_name || user.email || "Compte",
+          email: profile?.email ?? user.email ?? "",
+          avatarUrl: avatarUrl(profile?.avatar_seed ?? user.id),
+        }}
+      />
+
+      <main id="main" className="p-6 md:ml-60">
         {children}
       </main>
     </div>

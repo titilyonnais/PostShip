@@ -32,6 +32,7 @@ export async function startSiteScan(
   if ("error" in result) return { error: result.error };
 
   revalidatePath(`/app/${projectId}`);
+  revalidatePath(`/app/${projectId}/scans`);
   return {
     success: "Scan lancé — les résultats arrivent progressivement.",
   };

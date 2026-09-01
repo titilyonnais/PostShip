@@ -51,11 +51,11 @@ export default async function ScanReportPage({
 
       <div className="flex flex-col gap-1">
         <Link
-          href={`/app/${projectId}`}
+          href={`/app/${projectId}/scans`}
           className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-3" aria-hidden="true" />
-          Retour au projet
+          Retour aux scans
         </Link>
         <h1 className="flex items-center gap-2 font-mono text-lg">
           <ScanSearch className="size-4 text-muted-foreground" aria-hidden="true" />
