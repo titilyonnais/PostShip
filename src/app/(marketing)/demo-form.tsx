@@ -47,7 +47,11 @@ export function DemoForm() {
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 sm:flex-row sm:items-center"
     >
+      <label htmlFor="demo-url" className="sr-only">
+        URL à vérifier
+      </label>
       <Input
+        id="demo-url"
         type="url"
         pattern="https://.*"
         placeholder="https://votre-site.com"
@@ -55,15 +59,25 @@ export function DemoForm() {
         onChange={(event) => setUrl(event.target.value)}
         required
         className="flex-1"
+        aria-describedby={error ? "demo-error" : undefined}
       />
       <Button type="submit" disabled={pending}>
         {pending ? "Vérification..." : "Tester une URL"}
       </Button>
       {error && (
-        <p className="text-sm text-destructive sm:basis-full">{error}</p>
+        <p
+          id="demo-error"
+          role="alert"
+          className="text-sm text-destructive sm:basis-full"
+        >
+          {error}
+        </p>
       )}
       {result && (
-        <p className="text-sm text-muted-foreground sm:basis-full">
+        <p
+          role="status"
+          className="text-sm text-muted-foreground sm:basis-full"
+        >
           {result.outcome === "pass" ? "✅" : "🔴"} statut{" "}
           {result.http_status ?? "—"} ·{" "}
           {result.ttfb_ms != null ? `${result.ttfb_ms} ms` : "—"}

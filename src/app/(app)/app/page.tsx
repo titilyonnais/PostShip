@@ -18,8 +18,18 @@ export default async function AppHomePage({
 
   return (
     <div className="flex flex-col gap-6">
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {success && <p className="text-sm text-emerald-500">{success}</p>}
+      <h1 className="text-lg font-semibold">Projets</h1>
+
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p role="status" className="text-sm text-[#3fb950]">
+          {success}
+        </p>
+      )}
 
       <CreateProjectForm />
 
@@ -29,7 +39,7 @@ export default async function AppHomePage({
             <li key={project.id}>
               <Link
                 href={`/app/${project.id}`}
-                className="flex items-center justify-between border border-border px-4 py-3 hover:border-foreground/30"
+                className="flex items-center justify-between rounded-md border border-border px-4 py-3 transition-colors hover:border-foreground/30"
               >
                 <div>
                   <p className="text-sm font-medium">{project.name}</p>

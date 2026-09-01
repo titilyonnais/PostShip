@@ -33,8 +33,16 @@ export default async function AccountPage({
 
   return (
     <div className="flex flex-col gap-6">
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {success && <p className="text-sm text-emerald-500">{success}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p role="status" className="text-sm text-[#3fb950]">
+          {success}
+        </p>
+      )}
 
       <div>
         <h1 className="text-lg font-semibold">Compte</h1>
@@ -44,19 +52,25 @@ export default async function AccountPage({
         </p>
       </div>
 
-      <form action={updateDisplayName} className="flex max-w-sm gap-2">
-        <Input
-          name="display_name"
-          defaultValue={profile?.display_name ?? ""}
-          placeholder="Nom affiché (optionnel)"
-        />
+      <form action={updateDisplayName} className="flex max-w-sm items-end gap-2">
+        <div className="flex flex-1 flex-col gap-1">
+          <label htmlFor="display-name" className="text-xs text-muted-foreground">
+            Nom affiché
+          </label>
+          <Input
+            id="display-name"
+            name="display_name"
+            defaultValue={profile?.display_name ?? ""}
+            placeholder="Optionnel"
+          />
+        </div>
         <SubmitButton variant="outline" pendingText="Enregistrement...">
           Enregistrer
         </SubmitButton>
       </form>
 
-      <div className="flex flex-col gap-2 border border-border p-4">
-        <h2 className="text-sm font-medium text-muted-foreground">
+      <div className="flex flex-col gap-2 rounded-md border border-border p-4">
+        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Zone dangereuse
         </h2>
         <p className="text-xs text-muted-foreground">

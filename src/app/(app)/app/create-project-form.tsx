@@ -16,7 +16,7 @@ export function CreateProjectForm() {
   return (
     <form
       action={formAction}
-      className="flex flex-col gap-3 border border-border p-4 sm:flex-row sm:items-end"
+      className="flex flex-col gap-3 rounded-md border border-border p-4 sm:flex-row sm:items-end"
     >
       <div className="flex flex-1 flex-col gap-1">
         <label htmlFor="name" className="text-xs text-muted-foreground">
@@ -41,7 +41,7 @@ export function CreateProjectForm() {
         {pending ? "Création..." : "Créer le projet"}
       </Button>
       {state.error && (
-        <p className="text-sm text-destructive sm:basis-full">
+        <p role="alert" className="text-sm text-destructive sm:basis-full">
           {state.error}
         </p>
       )}

@@ -25,7 +25,11 @@ export function LoginForm() {
         </p>
       ) : (
         <form action={formAction} className="flex flex-col gap-3">
+          <label htmlFor="email" className="sr-only">
+            Adresse email
+          </label>
           <Input
+            id="email"
             type="email"
             name="email"
             placeholder="vous@exemple.com"

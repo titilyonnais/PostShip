@@ -72,7 +72,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.375rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -84,37 +84,40 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* GitHub/Vercel-inspired operational dark theme — cool near-black, not
+     shadcn's default grayscale. See docs/ARCHITECTURE.md for the product's
+     "dark operational UI, no purple" rule this derives from. */
+  --background: #0a0c0e;
+  --foreground: #e6e8eb;
+  --card: #101317;
+  --card-foreground: #e6e8eb;
+  --popover: #101317;
+  --popover-foreground: #e6e8eb;
+  --primary: #e6e8eb;
+  --primary-foreground: #0a0c0e;
+  --secondary: #161a1f;
+  --secondary-foreground: #e6e8eb;
+  --muted: #161a1f;
+  --muted-foreground: #8b949e;
+  --accent: #161a1f;
+  --accent-foreground: #e6e8eb;
+  --destructive: #f85149;
+  --border: #21262d;
+  --input: #21262d;
+  --ring: #58a6ff;
+  --chart-1: #3fb950;
+  --chart-2: #58a6ff;
+  --chart-3: #d29922;
+  --chart-4: #f85149;
+  --chart-5: #8b949e;
+  --sidebar: #101317;
+  --sidebar-foreground: #e6e8eb;
+  --sidebar-primary: #e6e8eb;
+  --sidebar-primary-foreground: #0a0c0e;
+  --sidebar-accent: #161a1f;
+  --sidebar-accent-foreground: #e6e8eb;
+  --sidebar-border: #21262d;
+  --sidebar-ring: #58a6ff;
 }
 
 @layer base {

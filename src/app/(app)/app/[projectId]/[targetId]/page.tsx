@@ -38,7 +38,7 @@ export default async function TargetPage({
       <div className="flex flex-col gap-1">
         <Link
           href={`/app/${projectId}`}
-          className="text-xs text-muted-foreground underline"
+          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           ← Retour au projet
         </Link>
@@ -49,7 +49,7 @@ export default async function TargetPage({
         {(runs ?? []).map((run) => {
           const details = (run.details ?? {}) as CheckRunDetails;
           return (
-            <li key={run.id} className="border border-border p-3">
+            <li key={run.id} className="rounded-md border border-border p-3">
               <div className="flex items-center justify-between">
                 <StatusDot status={run.outcome} />
                 <span className="text-xs text-muted-foreground">
@@ -74,7 +74,7 @@ export default async function TargetPage({
                     <p className="text-destructive">{details.error}</p>
                   )}
                   {details.bodyExcerpt && (
-                    <pre className="overflow-x-auto whitespace-pre-wrap border border-border p-2 text-muted-foreground">
+                    <pre className="overflow-x-auto whitespace-pre-wrap rounded-md border border-border bg-secondary p-2 text-muted-foreground">
                       {details.bodyExcerpt}
                     </pre>
                   )}

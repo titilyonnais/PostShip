@@ -23,7 +23,11 @@ export function AddTargetForm({ projectId }: { projectId: string }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-2 sm:flex-row">
+      <label htmlFor="target-url" className="sr-only">
+        URL à surveiller
+      </label>
       <Input
+        id="target-url"
         name="url"
         type="url"
         pattern="https://.*"
@@ -31,10 +35,14 @@ export function AddTargetForm({ projectId }: { projectId: string }) {
         required
         className="flex-1"
       />
+      <label htmlFor="target-kind" className="sr-only">
+        Type de vérification
+      </label>
       <select
+        id="target-kind"
         name="kind"
         defaultValue="http"
-        className="h-8 rounded-lg border border-border bg-background px-2 text-sm"
+        className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         {KIND_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
@@ -46,7 +54,7 @@ export function AddTargetForm({ projectId }: { projectId: string }) {
         {pending ? "Ajout..." : "Ajouter une URL"}
       </Button>
       {state.error && (
-        <p className="text-sm text-destructive sm:basis-full">
+        <p role="alert" className="text-sm text-destructive sm:basis-full">
           {state.error}
         </p>
       )}

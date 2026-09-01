@@ -72,11 +72,19 @@ export default async function ProjectPage({
     pct === null ? "—" : `${pct.toFixed(1)}%`;
 
   return (
-    <div className="flex flex-col gap-6">
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {success && <p className="text-sm text-emerald-500">{success}</p>}
+    <div className="flex flex-col gap-8">
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p role="status" className="text-sm text-[#3fb950]">
+          {success}
+        </p>
+      )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-lg font-semibold">{project.name}</h1>
           <p className="font-mono text-sm text-muted-foreground">
@@ -87,7 +95,7 @@ export default async function ProjectPage({
             {formatPct(uptime.pct7d)} · 30j : {formatPct(uptime.pct30d)}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <form action={runProjectNow.bind(null, project.id)}>
             <SubmitButton pendingText="Vérification en cours...">
               Lancer maintenant
@@ -103,16 +111,21 @@ export default async function ProjectPage({
 
       <form
         action={renameProject.bind(null, project.id)}
-        className="flex max-w-sm gap-2"
+        className="flex max-w-sm items-end gap-2"
       >
-        <Input name="name" defaultValue={project.name} />
+        <div className="flex flex-1 flex-col gap-1">
+          <label htmlFor="project-name" className="text-xs text-muted-foreground">
+            Nom du projet
+          </label>
+          <Input id="project-name" name="name" defaultValue={project.name} />
+        </div>
         <SubmitButton variant="outline" pendingText="...">
           Renommer
         </SubmitButton>
       </form>
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-muted-foreground">
+        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           URLs surveillées
         </h2>
 
@@ -121,18 +134,18 @@ export default async function ProjectPage({
             {targets.map((target) => (
               <li
                 key={target.id}
-                className="flex items-center justify-between border border-border px-3 py-2"
+                className="flex items-center justify-between rounded-md border border-border px-3 py-2"
               >
                 <Link
                   href={`/app/${projectId}/${target.id}`}
-                  className="flex items-center gap-2 font-mono text-sm hover:underline"
+                  className="flex min-w-0 items-center gap-2 font-mono text-sm hover:underline"
                 >
-                  <span className="text-xs text-muted-foreground">
+                  <span className="shrink-0 text-xs text-muted-foreground">
                     [{target.kind}]
                   </span>
-                  {target.url}
+                  <span className="truncate">{target.url}</span>
                 </Link>
-                <div className="flex items-center gap-3">
+                <div className="flex shrink-0 items-center gap-3">
                   <StatusDot
                     status={latestOutcomeByTarget.get(target.id) ?? null}
                   />
@@ -149,6 +162,7 @@ export default async function ProjectPage({
                   >
                     <SubmitButton size="sm" variant="ghost" pendingText="...">
                       {target.enabled ? "Désactiver" : "Activer"}
+                      <span className="sr-only"> {target.url}</span>
                     </SubmitButton>
                   </form>
                 </div>
@@ -165,8 +179,8 @@ export default async function ProjectPage({
       </div>
 
       {hasDiscord && (
-        <div className="flex flex-col gap-2 border border-border p-4">
-          <h2 className="text-sm font-medium text-muted-foreground">
+        <div className="flex flex-col gap-2 rounded-md border border-border p-4">
+          <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             Alertes Discord
           </h2>
           <p className="text-xs text-muted-foreground">
@@ -178,11 +192,16 @@ export default async function ProjectPage({
             action={setDiscordWebhook.bind(null, projectId)}
             className="flex max-w-sm gap-2"
           >
+            <label htmlFor="discord-webhook" className="sr-only">
+              URL du webhook Discord
+            </label>
             <Input
+              id="discord-webhook"
               name="discord_webhook_url"
               type="url"
               defaultValue={project.discord_webhook_url ?? ""}
               placeholder="https://discord.com/api/webhooks/..."
+              className="flex-1"
             />
             <SubmitButton variant="outline" pendingText="Enregistrement...">
               Enregistrer
@@ -192,28 +211,38 @@ export default async function ProjectPage({
       )}
 
       {hasVercelHook && (
-        <div className="flex flex-col gap-2 border border-border p-4">
-          <h2 className="text-sm font-medium text-muted-foreground">
+        <div className="flex flex-col gap-2 rounded-md border border-border p-4">
+          <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             Webhook Vercel
           </h2>
           <p className="text-xs text-muted-foreground">
             Dans Vercel, créez un webhook sur l&apos;événement{" "}
-            <code className="font-mono">deployment.ready</code> pointant vers
-            l&apos;URL ci-dessous, puis collez le secret généré par Vercel.
+            <code className="rounded-sm bg-secondary px-1 py-0.5 font-mono">
+              deployment.ready
+            </code>{" "}
+            pointant vers l&apos;URL ci-dessous, puis collez le secret généré
+            par Vercel.
           </p>
-          <p className="break-all font-mono text-xs text-muted-foreground">
+          <p className="break-all rounded-sm bg-secondary px-2 py-1 font-mono text-xs text-muted-foreground">
             {process.env.NEXT_PUBLIC_APP_URL}/api/vercel/deploy/{projectId}
           </p>
           <form
             action={setVercelHookSecret.bind(null, projectId)}
             className="flex max-w-sm gap-2"
           >
+            <label htmlFor="vercel-secret" className="sr-only">
+              Secret du webhook Vercel
+            </label>
             <Input
+              id="vercel-secret"
               name="vercel_hook_secret"
               type="password"
               placeholder={
-                project.vercel_hook_secret ? "•••••••• (déjà configuré)" : "Secret Vercel"
+                project.vercel_hook_secret
+                  ? "•••••••• (déjà configuré)"
+                  : "Secret Vercel"
               }
+              className="flex-1"
             />
             <SubmitButton variant="outline" pendingText="Enregistrement...">
               Enregistrer
