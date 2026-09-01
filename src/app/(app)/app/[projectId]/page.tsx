@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
+import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { deleteProject, renameProject } from "../actions";
 import { AddTargetForm } from "./add-target-form";
-import { toggleTarget } from "./actions";
+import { runProjectNow, setVercelHookSecret, toggleTarget } from "./actions";
 
 export default async function ProjectPage({
   params,
@@ -27,6 +28,17 @@ export default async function ProjectPage({
     .single();
 
   if (!project) notFound();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("plan")
+    .eq("id", user?.id)
+    .single();
+  const plan = (profile?.plan as Plan) ?? "free";
+  const hasVercelHook = getPlanLimits(plan).vercelHook;
 
   const { data: targets } = await supabase
     .from("check_targets")
@@ -59,11 +71,16 @@ export default async function ProjectPage({
             {project.base_url}
           </p>
         </div>
-        <form action={deleteProject.bind(null, project.id)}>
-          <Button type="submit" variant="outline">
-            Supprimer le projet
-          </Button>
-        </form>
+        <div className="flex gap-2">
+          <form action={runProjectNow.bind(null, project.id)}>
+            <Button type="submit">Lancer maintenant</Button>
+          </form>
+          <form action={deleteProject.bind(null, project.id)}>
+            <Button type="submit" variant="outline">
+              Supprimer le projet
+            </Button>
+          </form>
+        </div>
       </div>
 
       <form
@@ -128,6 +145,37 @@ export default async function ProjectPage({
 
         <AddTargetForm projectId={projectId} />
       </div>
+
+      {hasVercelHook && (
+        <div className="flex flex-col gap-2 border border-border p-4">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Webhook Vercel
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Dans Vercel, créez un webhook sur l&apos;événement{" "}
+            <code className="font-mono">deployment.ready</code> pointant vers
+            l&apos;URL ci-dessous, puis collez le secret généré par Vercel.
+          </p>
+          <p className="break-all font-mono text-xs text-muted-foreground">
+            {process.env.NEXT_PUBLIC_APP_URL}/api/vercel/deploy/{projectId}
+          </p>
+          <form
+            action={setVercelHookSecret.bind(null, projectId)}
+            className="flex max-w-sm gap-2"
+          >
+            <Input
+              name="vercel_hook_secret"
+              type="password"
+              placeholder={
+                project.vercel_hook_secret ? "•••••••• (déjà configuré)" : "Secret Vercel"
+              }
+            />
+            <Button type="submit" variant="outline">
+              Enregistrer
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

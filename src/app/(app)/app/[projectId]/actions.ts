@@ -5,9 +5,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { runProjectChecks } from "@/lib/runner";
 import { httpsUrlSchema } from "@/lib/validation";
 
 const TARGET_KINDS = ["http", "og", "sitemap", "ssl", "stripe_health"] as const;
+const RUN_NOW_COOLDOWN_MS = 30_000;
 
 const addTargetSchema = z.object({
   url: httpsUrlSchema,
@@ -86,6 +88,77 @@ export async function addTarget(
 
   revalidatePath(`/app/${projectId}`);
   return { error: null };
+}
+
+export async function runProjectNow(projectId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id, last_checked_at")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) {
+    redirect(
+      `/app/${projectId}?error=${encodeURIComponent("Projet introuvable.")}`,
+    );
+  }
+
+  if (project.last_checked_at) {
+    const elapsedMs = Date.now() - new Date(project.last_checked_at).getTime();
+    if (elapsedMs < RUN_NOW_COOLDOWN_MS) {
+      const waitSeconds = Math.ceil((RUN_NOW_COOLDOWN_MS - elapsedMs) / 1000);
+      redirect(
+        `/app/${projectId}?error=${encodeURIComponent(`Patientez ${waitSeconds}s avant de relancer.`)}`,
+      );
+    }
+  }
+
+  try {
+    await runProjectChecks(projectId);
+  } catch (err) {
+    redirect(
+      `/app/${projectId}?error=${encodeURIComponent(
+        err instanceof Error ? err.message : "Erreur pendant l'exécution.",
+      )}`,
+    );
+  }
+
+  revalidatePath(`/app/${projectId}`);
+  revalidatePath("/app");
+}
+
+export async function setVercelHookSecret(
+  projectId: string,
+  formData: FormData,
+) {
+  const parsed = z
+    .string()
+    .trim()
+    .min(1, "Secret invalide.")
+    .safeParse(formData.get("vercel_hook_secret"));
+
+  if (!parsed.success) {
+    redirect(`/app/${projectId}?error=${encodeURIComponent("Secret invalide.")}`);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ vercel_hook_secret: parsed.data })
+    .eq("id", projectId);
+
+  if (error) {
+    redirect(`/app/${projectId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/app/${projectId}`);
 }
 
 export async function toggleTarget(
