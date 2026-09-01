@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { getUptimeStats } from "@/lib/uptime";
 import { deleteProject, renameProject } from "../actions";
 import { AddTargetForm } from "./add-target-form";
 import {
@@ -66,6 +67,10 @@ export default async function ProjectPage({
     }
   }
 
+  const uptime = await getUptimeStats(supabase, projectId);
+  const formatPct = (pct: number | null) =>
+    pct === null ? "—" : `${pct.toFixed(1)}%`;
+
   return (
     <div className="flex flex-col gap-6">
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -75,6 +80,10 @@ export default async function ProjectPage({
           <h1 className="text-lg font-semibold">{project.name}</h1>
           <p className="font-mono text-sm text-muted-foreground">
             {project.base_url}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Disponibilité — 24h : {formatPct(uptime.pct24h)} · 7j :{" "}
+            {formatPct(uptime.pct7d)} · 30j : {formatPct(uptime.pct30d)}
           </p>
         </div>
         <div className="flex gap-2">
