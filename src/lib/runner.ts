@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/db/service";
 import { runHttpCheck } from "@/lib/checks/http";
+import { runOgCheck } from "@/lib/checks/og";
+import { runSitemapCheck } from "@/lib/checks/sitemap";
+import { runSslCheck } from "@/lib/checks/ssl";
+import { runStripeHealthCheck } from "@/lib/checks/stripe-health";
+import { computeFingerprint, type CheckResult } from "@/lib/checks/shared";
 import { runWithConcurrencyLimit } from "@/lib/concurrency";
 import { dispatchAlerts, shouldSendFailAlert, type AlertItem } from "@/lib/alerts";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
@@ -29,26 +34,57 @@ async function runSingleTarget(
   supabase: SupabaseClient,
   projectId: string,
   target: CheckTargetRow,
+  ownerPlan: Plan,
 ): Promise<SingleTargetResult> {
   const startedAt = new Date().toISOString();
 
-  const result =
-    target.kind === "http"
-      ? await runHttpCheck({
-          url: target.url,
-          expect_status: target.expect_status,
-          expect_contains: target.expect_contains,
-          expect_not_contains: target.expect_not_contains,
-        })
-      : {
-          outcome: "error" as const,
+  let result: CheckResult;
+  switch (target.kind) {
+    case "http":
+      result = await runHttpCheck({
+        url: target.url,
+        expect_status: target.expect_status,
+        expect_contains: target.expect_contains,
+        expect_not_contains: target.expect_not_contains,
+      });
+      break;
+    case "og":
+      result = await runOgCheck({ url: target.url });
+      break;
+    case "sitemap":
+      result = await runSitemapCheck({ url: target.url });
+      break;
+    case "ssl":
+      result = await runSslCheck({ url: target.url });
+      break;
+    case "stripe_health": {
+      if (!getPlanLimits(ownerPlan).stripeHealth) {
+        const details = { error: "Le plan actuel n'inclut pas Stripe health." };
+        result = {
+          outcome: "error",
           http_status: null,
           ttfb_ms: null,
-          details: {
-            error: `Type de check "${target.kind}" pas encore implémenté.`,
-          },
-          fingerprint: `error|unimplemented:${target.kind}`,
+          details,
+          fingerprint: computeFingerprint("error", null, details),
         };
+        break;
+      }
+      result = await runStripeHealthCheck({ url: target.url });
+      break;
+    }
+    default: {
+      const details = {
+        error: `Type de check "${target.kind}" inconnu.`,
+      };
+      result = {
+        outcome: "error",
+        http_status: null,
+        ttfb_ms: null,
+        details,
+        fingerprint: computeFingerprint("error", null, details),
+      };
+    }
+  }
 
   await supabase.from("check_runs").insert({
     target_id: target.id,
@@ -115,10 +151,12 @@ export async function runProjectChecks(projectId: string) {
     }
   }
 
+  const ownerPlan = owner?.plan ?? "free";
+
   const results = await runWithConcurrencyLimit(
     (targets ?? []) as CheckTargetRow[],
     MAX_CONCURRENCY_PER_PROJECT,
-    (target) => runSingleTarget(supabase, projectId, target),
+    (target) => runSingleTarget(supabase, projectId, target, ownerPlan),
   );
 
   const alertItems: AlertItem[] = [];
@@ -166,7 +204,7 @@ export async function runProjectChecks(projectId: string) {
         name: project.name,
         discord_webhook_url: project.discord_webhook_url,
         ownerEmail: owner?.email ?? null,
-        ownerPlanAllowsDiscord: getPlanLimits(owner?.plan ?? "free").discord,
+        ownerPlanAllowsDiscord: getPlanLimits(ownerPlan).discord,
       },
       alertItems,
     );

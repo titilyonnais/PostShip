@@ -7,7 +7,12 @@ import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { httpsUrlSchema } from "@/lib/validation";
 
-const addTargetSchema = z.object({ url: httpsUrlSchema });
+const TARGET_KINDS = ["http", "og", "sitemap", "ssl", "stripe_health"] as const;
+
+const addTargetSchema = z.object({
+  url: httpsUrlSchema,
+  kind: z.enum(TARGET_KINDS).default("http"),
+});
 
 export type TargetFormState = { error: string | null };
 
@@ -16,7 +21,10 @@ export async function addTarget(
   _prevState: TargetFormState,
   formData: FormData,
 ): Promise<TargetFormState> {
-  const parsed = addTargetSchema.safeParse({ url: formData.get("url") });
+  const parsed = addTargetSchema.safeParse({
+    url: formData.get("url"),
+    kind: formData.get("kind") || undefined,
+  });
 
   if (!parsed.success) {
     return {
@@ -60,9 +68,16 @@ export async function addTarget(
     };
   }
 
+  if (parsed.data.kind === "stripe_health" && !limits.stripeHealth) {
+    return {
+      error: "Stripe health n'est disponible qu'avec le plan Team.",
+    };
+  }
+
   const { error } = await supabase.from("check_targets").insert({
     project_id: projectId,
     url: parsed.data.url,
+    kind: parsed.data.kind,
   });
 
   if (error) {

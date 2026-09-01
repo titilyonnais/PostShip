@@ -90,8 +90,11 @@ export default async function ProjectPage({
               >
                 <Link
                   href={`/app/${projectId}/${target.id}`}
-                  className="font-mono text-sm hover:underline"
+                  className="flex items-center gap-2 font-mono text-sm hover:underline"
                 >
+                  <span className="text-xs text-muted-foreground">
+                    [{target.kind}]
+                  </span>
                   {target.url}
                 </Link>
                 <div className="flex items-center gap-3">

@@ -1,9 +1,12 @@
-import { assertPublicHttpsUrl } from "@/lib/ssrf";
-
-const TIMEOUT_MS = 12_000;
-const MAX_REDIRECTS = 5;
-const MAX_BODY_BYTES = 512 * 1024;
-const USER_AGENT = "PostShipBot/0.1 (+https://postship.fr)";
+import { parse as parseHtml } from "node-html-parser";
+import {
+  computeFingerprint,
+  guardedFetch,
+  MAX_BODY_BYTES,
+  readBodyCapped,
+  TIMEOUT_MS,
+  type CheckResult,
+} from "@/lib/checks/shared";
 
 export type HttpCheckTarget = {
   url: string;
@@ -12,117 +15,81 @@ export type HttpCheckTarget = {
   expect_not_contains: string | null;
 };
 
-export type HttpCheckResult = {
-  outcome: "pass" | "fail" | "error";
-  http_status: number | null;
-  ttfb_ms: number | null;
-  details: Record<string, unknown>;
-  fingerprint: string;
-};
-
-// Identifies "the same kind of failure" for alert dedup — status + missing
-// fields, not the timestamp or TTFB (see docs/ARCHITECTURE.md — Alerts).
-function computeFingerprint(
-  outcome: HttpCheckResult["outcome"],
-  httpStatus: number | null,
-  details: Record<string, unknown>,
-): string {
-  if (outcome === "pass") return "pass";
-  const missing = Array.isArray(details.missing)
-    ? (details.missing as unknown[]).join(",")
-    : "";
-  const error = typeof details.error === "string" ? details.error : "";
-  return [outcome, httpStatus ?? "", missing, error].join("|");
-}
-
-async function readBodyCapped(
-  response: Response,
-  maxBytes: number,
-): Promise<{ text: string; truncated: boolean }> {
-  const reader = response.body?.getReader();
-  if (!reader) return { text: "", truncated: false };
-
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-  let truncated = false;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (!value) continue;
-
-    received += value.byteLength;
-    if (received > maxBytes) {
-      const keep = maxBytes - (received - value.byteLength);
-      if (keep > 0) chunks.push(value.slice(0, keep));
-      truncated = true;
-      await reader.cancel();
-      break;
-    }
-    chunks.push(value);
+function extractHtmlMeta(html: string) {
+  const missing: string[] = [];
+  let root;
+  try {
+    root = parseHtml(html);
+  } catch {
+    return { missing: ["html_unparsable"], meta: {} };
   }
 
-  const buffer = Buffer.concat(chunks.map((c) => Buffer.from(c)));
-  return { text: buffer.toString("utf-8"), truncated };
+  const title = root.querySelector("title")?.text.trim() || null;
+  if (!title) missing.push("title");
+
+  const description =
+    root
+      .querySelector('meta[name="description" i]')
+      ?.getAttribute("content")
+      ?.trim() || null;
+  if (!description) missing.push("meta_description");
+
+  const canonical =
+    root.querySelector('link[rel="canonical" i]')?.getAttribute("href") ||
+    null;
+  if (!canonical) missing.push("canonical");
+
+  const robots =
+    root.querySelector('meta[name="robots" i]')?.getAttribute("content") ||
+    null;
+
+  const jsonLdScripts = root.querySelectorAll(
+    'script[type="application/ld+json"]',
+  );
+  const jsonLdErrors: string[] = [];
+  for (const script of jsonLdScripts) {
+    try {
+      JSON.parse(script.textContent);
+    } catch {
+      jsonLdErrors.push("json_ld_syntax_error");
+    }
+  }
+  if (jsonLdErrors.length > 0) missing.push(...jsonLdErrors);
+
+  return {
+    missing,
+    meta: { title, description, canonical, robots, jsonLdCount: jsonLdScripts.length },
+  };
 }
 
 export async function runHttpCheck(
   target: HttpCheckTarget,
-): Promise<HttpCheckResult> {
+): Promise<CheckResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const started = Date.now();
 
   try {
-    let currentUrl = target.url;
-    let redirects = 0;
-    let response: Response;
+    const fetchResult = await guardedFetch(target.url, {
+      signal: controller.signal,
+    });
 
-    while (true) {
-      const guard = await assertPublicHttpsUrl(currentUrl);
-      if (!guard.ok) {
-        const details = { url: currentUrl, error: guard.reason, redirects };
-        return {
-          outcome: "error",
-          http_status: null,
-          ttfb_ms: null,
-          details,
-          fingerprint: computeFingerprint("error", null, details),
-        };
-      }
-
-      response = await fetch(currentUrl, {
-        redirect: "manual",
-        signal: controller.signal,
-        headers: { "User-Agent": USER_AGENT },
-      });
-
-      const isRedirect = response.status >= 300 && response.status < 400;
-      const location = response.headers.get("location");
-
-      if (isRedirect && location) {
-        redirects += 1;
-        if (redirects > MAX_REDIRECTS) {
-          const details = {
-            url: currentUrl,
-            error: "Boucle de redirection.",
-            redirects,
-          };
-          return {
-            outcome: "error",
-            http_status: response.status,
-            ttfb_ms: Date.now() - started,
-            details,
-            fingerprint: computeFingerprint("error", response.status, details),
-          };
-        }
-        currentUrl = new URL(location, currentUrl).toString();
-        continue;
-      }
-
-      break;
+    if (!fetchResult.ok) {
+      const details = {
+        url: target.url,
+        error: fetchResult.reason,
+        redirects: fetchResult.redirects,
+      };
+      return {
+        outcome: "error",
+        http_status: fetchResult.httpStatus,
+        ttfb_ms: fetchResult.httpStatus ? Date.now() - started : null,
+        details,
+        fingerprint: computeFingerprint("error", fetchResult.httpStatus, details),
+      };
     }
 
+    const { response, finalUrl, redirects } = fetchResult;
     const ttfbMs = Date.now() - started;
     const { text: bodyText, truncated } = await readBodyCapped(
       response,
@@ -143,15 +110,23 @@ export async function runHttpCheck(
       missing.push("expect_not_contains");
     }
 
+    const contentType = response.headers.get("content-type") ?? "";
+    let htmlMeta: ReturnType<typeof extractHtmlMeta> | null = null;
+    if (contentType.includes("text/html")) {
+      htmlMeta = extractHtmlMeta(bodyText);
+      missing.push(...htmlMeta.missing);
+    }
+
     const statusOk = response.status === target.expect_status;
     const outcome: "pass" | "fail" =
       statusOk && missing.length === 0 ? "pass" : "fail";
     const details = {
-      url: currentUrl,
+      url: finalUrl,
       redirects,
       bodyExcerpt: bodyText.slice(0, 500),
       bodyTruncated: truncated,
       missing,
+      meta: htmlMeta?.meta ?? null,
     };
 
     return {
