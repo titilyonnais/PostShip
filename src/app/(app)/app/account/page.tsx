@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
@@ -32,7 +33,7 @@ export default async function AccountPage({
   const plan = (profile?.plan as Plan) ?? "free";
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -69,8 +70,9 @@ export default async function AccountPage({
         </SubmitButton>
       </form>
 
-      <div className="flex flex-col gap-2 rounded-md border border-border p-4">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-4">
+        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-destructive uppercase">
+          <AlertTriangle className="size-3.5" aria-hidden="true" />
           Zone dangereuse
         </h2>
         <p className="text-xs text-muted-foreground">

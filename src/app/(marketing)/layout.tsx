@@ -14,7 +14,7 @@ export default function MarketingLayout({
         Aller au contenu
       </a>
       <header className="border-b border-border">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 sm:px-10">
           <Link
             href="/"
             className="font-mono text-sm font-medium tracking-tight text-foreground"
@@ -37,7 +37,7 @@ export default function MarketingLayout({
       </main>
 
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 px-6 py-6 text-xs text-muted-foreground sm:flex-row sm:justify-between">
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-6 py-6 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:px-10">
           <span>© {new Date().getFullYear()} PostShip</span>
           <nav aria-label="Légal" className="flex gap-4">
             <Link href="/privacy" className="hover:text-foreground">

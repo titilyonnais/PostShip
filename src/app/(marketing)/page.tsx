@@ -1,4 +1,11 @@
 import Link from "next/link";
+import {
+  Check,
+  Globe,
+  Link2,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { DemoForm } from "./demo-form";
 
@@ -17,26 +24,59 @@ const JSON_LD = {
   ],
 };
 
-const CHECKS = [
-  {
-    title: "HTTP & redirections",
-    desc: "Statut, TTFB, boucle de redirection détectée avant vos utilisateurs.",
-  },
-  {
-    title: "OG, sitemap & JSON-LD",
-    desc: "og:image accessible, sitemap.xml valide, JSON-LD sans erreur de syntaxe.",
-  },
-  {
-    title: "SSL & Stripe",
-    desc: "Certificat qui expire bientôt, page de succès Stripe cassée.",
-  },
-];
-
 const LOG_LINES = [
   { ok: true, path: "/", status: 200, meta: "142 ms" },
   { ok: true, path: "/checkout", status: 200, meta: "310 ms" },
   { ok: false, path: "og:image", status: 404, meta: null },
   { ok: true, path: "sitemap.xml", status: null, meta: "10 URLs" },
+];
+
+const STEPS = [
+  {
+    n: "1",
+    title: "Ajoutez l'URL de votre projet",
+    desc: "Le domaine de prod, plus les pages qui comptent : checkout, login, la home.",
+  },
+  {
+    n: "2",
+    title: "PostShip vérifie après chaque déploiement",
+    desc: "Sur le webhook Vercel dès que ça déploie, sinon toutes les 5 à 30 min selon votre plan.",
+  },
+  {
+    n: "3",
+    title: "Vous êtes alerté seulement si ça casse",
+    desc: "Discord et email groupés, avec le détail de ce qui a échoué. Rien si tout est vert.",
+  },
+];
+
+const CHECKS = [
+  {
+    icon: Link2,
+    title: "HTTP & redirections",
+    items: [
+      "Statut, TTFB, taille du corps",
+      "Boucle de redirection détectée",
+      "expect_contains / not_contains",
+    ],
+  },
+  {
+    icon: Globe,
+    title: "OG, sitemap & JSON-LD",
+    items: [
+      "og:image accessible (HEAD → 200)",
+      "sitemap.xml parsé, échantillonné",
+      "JSON-LD sans erreur de syntaxe",
+    ],
+  },
+  {
+    icon: ShieldCheck,
+    title: "SSL & Stripe",
+    items: [
+      "Certificat qui expire sous 14 jours",
+      "Page de succès Stripe cassée",
+      "Jamais de rejeu d'événement Stripe",
+    ],
+  },
 ];
 
 const PLANS: {
@@ -70,35 +110,38 @@ const PLANS: {
 
 export default function MarketingHomePage() {
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-20 px-6 py-16">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-24 px-6 py-16 sm:px-10">
       {/* Static, hardcoded JSON-LD — no user input reaches this. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
 
-      <section className="grid gap-8 sm:grid-cols-2 sm:items-center">
+      <section className="grid gap-10 sm:grid-cols-2 sm:items-center motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
         <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold tracking-tight text-balance">
+          <h1 className="text-4xl font-semibold tracking-tight text-balance">
             PostShip vérifie votre site après chaque déploiement
           </h1>
           <p className="max-w-md text-sm text-muted-foreground">
             Comme un utilisateur : statut HTTP, aperçu réseaux sociaux,
-            sitemap, SSL. Une alerte Discord et email si le checkout, l&apos;OG
-            ou le sitemap est cassé. Silence quand tout est vert.
+            sitemap, SSL. Une alerte Discord et email si le checkout,
+            l&apos;OG ou le sitemap est cassé. Silence quand tout est vert.
           </p>
-          <div>
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             <Link
               href="/login"
               className={buttonVariants({ variant: "default" })}
             >
               Commencer gratuitement
             </Link>
+            <span className="text-xs text-muted-foreground">
+              Gratuit jusqu&apos;à 3 URLs — aucune carte requise
+            </span>
           </div>
         </div>
 
         <div
-          className="rounded-md border border-border bg-card font-mono text-xs"
+          className="rounded-md border border-border bg-card font-mono text-xs shadow-[0_0_0_1px_rgba(255,255,255,0.02)]"
           role="img"
           aria-label="Exemple de résultat de vérification : deux pages en 200, l'image Open Graph en échec 404, sitemap valide avec 10 URLs, un échec détecté déclenche une alerte"
         >
@@ -111,8 +154,12 @@ export default function MarketingHomePage() {
             </span>
           </div>
           <div className="flex flex-col gap-1.5 px-3 py-3">
-            {LOG_LINES.map((line) => (
-              <div key={line.path} className="flex items-center gap-2">
+            {LOG_LINES.map((line, index) => (
+              <div
+                key={line.path}
+                className="flex items-center gap-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1"
+                style={{ animationDelay: `${400 + index * 120}ms` }}
+              >
                 <span
                   className={line.ok ? "text-[#3fb950]" : "text-[#f85149]"}
                   aria-hidden="true"
@@ -130,7 +177,10 @@ export default function MarketingHomePage() {
                 )}
               </div>
             ))}
-            <div className="mt-1 flex items-center gap-2 border-t border-border pt-2 text-[#d29922]">
+            <div
+              className="mt-1 flex items-center gap-2 border-t border-border pt-2 text-[#d29922] motion-safe:animate-in motion-safe:fade-in"
+              style={{ animationDelay: "900ms" }}
+            >
               <span
                 className="size-1.5 shrink-0 rounded-full bg-[#d29922] motion-safe:animate-pulse"
                 aria-hidden="true"
@@ -138,6 +188,30 @@ export default function MarketingHomePage() {
               1 échec détecté → Discord + email envoyés
             </div>
           </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="steps-heading" className="flex flex-col gap-8">
+        <h2
+          id="steps-heading"
+          className="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+        >
+          Comment ça marche
+        </h2>
+        <div className="grid gap-8 sm:grid-cols-3">
+          {STEPS.map((step, index) => (
+            <div
+              key={step.n}
+              className="flex flex-col gap-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <span className="font-mono text-2xl text-muted-foreground/50">
+                {step.n}
+              </span>
+              <h3 className="text-sm font-medium">{step.title}</h3>
+              <p className="text-xs text-muted-foreground">{step.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -149,15 +223,28 @@ export default function MarketingHomePage() {
           Ce que PostShip surveille
         </h2>
         <div className="grid gap-4 sm:grid-cols-3">
-          {CHECKS.map((check) => (
+          {CHECKS.map((check, index) => (
             <div
               key={check.title}
-              className="rounded-md border border-border p-4"
+              className="flex flex-col gap-3 rounded-md border border-border p-5 transition-colors duration-200 hover:border-foreground/25 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+              style={{ animationDelay: `${index * 100}ms` }}
             >
+              <check.icon
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
               <h3 className="text-sm font-medium">{check.title}</h3>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {check.desc}
-              </p>
+              <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                {check.items.map((item) => (
+                  <li key={item} className="flex items-start gap-1.5">
+                    <Check
+                      className="mt-0.5 size-3 shrink-0 text-[#3fb950]"
+                      aria-hidden="true"
+                    />
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>
@@ -181,14 +268,15 @@ export default function MarketingHomePage() {
           Tarifs
         </h2>
         <div className="grid gap-4 sm:grid-cols-3">
-          {PLANS.map((plan) => (
+          {PLANS.map((plan, index) => (
             <div
               key={plan.name}
-              className={`flex flex-col gap-2 rounded-md border p-4 ${
+              className={`flex flex-col gap-2 rounded-md border p-5 transition-colors duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 ${
                 plan.highlight
                   ? "border-foreground/30 bg-card"
-                  : "border-border"
+                  : "border-border hover:border-foreground/20"
               }`}
+              style={{ animationDelay: `${index * 100}ms` }}
             >
               <h3 className="text-sm font-medium">{plan.name}</h3>
               <p className="font-mono text-lg">{plan.price}</p>
@@ -200,6 +288,20 @@ export default function MarketingHomePage() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="flex flex-col items-center gap-4 rounded-md border border-border bg-card px-6 py-14 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
+        <Sparkles className="size-5 text-muted-foreground" aria-hidden="true" />
+        <h2 className="text-2xl font-semibold tracking-tight">
+          Sachez dans les deux minutes, pas dans les commentaires
+        </h2>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Un déploiement cassé coûte des clients avant que vous ne le
+          sachiez. PostShip vous le dit en premier.
+        </p>
+        <Link href="/login" className={buttonVariants({ variant: "default" })}>
+          Commencer gratuitement
+        </Link>
       </section>
     </div>
   );

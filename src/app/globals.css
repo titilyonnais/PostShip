@@ -124,6 +124,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Without this, native controls (<select>, scrollbars, date pickers)
+       render with the browser's light-mode chrome regardless of our own
+       dark background — the metadata color-scheme meta tag alone isn't
+       reliably honored for form controls in every engine. */
+    color-scheme: dark;
+  }
   body {
     /* --font-geist-sans/mono are set as CSS vars on <body> by next/font's
        className (see layout.tsx) — putting font-sans on <html> instead

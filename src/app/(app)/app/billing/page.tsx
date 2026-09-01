@@ -1,3 +1,5 @@
+import { Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
@@ -5,9 +7,31 @@ import { openBillingPortal, startCheckout } from "./actions";
 
 const PLAN_LABEL: Record<Plan, string> = {
   free: "Free",
-  solo: "Solo — 12€ TTC / mois",
-  team: "Team — 29€ TTC / mois",
+  solo: "Solo",
+  team: "Team",
 };
+
+const PLANS: {
+  id: Plan;
+  price: string;
+  features: string[];
+}[] = [
+  {
+    id: "free",
+    price: "0€ TTC / mois",
+    features: ["1 projet", "3 URLs", "Toutes les 30 min", "Email"],
+  },
+  {
+    id: "solo",
+    price: "12€ TTC / mois",
+    features: ["3 projets", "15 URLs", "Toutes les 5 min", "Discord + Vercel"],
+  },
+  {
+    id: "team",
+    price: "29€ TTC / mois",
+    features: ["10 projets", "50 URLs", "Stripe health", "Rétention 30 jours"],
+  },
+];
 
 export default async function BillingPage({
   searchParams,
@@ -31,7 +55,7 @@ export default async function BillingPage({
   const limits = getPlanLimits(plan);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -52,20 +76,49 @@ export default async function BillingPage({
         </p>
       </div>
 
-      <div className="flex gap-3">
-        <form action={startCheckout.bind(null, "solo")}>
-          <SubmitButton
-            disabled={plan === "solo" || plan === "team"}
-            pendingText="Redirection..."
-          >
-            Passer à Solo
-          </SubmitButton>
-        </form>
-        <form action={startCheckout.bind(null, "team")}>
-          <SubmitButton disabled={plan === "team"} pendingText="Redirection...">
-            Passer à Team
-          </SubmitButton>
-        </form>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {PLANS.map((item) => {
+          const isCurrent = item.id === plan;
+          return (
+            <div
+              key={item.id}
+              className={`flex flex-col gap-3 rounded-md border p-4 transition-colors ${
+                isCurrent
+                  ? "border-foreground/30 bg-card"
+                  : "border-border hover:border-foreground/20"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-medium">{PLAN_LABEL[item.id]}</h2>
+                {isCurrent && <Badge>Actuel</Badge>}
+              </div>
+              <p className="font-mono text-lg">{item.price}</p>
+              <ul className="flex flex-1 flex-col gap-1.5 text-xs text-muted-foreground">
+                {item.features.map((feature) => (
+                  <li key={feature} className="flex items-center gap-1.5">
+                    <Check
+                      className="size-3 shrink-0 text-[#3fb950]"
+                      aria-hidden="true"
+                    />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              {item.id !== "free" && (
+                <form action={startCheckout.bind(null, item.id)}>
+                  <SubmitButton
+                    className="w-full"
+                    variant={isCurrent ? "outline" : "default"}
+                    disabled={isCurrent || (item.id === "solo" && plan === "team")}
+                    pendingText="Redirection..."
+                  >
+                    {isCurrent ? "Plan actuel" : `Passer à ${PLAN_LABEL[item.id]}`}
+                  </SubmitButton>
+                </form>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {profile?.stripe_customer_id && (

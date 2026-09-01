@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MessageSquare, Play, Trash2, Webhook } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { StatusDot } from "@/components/status-dot";
@@ -72,7 +73,7 @@ export default async function ProjectPage({
     pct === null ? "—" : `${pct.toFixed(1)}%`;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -98,12 +99,14 @@ export default async function ProjectPage({
         <div className="flex shrink-0 gap-2">
           <form action={runProjectNow.bind(null, project.id)}>
             <SubmitButton pendingText="Vérification en cours...">
+              <Play className="size-3.5" aria-hidden="true" />
               Lancer maintenant
             </SubmitButton>
           </form>
           <form action={deleteProject.bind(null, project.id)}>
-            <SubmitButton variant="outline" pendingText="Suppression...">
-              Supprimer le projet
+            <SubmitButton variant="destructive" pendingText="Suppression...">
+              <Trash2 className="size-3.5" aria-hidden="true" />
+              Supprimer
             </SubmitButton>
           </form>
         </div>
@@ -114,7 +117,10 @@ export default async function ProjectPage({
         className="flex max-w-sm items-end gap-2"
       >
         <div className="flex flex-1 flex-col gap-1">
-          <label htmlFor="project-name" className="text-xs text-muted-foreground">
+          <label
+            htmlFor="project-name"
+            className="text-xs text-muted-foreground"
+          >
             Nom du projet
           </label>
           <Input id="project-name" name="name" defaultValue={project.name} />
@@ -134,7 +140,7 @@ export default async function ProjectPage({
             {targets.map((target) => (
               <li
                 key={target.id}
-                className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+                className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2.5 transition-colors hover:border-foreground/20"
               >
                 <Link
                   href={`/app/${projectId}/${target.id}`}
@@ -170,7 +176,7 @@ export default async function ProjectPage({
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
             Aucune URL surveillée pour le moment.
           </p>
         )}
@@ -178,78 +184,83 @@ export default async function ProjectPage({
         <AddTargetForm projectId={projectId} />
       </div>
 
-      {hasDiscord && (
-        <div className="flex flex-col gap-2 rounded-md border border-border p-4">
-          <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Alertes Discord
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Collez l&apos;URL d&apos;un webhook Discord (Paramètres du salon
-            → Intégrations → Webhooks) pour recevoir les alertes en plus de
-            l&apos;email. Laissez vide et enregistrez pour désactiver.
-          </p>
-          <form
-            action={setDiscordWebhook.bind(null, projectId)}
-            className="flex max-w-sm gap-2"
-          >
-            <label htmlFor="discord-webhook" className="sr-only">
-              URL du webhook Discord
-            </label>
-            <Input
-              id="discord-webhook"
-              name="discord_webhook_url"
-              type="url"
-              defaultValue={project.discord_webhook_url ?? ""}
-              placeholder="https://discord.com/api/webhooks/..."
-              className="flex-1"
-            />
-            <SubmitButton variant="outline" pendingText="Enregistrement...">
-              Enregistrer
-            </SubmitButton>
-          </form>
-        </div>
-      )}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {hasDiscord && (
+          <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+            <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <MessageSquare className="size-3.5" aria-hidden="true" />
+              Alertes Discord
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Collez l&apos;URL d&apos;un webhook Discord (Paramètres du
+              salon → Intégrations → Webhooks) pour recevoir les alertes en
+              plus de l&apos;email. Laissez vide et enregistrez pour
+              désactiver.
+            </p>
+            <form
+              action={setDiscordWebhook.bind(null, projectId)}
+              className="flex gap-2"
+            >
+              <label htmlFor="discord-webhook" className="sr-only">
+                URL du webhook Discord
+              </label>
+              <Input
+                id="discord-webhook"
+                name="discord_webhook_url"
+                type="url"
+                defaultValue={project.discord_webhook_url ?? ""}
+                placeholder="https://discord.com/api/webhooks/..."
+                className="flex-1"
+              />
+              <SubmitButton variant="outline" pendingText="Enregistrement...">
+                Enregistrer
+              </SubmitButton>
+            </form>
+          </div>
+        )}
 
-      {hasVercelHook && (
-        <div className="flex flex-col gap-2 rounded-md border border-border p-4">
-          <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Webhook Vercel
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Dans Vercel, créez un webhook sur l&apos;événement{" "}
-            <code className="rounded-sm bg-secondary px-1 py-0.5 font-mono">
-              deployment.ready
-            </code>{" "}
-            pointant vers l&apos;URL ci-dessous, puis collez le secret généré
-            par Vercel.
-          </p>
-          <p className="break-all rounded-sm bg-secondary px-2 py-1 font-mono text-xs text-muted-foreground">
-            {process.env.NEXT_PUBLIC_APP_URL}/api/vercel/deploy/{projectId}
-          </p>
-          <form
-            action={setVercelHookSecret.bind(null, projectId)}
-            className="flex max-w-sm gap-2"
-          >
-            <label htmlFor="vercel-secret" className="sr-only">
-              Secret du webhook Vercel
-            </label>
-            <Input
-              id="vercel-secret"
-              name="vercel_hook_secret"
-              type="password"
-              placeholder={
-                project.vercel_hook_secret
-                  ? "•••••••• (déjà configuré)"
-                  : "Secret Vercel"
-              }
-              className="flex-1"
-            />
-            <SubmitButton variant="outline" pendingText="Enregistrement...">
-              Enregistrer
-            </SubmitButton>
-          </form>
-        </div>
-      )}
+        {hasVercelHook && (
+          <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+            <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <Webhook className="size-3.5" aria-hidden="true" />
+              Webhook Vercel
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Dans Vercel, créez un webhook sur l&apos;événement{" "}
+              <code className="rounded-sm bg-secondary px-1 py-0.5 font-mono">
+                deployment.ready
+              </code>{" "}
+              pointant vers l&apos;URL ci-dessous, puis collez le secret
+              généré par Vercel.
+            </p>
+            <p className="break-all rounded-sm bg-secondary px-2 py-1 font-mono text-xs text-muted-foreground">
+              {process.env.NEXT_PUBLIC_APP_URL}/api/vercel/deploy/{projectId}
+            </p>
+            <form
+              action={setVercelHookSecret.bind(null, projectId)}
+              className="flex gap-2"
+            >
+              <label htmlFor="vercel-secret" className="sr-only">
+                Secret du webhook Vercel
+              </label>
+              <Input
+                id="vercel-secret"
+                name="vercel_hook_secret"
+                type="password"
+                placeholder={
+                  project.vercel_hook_secret
+                    ? "•••••••• (déjà configuré)"
+                    : "Secret Vercel"
+                }
+                className="flex-1"
+              />
+              <SubmitButton variant="outline" pendingText="Enregistrement...">
+                Enregistrer
+              </SubmitButton>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

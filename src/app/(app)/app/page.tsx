@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronRight, Rocket } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
 import { CreateProjectForm } from "./create-project-form";
@@ -17,7 +18,7 @@ export default async function AppHomePage({
     .order("created_at");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       <h1 className="text-lg font-semibold">Projets</h1>
 
       {error && (
@@ -35,11 +36,15 @@ export default async function AppHomePage({
 
       {projects && projects.length > 0 ? (
         <ul className="flex flex-col gap-2">
-          {projects.map((project) => (
-            <li key={project.id}>
+          {projects.map((project, index) => (
+            <li
+              key={project.id}
+              className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1"
+              style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+            >
               <Link
                 href={`/app/${project.id}`}
-                className="flex items-center justify-between rounded-md border border-border px-4 py-3 transition-colors hover:border-foreground/30"
+                className="group flex items-center justify-between rounded-md border border-border bg-card px-4 py-3 transition-colors hover:border-foreground/25"
               >
                 <div>
                   <p className="text-sm font-medium">{project.name}</p>
@@ -47,13 +52,22 @@ export default async function AppHomePage({
                     {project.base_url}
                   </p>
                 </div>
-                <StatusDot status={project.last_status} />
+                <div className="flex items-center gap-3">
+                  <StatusDot status={project.last_status} />
+                  <ChevronRight
+                    className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </div>
               </Link>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">Ajoute l’URL de prod</p>
+        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-12 text-center">
+          <Rocket className="size-6 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm text-muted-foreground">Ajoute l’URL de prod</p>
+        </div>
       )}
     </div>
   );
