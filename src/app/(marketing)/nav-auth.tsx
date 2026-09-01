@@ -21,6 +21,18 @@ export function NavAuth() {
     const supabase = createClient();
 
     async function load() {
+      // getSession() reads local storage only, no network call — skips the
+      // guaranteed-403 request to /auth/v1/user that getUser() makes for
+      // the common case of an anonymous visitor with no session at all.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        if (active) setState({ loaded: true, label: null, avatarSeed: null });
+        return;
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
