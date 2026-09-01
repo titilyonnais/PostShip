@@ -1,18 +1,9 @@
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
 
 export const metadata = {
   title: "CGU",
   description: "Conditions générales d'utilisation de PostShip.",
 };
-
-function LegalPlaceholder({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded-sm bg-amber-500/15 px-1 py-0.5 text-amber-600 dark:text-amber-400">
-      {children}
-    </span>
-  );
-}
 
 export default function TermsPage() {
   return (
@@ -20,16 +11,6 @@ export default function TermsPage() {
       <Link href="/" className="text-xs hover:text-foreground hover:underline">
         ← Retour
       </Link>
-
-      <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-600 dark:text-amber-400">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <span>
-          Brouillon rédigé à partir du fonctionnement réel du service. Les
-          champs surlignés (identité de l&apos;éditeur) sont à compléter, et
-          une relecture rapide par un professionnel du droit est recommandée
-          avant de considérer ce texte comme définitif.
-        </span>
-      </div>
 
       <div>
         <h1 className="text-lg font-semibold text-foreground">
@@ -43,11 +24,8 @@ export default function TermsPage() {
         <p>
           Les présentes conditions générales d&apos;utilisation (CGU)
           régissent l&apos;accès et l&apos;utilisation du service PostShip,
-          accessible à l&apos;adresse postship.fr, édité par{" "}
-          <LegalPlaceholder>
-            [raison sociale ou nom en tant qu&apos;auto-entrepreneur]
-          </LegalPlaceholder>
-          , <LegalPlaceholder>[SIRET si applicable]</LegalPlaceholder>. Toute
+          accessible à l&apos;adresse postship.fr, édité par Thibault
+          Morretton, 19 Route de Lyon, 42400 Saint-Chamond, France. Toute
           création de compte implique l&apos;acceptation pleine et entière
           des présentes CGU.
         </p>

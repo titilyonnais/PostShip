@@ -1,18 +1,9 @@
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
 
 export const metadata = {
   title: "Confidentialité",
   description: "Politique de confidentialité de PostShip.",
 };
-
-function LegalPlaceholder({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded-sm bg-amber-500/15 px-1 py-0.5 text-amber-600 dark:text-amber-400">
-      {children}
-    </span>
-  );
-}
 
 export default function PrivacyPage() {
   return (
@@ -20,16 +11,6 @@ export default function PrivacyPage() {
       <Link href="/" className="text-xs hover:text-foreground hover:underline">
         ← Retour
       </Link>
-
-      <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-600 dark:text-amber-400">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <span>
-          Brouillon rédigé à partir de l&apos;architecture réelle du service.
-          Les champs surlignés (identité de l&apos;éditeur) sont à compléter,
-          et une relecture rapide par un professionnel du droit est
-          recommandée avant de considérer ce texte comme définitif.
-        </span>
-      </div>
 
       <div>
         <h1 className="text-lg font-semibold text-foreground">
@@ -41,14 +22,16 @@ export default function PrivacyPage() {
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium text-foreground">1. Éditeur</h2>
         <p>
-          PostShip est édité par{" "}
-          <LegalPlaceholder>
-            [raison sociale ou nom en tant qu&apos;auto-entrepreneur]
-          </LegalPlaceholder>
-          , <LegalPlaceholder>[adresse]</LegalPlaceholder>,{" "}
-          <LegalPlaceholder>[SIRET si applicable]</LegalPlaceholder>. Pour
-          toute question relative à vos données personnelles :{" "}
-          <LegalPlaceholder>[email de contact]</LegalPlaceholder>.
+          PostShip est édité par Thibault Morretton, 19 Route de Lyon, 42400
+          Saint-Chamond, France. Pour toute question relative à vos données
+          personnelles :{" "}
+          <a
+            href="mailto:tmorretton@gmail.com"
+            className="text-foreground underline underline-offset-2"
+          >
+            tmorretton@gmail.com
+          </a>
+          .
         </p>
       </section>
 
@@ -159,7 +142,12 @@ export default function PrivacyPage() {
           </li>
           <li>
             Pour toute autre demande :{" "}
-            <LegalPlaceholder>[email de contact]</LegalPlaceholder>
+            <a
+              href="mailto:tmorretton@gmail.com"
+              className="text-foreground underline underline-offset-2"
+            >
+              tmorretton@gmail.com
+            </a>
           </li>
           <li>
             Vous pouvez introduire une réclamation auprès de la CNIL
