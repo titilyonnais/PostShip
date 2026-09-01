@@ -125,9 +125,10 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
+    /* --font-geist-sans/mono are set as CSS vars on <body> by next/font's
+       className (see layout.tsx) — putting font-sans on <html> instead
+       can't see them (custom properties don't reach up to ancestors) and
+       silently falls back to the browser's default serif. */
+    @apply bg-background text-foreground font-sans;
   }
 }

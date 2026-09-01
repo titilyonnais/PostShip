@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "CGU — PostShip",
+  title: "CGU",
   description: "Conditions générales d'utilisation de PostShip.",
 };
 

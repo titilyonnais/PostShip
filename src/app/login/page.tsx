@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LoginForm } from "./login-form";
 
 export const metadata = {
-  title: "Connexion — PostShip",
+  title: "Connexion",
 };
 
 export default function LoginPage() {

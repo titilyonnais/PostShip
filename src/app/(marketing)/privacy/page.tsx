@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Confidentialité — PostShip",
+  title: "Confidentialité",
   description: "Politique de confidentialité de PostShip.",
 };
 
