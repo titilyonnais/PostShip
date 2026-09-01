@@ -8,7 +8,12 @@ import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { deleteProject, renameProject } from "../actions";
 import { AddTargetForm } from "./add-target-form";
-import { runProjectNow, setVercelHookSecret, toggleTarget } from "./actions";
+import {
+  runProjectNow,
+  setDiscordWebhook,
+  setVercelHookSecret,
+  toggleTarget,
+} from "./actions";
 
 export default async function ProjectPage({
   params,
@@ -39,6 +44,7 @@ export default async function ProjectPage({
     .single();
   const plan = (profile?.plan as Plan) ?? "free";
   const hasVercelHook = getPlanLimits(plan).vercelHook;
+  const hasDiscord = getPlanLimits(plan).discord;
 
   const { data: targets } = await supabase
     .from("check_targets")
@@ -145,6 +151,33 @@ export default async function ProjectPage({
 
         <AddTargetForm projectId={projectId} />
       </div>
+
+      {hasDiscord && (
+        <div className="flex flex-col gap-2 border border-border p-4">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Alertes Discord
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Collez l&apos;URL d&apos;un webhook Discord (Paramètres du salon
+            → Intégrations → Webhooks) pour recevoir les alertes en plus de
+            l&apos;email. Laissez vide et enregistrez pour désactiver.
+          </p>
+          <form
+            action={setDiscordWebhook.bind(null, projectId)}
+            className="flex max-w-sm gap-2"
+          >
+            <Input
+              name="discord_webhook_url"
+              type="url"
+              defaultValue={project.discord_webhook_url ?? ""}
+              placeholder="https://discord.com/api/webhooks/..."
+            />
+            <Button type="submit" variant="outline">
+              Enregistrer
+            </Button>
+          </form>
+        </div>
+      )}
 
       {hasVercelHook && (
         <div className="flex flex-col gap-2 border border-border p-4">

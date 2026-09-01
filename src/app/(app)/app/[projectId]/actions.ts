@@ -8,6 +8,14 @@ import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runProjectChecks } from "@/lib/runner";
 import { httpsUrlSchema } from "@/lib/validation";
 
+const discordWebhookSchema = z
+  .string()
+  .trim()
+  .regex(
+    /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/,
+    "URL de webhook Discord invalide.",
+  );
+
 const TARGET_KINDS = ["http", "og", "sitemap", "ssl", "stripe_health"] as const;
 const RUN_NOW_COOLDOWN_MS = 30_000;
 
@@ -152,6 +160,56 @@ export async function setVercelHookSecret(
   const { error } = await supabase
     .from("projects")
     .update({ vercel_hook_secret: parsed.data })
+    .eq("id", projectId);
+
+  if (error) {
+    redirect(`/app/${projectId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/app/${projectId}`);
+}
+
+export async function setDiscordWebhook(projectId: string, formData: FormData) {
+  const raw = formData.get("discord_webhook_url");
+
+  if (raw === "" || raw === null) {
+    const supabase = await createClient();
+    await supabase
+      .from("projects")
+      .update({ discord_webhook_url: null })
+      .eq("id", projectId);
+    revalidatePath(`/app/${projectId}`);
+    return;
+  }
+
+  const parsed = discordWebhookSchema.safeParse(raw);
+  if (!parsed.success) {
+    redirect(
+      `/app/${projectId}?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "URL invalide.")}`,
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("plan")
+    .eq("id", user.id)
+    .single();
+
+  if (!getPlanLimits((profile?.plan as Plan) ?? "free").discord) {
+    redirect(
+      `/app/${projectId}?error=${encodeURIComponent("Discord n'est disponible qu'avec un plan payant.")}`,
+    );
+  }
+
+  const { error } = await supabase
+    .from("projects")
+    .update({ discord_webhook_url: parsed.data })
     .eq("id", projectId);
 
   if (error) {
