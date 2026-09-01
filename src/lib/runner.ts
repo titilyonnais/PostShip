@@ -113,7 +113,9 @@ export async function runProjectChecks(projectId: string) {
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, name, discord_webhook_url, profiles(plan, email)")
+    .select(
+      "id, name, discord_webhook_url, profiles(plan, email, email_alerts_enabled)",
+    )
     .eq("id", projectId)
     .single();
 
@@ -124,6 +126,7 @@ export async function runProjectChecks(projectId: string) {
   const owner = project.profiles as unknown as {
     plan: Plan;
     email: string | null;
+    email_alerts_enabled: boolean;
   } | null;
 
   const { data: targets, error } = await supabase
@@ -203,7 +206,8 @@ export async function runProjectChecks(projectId: string) {
         id: project.id,
         name: project.name,
         discord_webhook_url: project.discord_webhook_url,
-        ownerEmail: owner?.email ?? null,
+        ownerEmail:
+          owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsDiscord: getPlanLimits(ownerPlan).discord,
       },
       alertItems,

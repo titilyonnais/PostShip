@@ -20,6 +20,8 @@ create table public.profiles (
   phone text,
   team_size text check (team_size in ('solo', '2-5', '6-20', '20+')),
   billing_address jsonb,
+  -- 0007_notification_prefs.sql
+  email_alerts_enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
