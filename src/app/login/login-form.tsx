@@ -5,15 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   signInWithGithub,
+  signInWithGoogle,
   signInWithMagicLink,
   type MagicLinkState,
 } from "./actions";
 
 const initialState: MagicLinkState = { error: null, sent: false };
 
-export function LoginForm() {
+export function LoginForm({ plan }: { plan: string | null }) {
+  const boundMagicLink = signInWithMagicLink.bind(null, plan);
   const [state, formAction, pending] = useActionState(
-    signInWithMagicLink,
+    boundMagicLink,
     initialState,
   );
 
@@ -50,7 +52,13 @@ export function LoginForm() {
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      <form action={signInWithGithub}>
+      <form action={signInWithGoogle.bind(null, plan)}>
+        <Button type="submit" variant="outline" className="w-full">
+          Continuer avec Google
+        </Button>
+      </form>
+
+      <form action={signInWithGithub.bind(null, plan)}>
         <Button type="submit" variant="outline" className="w-full">
           Continuer avec GitHub
         </Button>

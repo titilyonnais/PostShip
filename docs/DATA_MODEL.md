@@ -13,6 +13,13 @@ create table public.profiles (
   stripe_customer_id text unique,
   stripe_subscription_id text,
   stripe_subscription_status text,
+  -- Onboarding fields (0006_profile_onboarding.sql), collected at
+  -- /onboarding before first /app access. full_name gates that redirect.
+  full_name text,
+  company_name text,
+  phone text,
+  team_size text check (team_size in ('solo', '2-5', '6-20', '20+')),
+  billing_address jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

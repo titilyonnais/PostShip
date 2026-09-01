@@ -21,7 +21,19 @@ export default function MarketingLayout({
           >
             PostShip
           </Link>
-          <nav aria-label="Principale" className="flex items-center gap-4">
+          <nav aria-label="Principale" className="flex items-center gap-6">
+            <Link
+              href="/pricing"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Tarifs
+            </Link>
+            <Link
+              href="/docs"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Documentation
+            </Link>
             <Link
               href="/login"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -40,6 +52,9 @@ export default function MarketingLayout({
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-6 py-6 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:px-10">
           <span>© {new Date().getFullYear()} PostShip</span>
           <nav aria-label="Légal" className="flex gap-4">
+            <Link href="/docs" className="hover:text-foreground">
+              Documentation
+            </Link>
             <Link href="/privacy" className="hover:text-foreground">
               Confidentialité
             </Link>

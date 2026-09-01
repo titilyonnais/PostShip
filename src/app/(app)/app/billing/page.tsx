@@ -3,35 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
 import { openBillingPortal, startCheckout } from "./actions";
-
-const PLAN_LABEL: Record<Plan, string> = {
-  free: "Free",
-  solo: "Solo",
-  team: "Team",
-};
-
-const PLANS: {
-  id: Plan;
-  price: string;
-  features: string[];
-}[] = [
-  {
-    id: "free",
-    price: "0€ TTC / mois",
-    features: ["1 projet", "3 URLs", "Toutes les 30 min", "Email"],
-  },
-  {
-    id: "solo",
-    price: "12€ TTC / mois",
-    features: ["3 projets", "15 URLs", "Toutes les 5 min", "Discord + Vercel"],
-  },
-  {
-    id: "team",
-    price: "29€ TTC / mois",
-    features: ["10 projets", "50 URLs", "Stripe health", "Rétention 30 jours"],
-  },
-];
 
 export default async function BillingPage({
   searchParams,
@@ -77,7 +50,7 @@ export default async function BillingPage({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {PLANS.map((item) => {
+        {PUBLIC_PLANS.map((item) => {
           const isCurrent = item.id === plan;
           return (
             <div

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  ArrowRight,
   Check,
   Globe,
   Link2,
@@ -7,6 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
 import { DemoForm } from "./demo-form";
 
 const JSON_LD = {
@@ -79,35 +81,6 @@ const CHECKS = [
   },
 ];
 
-const PLANS: {
-  name: string;
-  price: string;
-  features: string[];
-  highlight?: boolean;
-}[] = [
-  {
-    name: "Free",
-    price: "0€ TTC / mois",
-    features: ["1 projet", "3 URLs", "Toutes les 30 min", "Alertes email"],
-  },
-  {
-    name: "Solo",
-    price: "12€ TTC / mois",
-    features: ["3 projets", "15 URLs", "Toutes les 5 min", "Discord + Vercel"],
-    highlight: true,
-  },
-  {
-    name: "Team",
-    price: "29€ TTC / mois",
-    features: [
-      "10 projets",
-      "50 URLs",
-      "Vérif. Stripe",
-      "Rétention 30 jours",
-    ],
-  },
-];
-
 export default function MarketingHomePage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-24 px-6 py-16 sm:px-10">
@@ -129,7 +102,7 @@ export default function MarketingHomePage() {
           </p>
           <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             <Link
-              href="/login"
+              href="/login?plan=free"
               className={buttonVariants({ variant: "default" })}
             >
               Commencer gratuitement
@@ -261,31 +234,41 @@ export default function MarketingHomePage() {
       </section>
 
       <section aria-labelledby="pricing-heading" className="flex flex-col gap-6">
-        <h2
-          id="pricing-heading"
-          className="text-xs font-medium tracking-wide text-muted-foreground uppercase"
-        >
-          Tarifs
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2
+            id="pricing-heading"
+            className="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+          >
+            Tarifs
+          </h2>
+          <Link
+            href="/pricing"
+            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Voir le détail des plans et la FAQ
+            <ArrowRight className="size-3" aria-hidden="true" />
+          </Link>
+        </div>
         <div className="grid gap-4 sm:grid-cols-3">
-          {PLANS.map((plan, index) => (
-            <div
-              key={plan.name}
+          {PUBLIC_PLANS.map((plan, index) => (
+            <Link
+              key={plan.id}
+              href={`/login?plan=${plan.id}`}
               className={`flex flex-col gap-2 rounded-md border p-5 transition-colors duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 ${
                 plan.highlight
-                  ? "border-foreground/30 bg-card"
+                  ? "border-foreground/30 bg-card hover:border-foreground/50"
                   : "border-border hover:border-foreground/20"
               }`}
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <h3 className="text-sm font-medium">{plan.name}</h3>
+              <h3 className="text-sm font-medium">{PLAN_LABEL[plan.id]}</h3>
               <p className="font-mono text-lg">{plan.price}</p>
               <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
                 {plan.features.map((feature) => (
                   <li key={feature}>{feature}</li>
                 ))}
               </ul>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -299,7 +282,10 @@ export default function MarketingHomePage() {
           Un déploiement cassé coûte des clients avant que vous ne le
           sachiez. PostShip vous le dit en premier.
         </p>
-        <Link href="/login" className={buttonVariants({ variant: "default" })}>
+        <Link
+          href="/login?plan=free"
+          className={buttonVariants({ variant: "default" })}
+        >
           Commencer gratuitement
         </Link>
       </section>
