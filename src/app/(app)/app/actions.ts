@@ -72,7 +72,9 @@ export async function renameProject(projectId: string, formData: FormData) {
   const parsed = z.string().trim().min(1).max(120).safeParse(formData.get("name"));
 
   if (!parsed.success) {
-    redirect(`/app/${projectId}?error=${encodeURIComponent("Nom invalide.")}`);
+    redirect(
+      `/app/${projectId}?tab=settings&error=${encodeURIComponent("Nom invalide.")}`,
+    );
   }
 
   const supabase = await createClient();
@@ -82,13 +84,15 @@ export async function renameProject(projectId: string, formData: FormData) {
     .eq("id", projectId);
 
   if (error) {
-    redirect(`/app/${projectId}?error=${encodeURIComponent(error.message)}`);
+    redirect(
+      `/app/${projectId}?tab=settings&error=${encodeURIComponent(error.message)}`,
+    );
   }
 
   revalidatePath(`/app/${projectId}`);
   revalidatePath("/app");
   redirect(
-    `/app/${projectId}?success=${encodeURIComponent("Nom mis à jour.")}`,
+    `/app/${projectId}?tab=settings&success=${encodeURIComponent("Nom mis à jour.")}`,
   );
 }
 

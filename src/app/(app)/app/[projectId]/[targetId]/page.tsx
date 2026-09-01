@@ -2,13 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, History } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
+import { FailureDetails, type CheckRunDetails } from "@/components/failure-details";
 import { createClient } from "@/lib/db/server";
-
-type CheckRunDetails = {
-  missing?: string[];
-  error?: string;
-  bodyExcerpt?: string;
-};
 
 export default async function TargetPage({
   params,
@@ -70,21 +65,12 @@ export default async function TargetPage({
                   </span>
                 </div>
                 {run.outcome !== "pass" && (
-                  <div className="mt-2 flex flex-col gap-1 text-xs">
-                    {Array.isArray(details.missing) &&
-                      details.missing.length > 0 && (
-                        <p className="text-amber-500">
-                          Manquant : {details.missing.join(", ")}
-                        </p>
-                      )}
-                    {details.error && (
-                      <p className="text-destructive">{details.error}</p>
-                    )}
-                    {details.bodyExcerpt && (
-                      <pre className="overflow-x-auto whitespace-pre-wrap rounded-md border border-border bg-secondary p-2 text-muted-foreground">
-                        {details.bodyExcerpt}
-                      </pre>
-                    )}
+                  <div className="mt-2">
+                    <FailureDetails
+                      details={details}
+                      httpStatus={run.http_status}
+                      expectStatus={target.expect_status}
+                    />
                   </div>
                 )}
               </li>

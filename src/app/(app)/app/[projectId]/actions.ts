@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
-import { runProjectChecks } from "@/lib/runner";
+import { runOneTarget, runProjectChecks } from "@/lib/runner";
 import { httpsUrlSchema } from "@/lib/validation";
 
 const discordWebhookSchema = z
@@ -157,6 +157,69 @@ export async function runProjectNow(projectId: string) {
   );
 }
 
+const TARGET_COOLDOWN_MS = 10_000;
+
+export async function runTargetNow(projectId: string, targetId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { data: target } = await supabase
+    .from("check_targets")
+    .select("id, url")
+    .eq("id", targetId)
+    .eq("project_id", projectId)
+    .single();
+
+  if (!target) {
+    redirect(
+      `/app/${projectId}?error=${encodeURIComponent("URL introuvable.")}`,
+    );
+  }
+
+  const { data: lastRun } = await supabase
+    .from("check_runs")
+    .select("started_at")
+    .eq("target_id", targetId)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastRun) {
+    const elapsedMs = Date.now() - new Date(lastRun.started_at).getTime();
+    if (elapsedMs < TARGET_COOLDOWN_MS) {
+      const waitSeconds = Math.ceil((TARGET_COOLDOWN_MS - elapsedMs) / 1000);
+      redirect(
+        `/app/${projectId}?error=${encodeURIComponent(`Patientez ${waitSeconds}s avant de relancer cette URL.`)}`,
+      );
+    }
+  }
+
+  let result: Awaited<ReturnType<typeof runOneTarget>>;
+  try {
+    result = await runOneTarget(targetId);
+  } catch (err) {
+    redirect(
+      `/app/${projectId}?error=${encodeURIComponent(
+        err instanceof Error ? err.message : "Erreur pendant l'exécution.",
+      )}`,
+    );
+  }
+
+  revalidatePath(`/app/${projectId}`);
+  revalidatePath("/app");
+  redirect(
+    `/app/${projectId}?success=${encodeURIComponent(
+      result.outcome === "pass"
+        ? `OK — ${target.url}`
+        : `Échec détecté — ${target.url}`,
+    )}`,
+  );
+}
+
 export async function setVercelHookSecret(
   projectId: string,
   formData: FormData,
@@ -168,7 +231,9 @@ export async function setVercelHookSecret(
     .safeParse(formData.get("vercel_hook_secret"));
 
   if (!parsed.success) {
-    redirect(`/app/${projectId}?error=${encodeURIComponent("Secret invalide.")}`);
+    redirect(
+      `/app/${projectId}?tab=settings&error=${encodeURIComponent("Secret invalide.")}`,
+    );
   }
 
   const supabase = await createClient();
@@ -178,12 +243,14 @@ export async function setVercelHookSecret(
     .eq("id", projectId);
 
   if (error) {
-    redirect(`/app/${projectId}?error=${encodeURIComponent(error.message)}`);
+    redirect(
+      `/app/${projectId}?tab=settings&error=${encodeURIComponent(error.message)}`,
+    );
   }
 
   revalidatePath(`/app/${projectId}`);
   redirect(
-    `/app/${projectId}?success=${encodeURIComponent("Secret Vercel enregistré.")}`,
+    `/app/${projectId}?tab=settings&success=${encodeURIComponent("Secret Vercel enregistré.")}`,
   );
 }
 
@@ -198,14 +265,14 @@ export async function setDiscordWebhook(projectId: string, formData: FormData) {
       .eq("id", projectId);
     revalidatePath(`/app/${projectId}`);
     redirect(
-      `/app/${projectId}?success=${encodeURIComponent("Webhook Discord désactivé.")}`,
+      `/app/${projectId}?tab=settings&success=${encodeURIComponent("Webhook Discord désactivé.")}`,
     );
   }
 
   const parsed = discordWebhookSchema.safeParse(raw);
   if (!parsed.success) {
     redirect(
-      `/app/${projectId}?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "URL invalide.")}`,
+      `/app/${projectId}?tab=settings&error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "URL invalide.")}`,
     );
   }
 
@@ -223,7 +290,7 @@ export async function setDiscordWebhook(projectId: string, formData: FormData) {
 
   if (!getPlanLimits((profile?.plan as Plan) ?? "free").discord) {
     redirect(
-      `/app/${projectId}?error=${encodeURIComponent("Discord n'est disponible qu'avec un plan payant.")}`,
+      `/app/${projectId}?tab=settings&error=${encodeURIComponent("Discord n'est disponible qu'avec un plan payant.")}`,
     );
   }
 
@@ -233,12 +300,14 @@ export async function setDiscordWebhook(projectId: string, formData: FormData) {
     .eq("id", projectId);
 
   if (error) {
-    redirect(`/app/${projectId}?error=${encodeURIComponent(error.message)}`);
+    redirect(
+      `/app/${projectId}?tab=settings&error=${encodeURIComponent(error.message)}`,
+    );
   }
 
   revalidatePath(`/app/${projectId}`);
   redirect(
-    `/app/${projectId}?success=${encodeURIComponent("Webhook Discord enregistré.")}`,
+    `/app/${projectId}?tab=settings&success=${encodeURIComponent("Webhook Discord enregistré.")}`,
   );
 }
 

@@ -108,6 +108,129 @@ async function runSingleTarget(
   };
 }
 
+export async function runOneTarget(targetId: string) {
+  const supabase = createServiceClient();
+
+  const { data: target } = await supabase
+    .from("check_targets")
+    .select(
+      "*, projects(id, name, discord_webhook_url, profiles(plan, email, email_alerts_enabled))",
+    )
+    .eq("id", targetId)
+    .single();
+
+  if (!target) {
+    throw new Error("URL introuvable.");
+  }
+
+  const project = target.projects as unknown as {
+    id: string;
+    name: string;
+    discord_webhook_url: string | null;
+    profiles: {
+      plan: Plan;
+      email: string | null;
+      email_alerts_enabled: boolean;
+    } | null;
+  };
+  const owner = project.profiles;
+  const ownerPlan = owner?.plan ?? "free";
+
+  const { data: previousRun } = await supabase
+    .from("check_runs")
+    .select("outcome")
+    .eq("target_id", targetId)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const result = await runSingleTarget(
+    supabase,
+    project.id,
+    target as CheckTargetRow,
+    ownerPlan,
+  );
+
+  const previous = previousRun?.outcome ?? null;
+  const alertItems: AlertItem[] = [];
+
+  if (result.outcome === "pass") {
+    if (previous && previous !== "pass") {
+      alertItems.push({
+        targetId: result.targetId,
+        url: result.url,
+        kind: "recovered",
+        outcome: result.outcome,
+        httpStatus: result.http_status,
+        fingerprint: result.fingerprint,
+      });
+    }
+  } else {
+    const shouldAlert = await shouldSendFailAlert(
+      supabase,
+      project.id,
+      targetId,
+      result.fingerprint,
+    );
+    if (shouldAlert) {
+      alertItems.push({
+        targetId: result.targetId,
+        url: result.url,
+        kind: "fail",
+        outcome: result.outcome,
+        httpStatus: result.http_status,
+        fingerprint: result.fingerprint,
+      });
+    }
+  }
+
+  if (alertItems.length > 0) {
+    await dispatchAlerts(
+      supabase,
+      {
+        id: project.id,
+        name: project.name,
+        discord_webhook_url: project.discord_webhook_url,
+        ownerEmail:
+          owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
+        ownerPlanAllowsDiscord: getPlanLimits(ownerPlan).discord,
+      },
+      alertItems,
+    );
+  }
+
+  // Recompute the project's overall badge from the latest outcome per
+  // target, not just this one — a single-target rerun shouldn't report
+  // "pass" at the project level while another target is still failing.
+  const { data: allLatest } = await supabase
+    .from("check_runs")
+    .select("target_id, outcome")
+    .eq("project_id", project.id)
+    .order("started_at", { ascending: false })
+    .limit(500);
+
+  const seen = new Set<string>();
+  let overallStatus: "pass" | "fail" = "pass";
+  for (const run of allLatest ?? []) {
+    if (seen.has(run.target_id)) continue;
+    seen.add(run.target_id);
+    if (run.outcome === "fail" || run.outcome === "error") {
+      overallStatus = "fail";
+      break;
+    }
+  }
+
+  await supabase
+    .from("projects")
+    .update({
+      last_checked_at: new Date().toISOString(),
+      last_status: overallStatus,
+    })
+    .eq("id", project.id);
+
+  return result;
+}
+
 export async function runProjectChecks(projectId: string) {
   const supabase = createServiceClient();
 
