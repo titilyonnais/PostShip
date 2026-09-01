@@ -85,6 +85,9 @@ export default async function MarketingLayout({
             <Link href="/docs" className="hover:text-foreground">
               Documentation
             </Link>
+            <Link href="/mentions-legales" className="hover:text-foreground">
+              Mentions légales
+            </Link>
             <Link href="/privacy" className="hover:text-foreground">
               Confidentialité
             </Link>

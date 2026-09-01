@@ -276,7 +276,7 @@ export default function MarketingHomePage() {
       <section className="flex flex-col items-center gap-4 rounded-md border border-border bg-card px-6 py-14 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
         <Sparkles className="size-5 text-muted-foreground" aria-hidden="true" />
         <h2 className="text-2xl font-semibold tracking-tight">
-          Sachez dans les deux minutes, pas dans les commentaires
+          Sachez avant vos utilisateurs, pas dans les commentaires
         </h2>
         <p className="max-w-md text-sm text-muted-foreground">
           Un déploiement cassé coûte des clients avant que vous ne le

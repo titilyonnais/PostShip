@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/db/server";
+import { createServiceClient } from "@/lib/db/service";
 import { getStripe, STRIPE_PRICE_IDS } from "@/lib/stripe";
 
 const planSchema = z.enum(["free", "solo", "team"]).nullable();
@@ -120,7 +121,10 @@ export async function completeOnboarding(
         : undefined,
     });
     customerId = customer.id;
-    await supabase
+    // stripe_customer_id is a service-role-only column (see migration 0013) —
+    // even though this is the user's own onboarding flow, the write has to
+    // go through the service client now that `authenticated` can't touch it.
+    await createServiceClient()
       .from("profiles")
       .update({ stripe_customer_id: customerId })
       .eq("id", user.id);

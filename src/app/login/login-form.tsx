@@ -117,6 +117,37 @@ export function LoginForm({
                 }
                 required
               />
+              {passwordMode === "signup" && (
+                <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    name="terms_accepted"
+                    required
+                    className="mt-0.5 size-3.5 rounded border-input accent-foreground"
+                  />
+                  <span>
+                    J&apos;accepte les{" "}
+                    <a
+                      href="/terms"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-foreground underline underline-offset-2"
+                    >
+                      CGU
+                    </a>{" "}
+                    et la{" "}
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-foreground underline underline-offset-2"
+                    >
+                      politique de confidentialité
+                    </a>
+                    .
+                  </span>
+                </label>
+              )}
               <Button type="submit">
                 {passwordMode === "signin" ? "Se connecter" : "Créer mon compte"}
               </Button>
@@ -155,6 +186,18 @@ export function LoginForm({
           </Button>
         </form>
       </div>
+
+      <p className="text-center text-[0.7rem] text-muted-foreground">
+        En continuant, vous acceptez nos{" "}
+        <a href="/terms" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+          CGU
+        </a>{" "}
+        et notre{" "}
+        <a href="/privacy" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+          politique de confidentialité
+        </a>
+        .
+      </p>
     </div>
   );
 }

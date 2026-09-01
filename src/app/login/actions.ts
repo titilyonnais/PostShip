@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { findAccountProvidersByEmail } from "@/lib/auth-admin";
 import { createClient } from "@/lib/db/server";
+import { createServiceClient } from "@/lib/db/service";
 
 const emailSchema = z.string().email();
 const passwordSchema = z.string().min(8, "8 caractères minimum.");
@@ -79,6 +80,7 @@ export async function signInWithPassword(plan: string | null, formData: FormData
 export async function signUpWithPassword(plan: string | null, formData: FormData) {
   const email = emailSchema.safeParse(formData.get("email"));
   const password = passwordSchema.safeParse(formData.get("password"));
+  const termsAccepted = formData.get("terms_accepted") === "on";
 
   if (!email.success) {
     loginErrorRedirect(plan, "signup", "Adresse email invalide.");
@@ -88,6 +90,13 @@ export async function signUpWithPassword(plan: string | null, formData: FormData
       plan,
       "signup",
       password.error.issues[0]?.message ?? "Mot de passe invalide.",
+    );
+  }
+  if (!termsAccepted) {
+    loginErrorRedirect(
+      plan,
+      "signup",
+      "Vous devez accepter les CGU et la politique de confidentialité pour créer un compte.",
     );
   }
 
@@ -117,6 +126,19 @@ export async function signUpWithPassword(plan: string | null, formData: FormData
         ? "Un compte existe déjà avec cet email — connectez-vous plutôt."
         : error.message,
     );
+  }
+
+  // Traceable record of consent — written via the service client because at
+  // this point (signUp just returned) there may be no session yet if email
+  // confirmation is required, so the user's own client isn't authenticated.
+  if (data.user) {
+    await createServiceClient()
+      .from("profiles")
+      .upsert({
+        id: data.user.id,
+        email: email.data,
+        terms_accepted_at: new Date().toISOString(),
+      });
   }
 
   // Email confirmation is on: no session yet, just a pending confirmation.
