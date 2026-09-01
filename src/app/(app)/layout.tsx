@@ -20,12 +20,20 @@ export default async function AppLayout({
             PostShip
           </Link>
           {user && (
-            <Link
-              href="/app/billing"
-              className="text-xs text-muted-foreground underline"
-            >
-              Abonnement
-            </Link>
+            <>
+              <Link
+                href="/app/billing"
+                className="text-xs text-muted-foreground underline"
+              >
+                Abonnement
+              </Link>
+              <Link
+                href="/app/account"
+                className="text-xs text-muted-foreground underline"
+              >
+                Compte
+              </Link>
+            </>
           )}
         </div>
         {user && (
