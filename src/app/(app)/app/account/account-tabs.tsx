@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const VALID_TABS = new Set([
   "overview",
   "profile",
+  "security",
   "billing",
   "notifications",
   "tokens",
@@ -16,6 +17,7 @@ const VALID_TABS = new Set([
 export function AccountTabs({
   overview,
   profile,
+  security,
   billing,
   notifications,
   tokens,
@@ -23,6 +25,7 @@ export function AccountTabs({
 }: {
   overview: ReactNode;
   profile: ReactNode;
+  security: ReactNode;
   billing: ReactNode;
   notifications: ReactNode;
   tokens: ReactNode;
@@ -37,6 +40,7 @@ export function AccountTabs({
       <TabsList variant="line">
         <TabsTrigger value="overview">Vue d&apos;ensemble</TabsTrigger>
         <TabsTrigger value="profile">Profil</TabsTrigger>
+        <TabsTrigger value="security">Sécurité</TabsTrigger>
         <TabsTrigger value="billing">Facturation</TabsTrigger>
         <TabsTrigger value="notifications">Notifications</TabsTrigger>
         <TabsTrigger value="tokens">Tokens</TabsTrigger>
@@ -44,6 +48,7 @@ export function AccountTabs({
       </TabsList>
       <TabsContent value="overview">{overview}</TabsContent>
       <TabsContent value="profile">{profile}</TabsContent>
+      <TabsContent value="security">{security}</TabsContent>
       <TabsContent value="billing">{billing}</TabsContent>
       <TabsContent value="notifications">{notifications}</TabsContent>
       <TabsContent value="tokens">{tokens}</TabsContent>

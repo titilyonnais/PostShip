@@ -12,8 +12,10 @@ import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { TOKEN_PACKS, type TokenPackId } from "@/lib/stripe";
 import { AccountTabs } from "./account-tabs";
 import { DeleteAccountButton } from "./delete-account-button";
+import { EmailSection } from "./email-section";
 import { IdentitySection } from "./identity-section";
 import { LocaleSelect } from "./locale-select";
+import { MfaSection } from "./mfa-section";
 import { TeamSizeSelect } from "./team-size-select";
 import {
   setPassword,
@@ -53,6 +55,9 @@ export default async function AccountPage() {
     )
     .eq("id", user?.id)
     .single();
+
+  const { data: factorsData } = await supabase.auth.mfa.listFactors();
+  const totpFactor = factorsData?.totp?.[0] ?? null;
 
   const plan = (profile?.plan as Plan) ?? "free";
   const limits = getPlanLimits(plan);
@@ -226,14 +231,19 @@ export default async function AccountPage() {
                 </SubmitButton>
               </div>
             </ActionForm>
+          </div>
+        }
+        security={
+          <div className="flex flex-col gap-6">
+            <EmailSection currentEmail={profile?.email ?? user?.email ?? ""} />
 
             <div className="flex flex-col gap-2 border-t border-border pt-6">
               <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 Mot de passe
               </h2>
               <p className="text-xs text-muted-foreground">
-                Définissez un mot de passe pour vous connecter sans lien
-                magique ni Google/GitHub.
+                Définissez ou changez le mot de passe utilisé pour vous
+                connecter sans lien magique ni Google/GitHub.
               </p>
               <ActionForm action={setPassword} className="flex max-w-sm gap-2">
                 <label htmlFor="new-password" className="sr-only">
@@ -253,6 +263,13 @@ export default async function AccountPage() {
                   Définir
                 </SubmitButton>
               </ActionForm>
+            </div>
+
+            <div className="border-t border-border pt-6">
+              <MfaSection
+                enabled={Boolean(totpFactor)}
+                factorId={totpFactor?.id ?? null}
+              />
             </div>
           </div>
         }

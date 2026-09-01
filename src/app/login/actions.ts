@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { findAccountProvidersByEmail } from "@/lib/auth-admin";
 import { createClient } from "@/lib/db/server";
 
 const emailSchema = z.string().email();
@@ -87,6 +88,15 @@ export async function signUpWithPassword(plan: string | null, formData: FormData
       plan,
       "signup",
       password.error.issues[0]?.message ?? "Mot de passe invalide.",
+    );
+  }
+
+  const existingProviders = await findAccountProvidersByEmail(email.data);
+  if (existingProviders) {
+    loginErrorRedirect(
+      plan,
+      "signup",
+      `Cet email est déjà utilisé par un autre compte (connexion via ${existingProviders.join(" ou ")}). Connectez-vous plutôt.`,
     );
   }
 

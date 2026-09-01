@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { findAccountProvidersByEmail } from "@/lib/auth-admin";
 import { createClient } from "@/lib/db/server";
 import { createServiceClient } from "@/lib/db/service";
 import { getStripe } from "@/lib/stripe";
@@ -229,6 +230,49 @@ export async function regenerateAvatar(
     .eq("id", user.id);
 
   return { success: "Nouvel avatar généré." };
+}
+
+const changeEmailSchema = z.string().trim().email("Adresse email invalide.");
+
+export async function updateEmail(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = changeEmailSchema.safeParse(formData.get("email"));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Adresse email invalide." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  if (parsed.data.toLowerCase() === user.email?.toLowerCase()) {
+    return { error: "C'est déjà votre adresse email actuelle." };
+  }
+
+  const existingProviders = await findAccountProvidersByEmail(parsed.data);
+  if (existingProviders) {
+    return {
+      error: `Cet email est déjà utilisé par un autre compte (connexion via ${existingProviders.join(" ou ")}).`,
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser(
+    { email: parsed.data },
+    {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=${encodeURIComponent("/app/account?tab=security")}`,
+    },
+  );
+
+  if (error) return { error: error.message };
+
+  return {
+    success: `Email de confirmation envoyé à ${parsed.data} — cliquez sur le lien pour valider le changement.`,
+  };
 }
 
 const setPasswordSchema = z.string().min(8, "8 caractères minimum.");
