@@ -9,7 +9,7 @@ Browser  →  Next.js (Vercel)
               └─ /api
                    ├─ /api/stripe/webhook
                    ├─ /api/vercel/deploy
-                   └─ /api/cron/tick   (Vercel Cron)
+                   └─ /api/cron/tick   (external cron service, see Runner)
 
 Runner   →  https targets on the public internet
          →  MUST pass src/lib/ssrf.ts first
@@ -26,11 +26,11 @@ Runner   →  https targets on the public internet
 
 ## Runner
 
-Decision: Vercel Cron + `check_jobs`, not Inngest. Reason: no extra account/service to run, and job volume stays small at indie scale (max 50 URLs, every 5 min on Team) — a second job service isn't worth the added moving part for the MVP.
+Decision: an external cron service + `check_jobs`, not Inngest, not Vercel's native cron. Reason: no extra account/service to run for the check logic itself, and job volume stays small at indie scale (max 50 URLs, every 5 min on Team) — a second job service isn't worth the added moving part for the MVP. Vercel's native cron was ruled out separately (see trigger caveat below).
 
-Vercel Cron hits `/api/cron/tick` with `CRON_SECRET`, selects due projects (interval by plan: 30 min free, 5 min paid), inserts `check_jobs`, processes a batch.
+`/api/cron/tick` (auth'd with `CRON_SECRET`) selects due projects (interval by plan: 30 min free, 5 min paid), inserts `check_jobs`, and processes the batch with bounded concurrency across projects (`INTER_PROJECT_CONCURRENCY` in the route) — each project's own targets already run with their own concurrency limit (`MAX_CONCURRENCY_PER_PROJECT` in `src/lib/runner.ts`). A row-based lock (`cron_lock` table, atomic conditional `UPDATE`) makes the whole tick single-flight, so an overlapping invocation skips instead of double-processing the same due projects.
 
-Trigger caveat: Vercel Hobby plan caps Cron Jobs at once/day, which can't drive a 5-minute interval. `.github/workflows/cron.yml`'s `*/5 * * * *` schedule was tried first but proved unreliable in production — GitHub does not guarantee scheduled-workflow timing on a low-activity repo, and observed gaps between runs were 3-5 hours, not minutes (this is why site scans and paid-plan checks were stalling). The primary 5-minute trigger is now an external cron service (e.g. cron-job.org) calling `/api/cron/tick` with `CRON_SECRET`; the GitHub Actions workflow stays as an hourly backup only. Swap back to `vercel.json` native crons once the project is on Vercel Pro.
+Trigger caveat: Vercel Hobby plan caps Cron Jobs at once/day, which can't drive a 5-minute interval. `.github/workflows/cron.yml`'s `*/5 * * * *` schedule was tried first but proved unreliable in production — GitHub does not guarantee scheduled-workflow timing on a low-activity repo, and observed gaps between runs were 3-5 hours, not minutes (this is why site scans and paid-plan checks were stalling). The primary 5-minute trigger is now an external cron service (cron-job.org, configured and verified hitting `/api/cron/tick` on schedule) calling with `CRON_SECRET`; the GitHub Actions workflow stays as an hourly backup only. Swap to `vercel.json` native crons (or a managed queue like Inngest/QStash) once the project is on Vercel Pro or the job volume outgrows this.
 
 Per target:
 
@@ -79,11 +79,10 @@ Until DNS points at Vercel, deploys are reachable at `*.vercel.app` previews, bu
 | Module | Responsibility |
 |---|---|
 | `src/lib/ssrf.ts` | Parse + deny private/metadata |
-| `src/lib/checks/http.ts` | Fetch + timing |
-| `src/lib/checks/html.ts` | title, description, canonical, robots |
+| `src/lib/checks/http.ts` | Fetch + timing + title/canonical/JSON-LD parsing |
 | `src/lib/checks/og.ts` | OG/Twitter + image HEAD |
 | `src/lib/checks/sitemap.ts` | XML parse + sample |
-| `src/lib/checks/jsonld.ts` | script[type=application/ld+json] |
 | `src/lib/checks/ssl.ts` | TLS certificate notAfter |
+| `src/lib/checks/stripe-health.ts` | Success-page GET (webhook route not checked — no schema column for a second URL yet) |
 | `src/lib/alerts.ts` | group / dedup / Resend / Discord |
 | `src/lib/entitlements.ts` | plan limits |

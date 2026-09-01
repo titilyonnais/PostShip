@@ -19,7 +19,7 @@ import {
   toggleProjectPause,
   updateProjectBaseUrl,
 } from "../../actions";
-import { setDiscordWebhook, setVercelHookSecret } from "../actions";
+import { disableDiscordWebhook, setDiscordWebhook, setVercelHookSecret } from "../actions";
 
 export const metadata = {
   title: "Paramètres du projet",
@@ -124,8 +124,8 @@ export default async function ProjectSettingsPage({
               <p className="text-xs text-muted-foreground">
                 Collez l&apos;URL d&apos;un webhook Discord (Paramètres du
                 salon → Intégrations → Webhooks) pour recevoir les alertes en
-                plus de l&apos;email. Laissez vide et enregistrez pour
-                désactiver.
+                plus de l&apos;email. Laissez le champ vide pour ne rien
+                changer.
               </p>
               <ActionForm
                 action={setDiscordWebhook.bind(null, projectId)}
@@ -138,14 +138,29 @@ export default async function ProjectSettingsPage({
                   id="discord-webhook"
                   name="discord_webhook_url"
                   type="url"
-                  defaultValue={project.discord_webhook_url ?? ""}
-                  placeholder="https://discord.com/api/webhooks/..."
+                  placeholder={
+                    project.discord_webhook_url
+                      ? "•••••••• (déjà configuré)"
+                      : "https://discord.com/api/webhooks/..."
+                  }
                   className="flex-1"
                 />
                 <SubmitButton variant="outline" pendingText="Enregistrement...">
                   Enregistrer
                 </SubmitButton>
               </ActionForm>
+              {project.discord_webhook_url && (
+                <ActionForm action={disableDiscordWebhook.bind(null, projectId)}>
+                  <SubmitButton
+                    variant="ghost"
+                    size="sm"
+                    className="self-start text-muted-foreground"
+                    pendingText="..."
+                  >
+                    Désactiver
+                  </SubmitButton>
+                </ActionForm>
+              )}
             </>
           ) : (
             <p className="text-xs text-muted-foreground">

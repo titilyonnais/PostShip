@@ -233,6 +233,22 @@ export async function setVercelHookSecret(
   return { success: "Secret Vercel enregistré." };
 }
 
+export async function disableDiscordWebhook(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ discord_webhook_url: null })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}`);
+  return { success: "Webhook Discord désactivé." };
+}
+
 export async function setDiscordWebhook(
   projectId: string,
   _prevState: ActionResult,
@@ -240,14 +256,12 @@ export async function setDiscordWebhook(
 ): Promise<ActionResult> {
   const raw = formData.get("discord_webhook_url");
 
+  // The input never carries the existing URL back to the browser (see the
+  // settings page — it's shown as a masked placeholder instead), so an
+  // empty submit here means "left untouched," not "clear it." Disabling
+  // has its own explicit action/button.
   if (raw === "" || raw === null) {
-    const supabase = await createClient();
-    await supabase
-      .from("projects")
-      .update({ discord_webhook_url: null })
-      .eq("id", projectId);
-    revalidatePath(`/app/${projectId}`);
-    return { success: "Webhook Discord désactivé." };
+    return { success: "Aucun changement." };
   }
 
   const parsed = discordWebhookSchema.safeParse(raw);

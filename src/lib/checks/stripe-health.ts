@@ -23,12 +23,17 @@ export async function runStripeHealthCheck(
       signal: controller.signal,
     });
 
+    // Permanent implementation caveat (see the module comment above), not a
+    // per-run signal — keeping it out of `missing` so that array only ever
+    // lists reasons *this specific run* is incomplete/failing.
+    const limitations = ["webhook_route_not_checked"];
+
     if (!result.ok) {
       const details = {
         url: target.url,
         error: result.reason,
         redirects: result.redirects,
-        missing: ["webhook_route_not_checked"],
+        limitations,
       };
       return {
         outcome: "error",
@@ -41,14 +46,14 @@ export async function runStripeHealthCheck(
 
     const ttfbMs = Date.now() - started;
     const statusOk = result.response.status >= 200 && result.response.status < 300;
-    const missing: string[] = ["webhook_route_not_checked"];
-    if (!statusOk) missing.push("success_url_status");
+    const missing: string[] = statusOk ? [] : ["success_url_status"];
 
     const outcome: "pass" | "fail" = statusOk ? "pass" : "fail";
     const details = {
       url: result.finalUrl,
       redirects: result.redirects,
       missing,
+      limitations,
     };
 
     return {

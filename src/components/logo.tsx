@@ -13,6 +13,11 @@ export function Logo({ className }: { className?: string }) {
       src={logoWordmark}
       alt="PostShip"
       priority
+      // Displayed at most ~32px tall (h-8) anywhere in the app — without an
+      // explicit sizes hint, next/image's responsive srcset assumes it could
+      // fill the viewport and generates variants up to 3840px wide for what
+      // ends up an ~100px-wide logo.
+      sizes="120px"
       className={cn("h-6 w-auto", className)}
     />
   );
@@ -25,6 +30,7 @@ export function LogoMark({ className }: { className?: string }) {
       src={logoIcon}
       alt="PostShip"
       priority
+      sizes="24px"
       className={cn("size-6", className)}
     />
   );
