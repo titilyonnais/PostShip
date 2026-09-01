@@ -3,7 +3,13 @@ import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
 import { CreateProjectForm } from "./create-project-form";
 
-export default async function AppHomePage() {
+export default async function AppHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; success?: string }>;
+}) {
+  const { error, success } = await searchParams;
+
   const supabase = await createClient();
   const { data: projects } = await supabase
     .from("projects")
@@ -12,6 +18,9 @@ export default async function AppHomePage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {success && <p className="text-sm text-emerald-500">{success}</p>}
+
       <CreateProjectForm />
 
       {projects && projects.length > 0 ? (

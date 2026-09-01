@@ -33,6 +33,9 @@ export async function updateDisplayName(formData: FormData) {
     .eq("id", user.id);
 
   revalidatePath("/app/account");
+  redirect(
+    `/app/account?success=${encodeURIComponent("Nom enregistré.")}`,
+  );
 }
 
 export async function deleteAccount() {

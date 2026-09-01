@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusDot } from "@/components/status-dot";
+import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { getUptimeStats } from "@/lib/uptime";
@@ -21,10 +21,10 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const { projectId } = await params;
-  const { error } = await searchParams;
+  const { error, success } = await searchParams;
 
   const supabase = await createClient();
   const { data: project } = await supabase
@@ -74,6 +74,7 @@ export default async function ProjectPage({
   return (
     <div className="flex flex-col gap-6">
       {error && <p className="text-sm text-destructive">{error}</p>}
+      {success && <p className="text-sm text-emerald-500">{success}</p>}
 
       <div className="flex items-center justify-between">
         <div>
@@ -88,12 +89,14 @@ export default async function ProjectPage({
         </div>
         <div className="flex gap-2">
           <form action={runProjectNow.bind(null, project.id)}>
-            <Button type="submit">Lancer maintenant</Button>
+            <SubmitButton pendingText="Vérification en cours...">
+              Lancer maintenant
+            </SubmitButton>
           </form>
           <form action={deleteProject.bind(null, project.id)}>
-            <Button type="submit" variant="outline">
+            <SubmitButton variant="outline" pendingText="Suppression...">
               Supprimer le projet
-            </Button>
+            </SubmitButton>
           </form>
         </div>
       </div>
@@ -103,9 +106,9 @@ export default async function ProjectPage({
         className="flex max-w-sm gap-2"
       >
         <Input name="name" defaultValue={project.name} />
-        <Button type="submit" variant="outline">
+        <SubmitButton variant="outline" pendingText="...">
           Renommer
-        </Button>
+        </SubmitButton>
       </form>
 
       <div className="flex flex-col gap-3">
@@ -144,9 +147,9 @@ export default async function ProjectPage({
                       target.enabled,
                     )}
                   >
-                    <Button type="submit" size="sm" variant="ghost">
+                    <SubmitButton size="sm" variant="ghost" pendingText="...">
                       {target.enabled ? "Désactiver" : "Activer"}
-                    </Button>
+                    </SubmitButton>
                   </form>
                 </div>
               </li>
@@ -181,9 +184,9 @@ export default async function ProjectPage({
               defaultValue={project.discord_webhook_url ?? ""}
               placeholder="https://discord.com/api/webhooks/..."
             />
-            <Button type="submit" variant="outline">
+            <SubmitButton variant="outline" pendingText="Enregistrement...">
               Enregistrer
-            </Button>
+            </SubmitButton>
           </form>
         </div>
       )}
@@ -212,9 +215,9 @@ export default async function ProjectPage({
                 project.vercel_hook_secret ? "•••••••• (déjà configuré)" : "Secret Vercel"
               }
             />
-            <Button type="submit" variant="outline">
+            <SubmitButton variant="outline" pendingText="Enregistrement...">
               Enregistrer
-            </Button>
+            </SubmitButton>
           </form>
         </div>
       )}

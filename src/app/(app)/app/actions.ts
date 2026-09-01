@@ -87,11 +87,14 @@ export async function renameProject(projectId: string, formData: FormData) {
 
   revalidatePath(`/app/${projectId}`);
   revalidatePath("/app");
+  redirect(
+    `/app/${projectId}?success=${encodeURIComponent("Nom mis à jour.")}`,
+  );
 }
 
 export async function deleteProject(projectId: string) {
   const supabase = await createClient();
   await supabase.from("projects").delete().eq("id", projectId);
   revalidatePath("/app");
-  redirect("/app");
+  redirect(`/app?success=${encodeURIComponent("Projet supprimé.")}`);
 }

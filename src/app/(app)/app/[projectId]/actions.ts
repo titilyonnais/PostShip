@@ -128,8 +128,9 @@ export async function runProjectNow(projectId: string) {
     }
   }
 
+  let results: Awaited<ReturnType<typeof runProjectChecks>>;
   try {
-    await runProjectChecks(projectId);
+    results = await runProjectChecks(projectId);
   } catch (err) {
     redirect(
       `/app/${projectId}?error=${encodeURIComponent(
@@ -138,8 +139,22 @@ export async function runProjectNow(projectId: string) {
     );
   }
 
-  revalidatePath(`/app/${projectId}`);
   revalidatePath("/app");
+
+  if (results.length === 0) {
+    redirect(
+      `/app/${projectId}?success=${encodeURIComponent("Vérification lancée — aucune URL active à tester.")}`,
+    );
+  }
+
+  const passed = results.filter((r) => r.outcome === "pass").length;
+  const failed = results.length - passed;
+  redirect(
+    `/app/${projectId}?success=${encodeURIComponent(
+      `Vérification terminée : ${passed}/${results.length} OK` +
+        (failed > 0 ? `, ${failed} en échec.` : "."),
+    )}`,
+  );
 }
 
 export async function setVercelHookSecret(
@@ -167,6 +182,9 @@ export async function setVercelHookSecret(
   }
 
   revalidatePath(`/app/${projectId}`);
+  redirect(
+    `/app/${projectId}?success=${encodeURIComponent("Secret Vercel enregistré.")}`,
+  );
 }
 
 export async function setDiscordWebhook(projectId: string, formData: FormData) {
@@ -179,7 +197,9 @@ export async function setDiscordWebhook(projectId: string, formData: FormData) {
       .update({ discord_webhook_url: null })
       .eq("id", projectId);
     revalidatePath(`/app/${projectId}`);
-    return;
+    redirect(
+      `/app/${projectId}?success=${encodeURIComponent("Webhook Discord désactivé.")}`,
+    );
   }
 
   const parsed = discordWebhookSchema.safeParse(raw);
@@ -217,6 +237,9 @@ export async function setDiscordWebhook(projectId: string, formData: FormData) {
   }
 
   revalidatePath(`/app/${projectId}`);
+  redirect(
+    `/app/${projectId}?success=${encodeURIComponent("Webhook Discord enregistré.")}`,
+  );
 }
 
 export async function toggleTarget(

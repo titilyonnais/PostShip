@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { DeleteAccountButton } from "./delete-account-button";
@@ -14,9 +14,9 @@ const PLAN_LABEL: Record<Plan, string> = {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; success?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, success } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -34,6 +34,7 @@ export default async function AccountPage({
   return (
     <div className="flex flex-col gap-6">
       {error && <p className="text-sm text-destructive">{error}</p>}
+      {success && <p className="text-sm text-emerald-500">{success}</p>}
 
       <div>
         <h1 className="text-lg font-semibold">Compte</h1>
@@ -49,9 +50,9 @@ export default async function AccountPage({
           defaultValue={profile?.display_name ?? ""}
           placeholder="Nom affiché (optionnel)"
         />
-        <Button type="submit" variant="outline">
+        <SubmitButton variant="outline" pendingText="Enregistrement...">
           Enregistrer
-        </Button>
+        </SubmitButton>
       </form>
 
       <div className="flex flex-col gap-2 border border-border p-4">

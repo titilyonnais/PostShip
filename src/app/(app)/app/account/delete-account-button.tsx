@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import { deleteAccount } from "./actions";
 
 export function DeleteAccountButton() {
@@ -17,9 +17,9 @@ export function DeleteAccountButton() {
         }
       }}
     >
-      <Button type="submit" variant="destructive">
+      <SubmitButton variant="destructive" pendingText="Suppression...">
         Supprimer mon compte
-      </Button>
+      </SubmitButton>
     </form>
   );
 }

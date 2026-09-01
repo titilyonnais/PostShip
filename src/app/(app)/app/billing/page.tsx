@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { openBillingPortal, startCheckout } from "./actions";
@@ -48,22 +48,25 @@ export default async function BillingPage({
 
       <div className="flex gap-3">
         <form action={startCheckout.bind(null, "solo")}>
-          <Button type="submit" disabled={plan === "solo" || plan === "team"}>
+          <SubmitButton
+            disabled={plan === "solo" || plan === "team"}
+            pendingText="Redirection..."
+          >
             Passer à Solo
-          </Button>
+          </SubmitButton>
         </form>
         <form action={startCheckout.bind(null, "team")}>
-          <Button type="submit" disabled={plan === "team"}>
+          <SubmitButton disabled={plan === "team"} pendingText="Redirection...">
             Passer à Team
-          </Button>
+          </SubmitButton>
         </form>
       </div>
 
       {profile?.stripe_customer_id && (
         <form action={openBillingPortal}>
-          <Button type="submit" variant="outline">
+          <SubmitButton variant="outline" pendingText="Redirection...">
             Gérer mon abonnement
-          </Button>
+          </SubmitButton>
         </form>
       )}
     </div>
