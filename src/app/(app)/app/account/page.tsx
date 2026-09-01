@@ -1,9 +1,13 @@
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { Suspense } from "react";
+import { AlertTriangle, Coins } from "lucide-react";
+import { ActionForm } from "@/components/action-form";
+import { CheckoutReturnToast } from "@/components/checkout-return-toast";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { TOKENS_PER_PACK } from "@/lib/stripe";
 import { AccountTabs } from "./account-tabs";
 import { DeleteAccountButton } from "./delete-account-button";
 import {
@@ -12,6 +16,7 @@ import {
   updateNotificationPrefs,
   updateProfile,
 } from "./actions";
+import { buyTokens } from "./tokens-actions";
 
 const PLAN_LABEL: Record<Plan, string> = {
   free: "Free",
@@ -37,13 +42,7 @@ type BillingAddress = {
   country?: string;
 } | null;
 
-export default async function AccountPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string; tab?: string }>;
-}) {
-  const { error, success, tab } = await searchParams;
-
+export default async function AccountPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -52,7 +51,7 @@ export default async function AccountPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "email, display_name, full_name, company_name, phone, team_size, plan, billing_address, stripe_customer_id, email_alerts_enabled, locale",
+      "email, display_name, full_name, company_name, phone, team_size, plan, billing_address, stripe_customer_id, email_alerts_enabled, locale, token_balance",
     )
     .eq("id", user?.id)
     .single();
@@ -62,16 +61,9 @@ export default async function AccountPage({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      {success && (
-        <p role="status" className="text-sm text-[#3fb950]">
-          {success}
-        </p>
-      )}
+      <Suspense fallback={null}>
+        <CheckoutReturnToast />
+      </Suspense>
 
       <div>
         <h1 className="text-lg font-semibold">Compte</h1>
@@ -82,10 +74,9 @@ export default async function AccountPage({
       </div>
 
       <AccountTabs
-        defaultTab={tab}
         profile={
           <div className="flex flex-col gap-6">
-            <form
+            <ActionForm
               action={updateDisplayName}
               className="flex max-w-sm items-end gap-2"
             >
@@ -106,9 +97,9 @@ export default async function AccountPage({
               <SubmitButton variant="outline" pendingText="Enregistrement...">
                 Enregistrer
               </SubmitButton>
-            </form>
+            </ActionForm>
 
-            <form action={updateProfile} className="flex flex-col gap-4">
+            <ActionForm action={updateProfile} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <label
                   htmlFor="full_name"
@@ -180,7 +171,7 @@ export default async function AccountPage({
                   Enregistrer le profil
                 </SubmitButton>
               </div>
-            </form>
+            </ActionForm>
           </div>
         }
         billing={
@@ -195,7 +186,7 @@ export default async function AccountPage({
               </Link>
             </p>
 
-            <form
+            <ActionForm
               action={updateBillingAddress}
               className="flex flex-col gap-4"
             >
@@ -269,11 +260,11 @@ export default async function AccountPage({
                   Enregistrer l&apos;adresse
                 </SubmitButton>
               </div>
-            </form>
+            </ActionForm>
           </div>
         }
         notifications={
-          <form
+          <ActionForm
             action={updateNotificationPrefs}
             className="flex flex-col gap-5"
           >
@@ -313,7 +304,30 @@ export default async function AccountPage({
                 Enregistrer les préférences
               </SubmitButton>
             </div>
-          </form>
+          </ActionForm>
+        }
+        tokens={
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1 rounded-md border border-border bg-card p-4">
+              <span className="text-xs text-muted-foreground">
+                Solde de tokens
+              </span>
+              <span className="flex items-center gap-2 font-mono text-2xl">
+                <Coins className="size-5 text-muted-foreground" aria-hidden="true" />
+                {profile?.token_balance ?? 0}
+              </span>
+            </div>
+            <p className="max-w-md text-xs text-muted-foreground">
+              Les tokens sont indépendants de votre abonnement — ils servent à
+              lancer un scan complet d&apos;un site (1 token = 1 page
+              scannée), disponible depuis chaque projet.
+            </p>
+            <form action={buyTokens}>
+              <SubmitButton pendingText="Redirection...">
+                Acheter {TOKENS_PER_PACK} tokens — 5€
+              </SubmitButton>
+            </form>
+          </div>
         }
         danger={
           <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-4">

@@ -1,30 +1,23 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { createServiceClient } from "@/lib/db/service";
 import { getStripe } from "@/lib/stripe";
+import type { ActionResult } from "@/lib/use-toast-action";
 
-function fail(message: string, tab?: string): never {
-  const tabParam = tab ? `&tab=${tab}` : "";
-  redirect(`/app/account?error=${encodeURIComponent(message)}${tabParam}`);
-}
-
-function ok(message: string, tab?: string): never {
-  const tabParam = tab ? `&tab=${tab}` : "";
-  redirect(`/app/account?success=${encodeURIComponent(message)}${tabParam}`);
-}
-
-export async function updateDisplayName(formData: FormData) {
+export async function updateDisplayName(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = z
     .string()
     .trim()
     .max(120)
     .safeParse(formData.get("display_name"));
 
-  if (!parsed.success) fail("Nom invalide.", "profile");
+  if (!parsed.success) return { error: "Nom invalide." };
 
   const supabase = await createClient();
   const {
@@ -38,8 +31,7 @@ export async function updateDisplayName(formData: FormData) {
     .update({ display_name: parsed.data || null })
     .eq("id", user.id);
 
-  revalidatePath("/app/account");
-  ok("Nom enregistré.", "profile");
+  return { success: "Nom enregistré." };
 }
 
 const profileSchema = z.object({
@@ -49,7 +41,10 @@ const profileSchema = z.object({
   team_size: z.enum(["solo", "2-5", "6-20", "20+"]).optional(),
 });
 
-export async function updateProfile(formData: FormData) {
+export async function updateProfile(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = profileSchema.safeParse({
     full_name: formData.get("full_name"),
     company_name: formData.get("company_name") || undefined,
@@ -58,7 +53,7 @@ export async function updateProfile(formData: FormData) {
   });
 
   if (!parsed.success) {
-    fail(parsed.error.issues[0]?.message ?? "Formulaire invalide.", "profile");
+    return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
   const supabase = await createClient();
@@ -78,8 +73,7 @@ export async function updateProfile(formData: FormData) {
     })
     .eq("id", user.id);
 
-  revalidatePath("/app/account");
-  ok("Profil mis à jour.", "profile");
+  return { success: "Profil mis à jour." };
 }
 
 const billingAddressSchema = z.object({
@@ -90,7 +84,10 @@ const billingAddressSchema = z.object({
   country: z.string().trim().length(2, "Code pays ISO à 2 lettres.").max(2),
 });
 
-export async function updateBillingAddress(formData: FormData) {
+export async function updateBillingAddress(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = billingAddressSchema.safeParse({
     line1: formData.get("line1"),
     line2: formData.get("line2") || undefined,
@@ -100,7 +97,7 @@ export async function updateBillingAddress(formData: FormData) {
   });
 
   if (!parsed.success) {
-    fail(parsed.error.issues[0]?.message ?? "Adresse invalide.", "billing");
+    return { error: parsed.error.issues[0]?.message ?? "Adresse invalide." };
   }
 
   const supabase = await createClient();
@@ -143,8 +140,7 @@ export async function updateBillingAddress(formData: FormData) {
     }
   }
 
-  revalidatePath("/app/account");
-  ok("Adresse de facturation mise à jour.", "billing");
+  return { success: "Adresse de facturation mise à jour." };
 }
 
 const notificationPrefsSchema = z.object({
@@ -152,13 +148,16 @@ const notificationPrefsSchema = z.object({
   locale: z.enum(["fr", "en"]),
 });
 
-export async function updateNotificationPrefs(formData: FormData) {
+export async function updateNotificationPrefs(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = notificationPrefsSchema.safeParse({
     email_alerts_enabled: formData.get("email_alerts_enabled") === "on",
     locale: formData.get("locale"),
   });
 
-  if (!parsed.success) fail("Préférences invalides.", "notifications");
+  if (!parsed.success) return { error: "Préférences invalides." };
 
   const supabase = await createClient();
   const {
@@ -175,8 +174,7 @@ export async function updateNotificationPrefs(formData: FormData) {
     })
     .eq("id", user.id);
 
-  revalidatePath("/app/account");
-  ok("Préférences enregistrées.", "notifications");
+  return { success: "Préférences enregistrées." };
 }
 
 export async function deleteAccount() {
@@ -208,7 +206,9 @@ export async function deleteAccount() {
   const service = createServiceClient();
   const { error } = await service.auth.admin.deleteUser(user.id);
 
-  if (error) fail(error.message, "danger");
+  if (error) {
+    redirect(`/app/account?error=${encodeURIComponent(error.message)}`);
+  }
 
   redirect("/?deleted=1");
 }

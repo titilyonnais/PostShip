@@ -1,25 +1,26 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export type UptimeWindow = { pct: number | null; count: number };
 export type UptimeStats = {
-  pct24h: number | null;
-  pct7d: number | null;
-  pct30d: number | null;
+  h24: UptimeWindow;
+  d7: UptimeWindow;
+  d30: UptimeWindow;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-async function pctSince(
+async function windowSince(
   supabase: SupabaseClient,
   projectId: string,
   sinceIso: string,
-): Promise<number | null> {
+): Promise<UptimeWindow> {
   const { count: total } = await supabase
     .from("check_runs")
     .select("id", { count: "exact", head: true })
     .eq("project_id", projectId)
     .gte("started_at", sinceIso);
 
-  if (!total) return null;
+  if (!total) return { pct: null, count: 0 };
 
   const { count: passing } = await supabase
     .from("check_runs")
@@ -28,7 +29,7 @@ async function pctSince(
     .eq("outcome", "pass")
     .gte("started_at", sinceIso);
 
-  return ((passing ?? 0) / total) * 100;
+  return { pct: ((passing ?? 0) / total) * 100, count: total };
 }
 
 // Count-only queries (head: true) rather than fetching raw rows — a busy
@@ -39,11 +40,11 @@ export async function getUptimeStats(
   projectId: string,
 ): Promise<UptimeStats> {
   const now = Date.now();
-  const [pct24h, pct7d, pct30d] = await Promise.all([
-    pctSince(supabase, projectId, new Date(now - 1 * DAY_MS).toISOString()),
-    pctSince(supabase, projectId, new Date(now - 7 * DAY_MS).toISOString()),
-    pctSince(supabase, projectId, new Date(now - 30 * DAY_MS).toISOString()),
+  const [h24, d7, d30] = await Promise.all([
+    windowSince(supabase, projectId, new Date(now - 1 * DAY_MS).toISOString()),
+    windowSince(supabase, projectId, new Date(now - 7 * DAY_MS).toISOString()),
+    windowSince(supabase, projectId, new Date(now - 30 * DAY_MS).toISOString()),
   ]);
 
-  return { pct24h, pct7d, pct30d };
+  return { h24, d7, d30 };
 }

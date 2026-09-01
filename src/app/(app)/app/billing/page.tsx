@@ -1,18 +1,14 @@
+import { Suspense } from "react";
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { CheckoutReturnToast } from "@/components/checkout-return-toast";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
 import { openBillingPortal, startCheckout } from "./actions";
 
-export default async function BillingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; checkout?: string }>;
-}) {
-  const { error, checkout } = await searchParams;
-
+export default async function BillingPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,16 +25,9 @@ export default async function BillingPage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      {checkout === "success" && (
-        <p role="status" className="text-sm text-[#3fb950]">
-          Abonnement activé.
-        </p>
-      )}
+      <Suspense fallback={null}>
+        <CheckoutReturnToast />
+      </Suspense>
 
       <div>
         <h1 className="text-lg font-semibold">Abonnement</h1>

@@ -20,6 +20,17 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  {
+    rules: {
+      // Server actions bound via useActionState always take a leading
+      // prevState arg, unused by actions that don't need form fields
+      // (toggle/delete/relaunch buttons) — underscore-prefixed by convention.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;

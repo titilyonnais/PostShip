@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runProjectChecks } from "@/lib/runner";
+import { advanceSiteScans } from "@/lib/scan";
 
 type DueProjectRow = {
   id: string;
@@ -36,6 +37,11 @@ export async function GET(request: Request) {
     .map((project) => project.id);
 
   if (dueProjectIds.length === 0) {
+    try {
+      await advanceSiteScans();
+    } catch (err) {
+      console.error("Échec avancement scan de site", err);
+    }
     return NextResponse.json({ checked: 0, failed: 0 });
   }
 
@@ -81,6 +87,12 @@ export async function GET(request: Request) {
         })
         .eq("id", job.id);
     }
+  }
+
+  try {
+    await advanceSiteScans();
+  } catch (err) {
+    console.error("Échec avancement scan de site", err);
   }
 
   return NextResponse.json({ checked: jobs.length, failed });

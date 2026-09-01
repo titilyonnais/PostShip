@@ -139,3 +139,20 @@
     @apply bg-background text-foreground font-sans;
   }
 }
+
+/* Pill-shaped toast ("doliprane" style) instead of the default squared
+   card — see src/components/ui/sonner.tsx, which maps toast -> .cn-toast. */
+.cn-toast {
+  border-radius: 999px !important;
+  padding-left: 1rem !important;
+  padding-right: 0.75rem !important;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.35),
+    0 0 0 1px var(--border) !important;
+}
+.cn-toast[data-type="success"] {
+  border-color: color-mix(in oklch, #3fb950 40%, var(--border)) !important;
+}
+.cn-toast[data-type="error"] {
+  border-color: color-mix(in oklch, var(--destructive) 40%, var(--border)) !important;
+}

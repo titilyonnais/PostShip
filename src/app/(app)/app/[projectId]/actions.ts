@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runOneTarget, runProjectChecks } from "@/lib/runner";
+import type { ActionResult } from "@/lib/use-toast-action";
 import { httpsUrlSchema } from "@/lib/validation";
 
 const discordWebhookSchema = z
@@ -18,6 +19,7 @@ const discordWebhookSchema = z
 
 const TARGET_KINDS = ["http", "og", "sitemap", "ssl", "stripe_health"] as const;
 const RUN_NOW_COOLDOWN_MS = 30_000;
+const TARGET_COOLDOWN_MS = 10_000;
 
 const addTargetSchema = z.object({
   url: httpsUrlSchema,
@@ -98,7 +100,10 @@ export async function addTarget(
   return { error: null };
 }
 
-export async function runProjectNow(projectId: string) {
+export async function runProjectNow(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -112,19 +117,13 @@ export async function runProjectNow(projectId: string) {
     .eq("id", projectId)
     .single();
 
-  if (!project) {
-    redirect(
-      `/app/${projectId}?error=${encodeURIComponent("Projet introuvable.")}`,
-    );
-  }
+  if (!project) return { error: "Projet introuvable." };
 
   if (project.last_checked_at) {
     const elapsedMs = Date.now() - new Date(project.last_checked_at).getTime();
     if (elapsedMs < RUN_NOW_COOLDOWN_MS) {
       const waitSeconds = Math.ceil((RUN_NOW_COOLDOWN_MS - elapsedMs) / 1000);
-      redirect(
-        `/app/${projectId}?error=${encodeURIComponent(`Patientez ${waitSeconds}s avant de relancer.`)}`,
-      );
+      return { error: `Patientez ${waitSeconds}s avant de relancer.` };
     }
   }
 
@@ -132,34 +131,32 @@ export async function runProjectNow(projectId: string) {
   try {
     results = await runProjectChecks(projectId);
   } catch (err) {
-    redirect(
-      `/app/${projectId}?error=${encodeURIComponent(
-        err instanceof Error ? err.message : "Erreur pendant l'exécution.",
-      )}`,
-    );
+    return {
+      error: err instanceof Error ? err.message : "Erreur pendant l'exécution.",
+    };
   }
 
   revalidatePath("/app");
+  revalidatePath(`/app/${projectId}`);
 
   if (results.length === 0) {
-    redirect(
-      `/app/${projectId}?success=${encodeURIComponent("Vérification lancée — aucune URL active à tester.")}`,
-    );
+    return { success: "Vérification lancée — aucune URL active à tester." };
   }
 
   const passed = results.filter((r) => r.outcome === "pass").length;
   const failed = results.length - passed;
-  redirect(
-    `/app/${projectId}?success=${encodeURIComponent(
+  return {
+    success:
       `Vérification terminée : ${passed}/${results.length} OK` +
-        (failed > 0 ? `, ${failed} en échec.` : "."),
-    )}`,
-  );
+      (failed > 0 ? `, ${failed} en échec.` : "."),
+  };
 }
 
-const TARGET_COOLDOWN_MS = 10_000;
-
-export async function runTargetNow(projectId: string, targetId: string) {
+export async function runTargetNow(
+  projectId: string,
+  targetId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -174,11 +171,7 @@ export async function runTargetNow(projectId: string, targetId: string) {
     .eq("project_id", projectId)
     .single();
 
-  if (!target) {
-    redirect(
-      `/app/${projectId}?error=${encodeURIComponent("URL introuvable.")}`,
-    );
-  }
+  if (!target) return { error: "URL introuvable." };
 
   const { data: lastRun } = await supabase
     .from("check_runs")
@@ -192,9 +185,7 @@ export async function runTargetNow(projectId: string, targetId: string) {
     const elapsedMs = Date.now() - new Date(lastRun.started_at).getTime();
     if (elapsedMs < TARGET_COOLDOWN_MS) {
       const waitSeconds = Math.ceil((TARGET_COOLDOWN_MS - elapsedMs) / 1000);
-      redirect(
-        `/app/${projectId}?error=${encodeURIComponent(`Patientez ${waitSeconds}s avant de relancer cette URL.`)}`,
-      );
+      return { error: `Patientez ${waitSeconds}s avant de relancer cette URL.` };
     }
   }
 
@@ -202,39 +193,33 @@ export async function runTargetNow(projectId: string, targetId: string) {
   try {
     result = await runOneTarget(targetId);
   } catch (err) {
-    redirect(
-      `/app/${projectId}?error=${encodeURIComponent(
-        err instanceof Error ? err.message : "Erreur pendant l'exécution.",
-      )}`,
-    );
+    return {
+      error: err instanceof Error ? err.message : "Erreur pendant l'exécution.",
+    };
   }
 
   revalidatePath(`/app/${projectId}`);
   revalidatePath("/app");
-  redirect(
-    `/app/${projectId}?success=${encodeURIComponent(
+  return {
+    success:
       result.outcome === "pass"
         ? `OK — ${target.url}`
         : `Échec détecté — ${target.url}`,
-    )}`,
-  );
+  };
 }
 
 export async function setVercelHookSecret(
   projectId: string,
+  _prevState: ActionResult,
   formData: FormData,
-) {
+): Promise<ActionResult> {
   const parsed = z
     .string()
     .trim()
     .min(1, "Secret invalide.")
     .safeParse(formData.get("vercel_hook_secret"));
 
-  if (!parsed.success) {
-    redirect(
-      `/app/${projectId}?tab=settings&error=${encodeURIComponent("Secret invalide.")}`,
-    );
-  }
+  if (!parsed.success) return { error: "Secret invalide." };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -242,19 +227,17 @@ export async function setVercelHookSecret(
     .update({ vercel_hook_secret: parsed.data })
     .eq("id", projectId);
 
-  if (error) {
-    redirect(
-      `/app/${projectId}?tab=settings&error=${encodeURIComponent(error.message)}`,
-    );
-  }
+  if (error) return { error: error.message };
 
   revalidatePath(`/app/${projectId}`);
-  redirect(
-    `/app/${projectId}?tab=settings&success=${encodeURIComponent("Secret Vercel enregistré.")}`,
-  );
+  return { success: "Secret Vercel enregistré." };
 }
 
-export async function setDiscordWebhook(projectId: string, formData: FormData) {
+export async function setDiscordWebhook(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const raw = formData.get("discord_webhook_url");
 
   if (raw === "" || raw === null) {
@@ -264,16 +247,12 @@ export async function setDiscordWebhook(projectId: string, formData: FormData) {
       .update({ discord_webhook_url: null })
       .eq("id", projectId);
     revalidatePath(`/app/${projectId}`);
-    redirect(
-      `/app/${projectId}?tab=settings&success=${encodeURIComponent("Webhook Discord désactivé.")}`,
-    );
+    return { success: "Webhook Discord désactivé." };
   }
 
   const parsed = discordWebhookSchema.safeParse(raw);
   if (!parsed.success) {
-    redirect(
-      `/app/${projectId}?tab=settings&error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "URL invalide.")}`,
-    );
+    return { error: parsed.error.issues[0]?.message ?? "URL invalide." };
   }
 
   const supabase = await createClient();
@@ -289,9 +268,7 @@ export async function setDiscordWebhook(projectId: string, formData: FormData) {
     .single();
 
   if (!getPlanLimits((profile?.plan as Plan) ?? "free").discord) {
-    redirect(
-      `/app/${projectId}?tab=settings&error=${encodeURIComponent("Discord n'est disponible qu'avec un plan payant.")}`,
-    );
+    return { error: "Discord n'est disponible qu'avec un plan payant." };
   }
 
   const { error } = await supabase
@@ -299,28 +276,43 @@ export async function setDiscordWebhook(projectId: string, formData: FormData) {
     .update({ discord_webhook_url: parsed.data })
     .eq("id", projectId);
 
-  if (error) {
-    redirect(
-      `/app/${projectId}?tab=settings&error=${encodeURIComponent(error.message)}`,
-    );
-  }
+  if (error) return { error: error.message };
 
   revalidatePath(`/app/${projectId}`);
-  redirect(
-    `/app/${projectId}?tab=settings&success=${encodeURIComponent("Webhook Discord enregistré.")}`,
-  );
+  return { success: "Webhook Discord enregistré." };
 }
 
 export async function toggleTarget(
   projectId: string,
   targetId: string,
   enabled: boolean,
-) {
-  const supabase = await createClient();
-  await supabase
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const { error } = await (await createClient())
     .from("check_targets")
     .update({ enabled: !enabled })
     .eq("id", targetId);
 
+  if (error) return { error: error.message };
+
   revalidatePath(`/app/${projectId}`);
+  return { success: enabled ? "URL désactivée." : "URL activée." };
+}
+
+export async function deleteTarget(
+  projectId: string,
+  targetId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const { error } = await (await createClient())
+    .from("check_targets")
+    .delete()
+    .eq("id", targetId)
+    .eq("project_id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}`);
+  revalidatePath("/app");
+  return { success: "URL supprimée." };
 }

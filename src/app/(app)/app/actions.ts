@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import type { ActionResult } from "@/lib/use-toast-action";
 import { httpsUrlSchema } from "@/lib/validation";
 
 const createProjectSchema = z.object({
@@ -68,14 +69,14 @@ export async function createProject(
   return { error: null };
 }
 
-export async function renameProject(projectId: string, formData: FormData) {
+export async function renameProject(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const parsed = z.string().trim().min(1).max(120).safeParse(formData.get("name"));
 
-  if (!parsed.success) {
-    redirect(
-      `/app/${projectId}?tab=settings&error=${encodeURIComponent("Nom invalide.")}`,
-    );
-  }
+  if (!parsed.success) return { error: "Nom invalide." };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -83,17 +84,11 @@ export async function renameProject(projectId: string, formData: FormData) {
     .update({ name: parsed.data })
     .eq("id", projectId);
 
-  if (error) {
-    redirect(
-      `/app/${projectId}?tab=settings&error=${encodeURIComponent(error.message)}`,
-    );
-  }
+  if (error) return { error: error.message };
 
   revalidatePath(`/app/${projectId}`);
   revalidatePath("/app");
-  redirect(
-    `/app/${projectId}?tab=settings&success=${encodeURIComponent("Nom mis à jour.")}`,
-  );
+  return { success: "Nom mis à jour." };
 }
 
 export async function deleteProject(projectId: string) {

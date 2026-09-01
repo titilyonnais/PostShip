@@ -65,6 +65,37 @@ export async function POST(request: Request) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.client_reference_id ?? session.metadata?.user_id;
+
+      if (session.mode === "payment" && session.metadata?.kind === "tokens") {
+        const tokens = Number.parseInt(session.metadata.tokens ?? "0", 10);
+        if (userId && tokens > 0) {
+          // Insert first: the unique constraint on stripe_checkout_session_id
+          // makes this idempotent — a retried webhook delivery for the same
+          // session hits a conflict here and never reaches the credit below.
+          const { error: insertError } = await supabase
+            .from("token_purchases")
+            .insert({
+              user_id: userId,
+              stripe_checkout_session_id: session.id,
+              tokens,
+              amount_cents: session.amount_total ?? 0,
+            });
+
+          if (!insertError) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("token_balance")
+              .eq("id", userId)
+              .single();
+            await supabase
+              .from("profiles")
+              .update({ token_balance: (profile?.token_balance ?? 0) + tokens })
+              .eq("id", userId);
+          }
+        }
+        break;
+      }
+
       const customerId =
         typeof session.customer === "string"
           ? session.customer
