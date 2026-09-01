@@ -1,6 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Path-segment-aware, not a bare string prefix — "/app".startsWith would also
+// match "/apple-icon" (a real Next.js file-convention route, see
+// src/app/apple-icon.tsx) and any other future route starting with "app".
+function isUnderPath(pathname: string, base: string): boolean {
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
+
 export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -34,19 +41,19 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && request.nextUrl.pathname.startsWith("/app")) {
+  if (!user && isUnderPath(request.nextUrl.pathname, "/app")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (!user && request.nextUrl.pathname.startsWith("/onboarding")) {
+  if (!user && isUnderPath(request.nextUrl.pathname, "/onboarding")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && request.nextUrl.pathname.startsWith("/app")) {
+  if (user && isUnderPath(request.nextUrl.pathname, "/app")) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("full_name")

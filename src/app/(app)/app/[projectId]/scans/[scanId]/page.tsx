@@ -6,8 +6,8 @@ import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
 
 const STATUS_LABEL: Record<string, string> = {
-  queued: "En attente de démarrage",
-  running: "En cours",
+  queued: "En file d'attente — la découverte des pages démarre sous peu",
+  running: "Vérification des pages en cours",
   done: "Terminé",
   error: "Erreur",
 };
@@ -40,10 +40,14 @@ export default async function ScanReportPage({
     .order("url");
 
   const isActive = scan.status === "queued" || scan.status === "running";
+  const progressPct =
+    scan.total_pages > 0
+      ? Math.round((scan.pages_scanned / scan.total_pages) * 100)
+      : 0;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-      <AutoRefresh active={isActive} />
+      <AutoRefresh active={isActive} intervalMs={4000} />
 
       <div className="flex flex-col gap-1">
         <Link
@@ -59,24 +63,43 @@ export default async function ScanReportPage({
         </h1>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-md border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Statut</p>
-          <p className="mt-1 text-sm font-medium">
+      <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="flex items-center gap-1.5">
             {STATUS_LABEL[scan.status] ?? scan.status}
             {isActive && (
-              <span className="ml-1.5 inline-block size-1.5 rounded-full bg-[#d29922] motion-safe:animate-pulse align-middle" />
+              <span className="inline-block size-1.5 rounded-full bg-[#d29922] motion-safe:animate-pulse" />
             )}
+          </span>
+          <span className="font-mono text-muted-foreground">
+            {scan.pages_scanned}/{scan.total_pages || "?"} pages
+          </span>
+        </div>
+        {scan.total_pages > 0 && (
+          <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+            <div
+              className="h-full rounded-full bg-foreground transition-all duration-500"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        )}
+        {isActive && (
+          <p className="text-[0.7rem] text-muted-foreground">
+            Traité par lots toutes les ~5 minutes — cette page se rafraîchit
+            automatiquement.
           </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="rounded-md border border-border bg-card p-3">
+          <p className="text-xs text-muted-foreground">OK</p>
+          <p className="mt-1 font-mono text-sm text-[#3fb950]">{scan.pages_ok}</p>
         </div>
         <div className="rounded-md border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Pages scannées</p>
-          <p className="mt-1 font-mono text-sm">{scan.pages_scanned}</p>
-        </div>
-        <div className="rounded-md border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">OK / En échec</p>
-          <p className="mt-1 font-mono text-sm">
-            {scan.pages_ok} / {scan.pages_failed}
+          <p className="text-xs text-muted-foreground">En échec</p>
+          <p className="mt-1 font-mono text-sm text-destructive">
+            {scan.pages_failed}
           </p>
         </div>
         <div className="rounded-md border border-border bg-card p-3">

@@ -4,6 +4,10 @@ import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runProjectChecks } from "@/lib/runner";
 import { advanceSiteScans } from "@/lib/scan";
 
+// Processing several site-scan batches per tick (see src/lib/scan.ts) can
+// run past the platform default — give it real headroom.
+export const maxDuration = 60;
+
 type DueProjectRow = {
   id: string;
   last_checked_at: string | null;

@@ -47,8 +47,47 @@ export default async function Image() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ fontSize: 72, color: "#e6e8eb", display: "flex" }}>
-            PostShip
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <div
+              style={{
+                position: "relative",
+                width: 64,
+                height: 64,
+                borderRadius: 16,
+                background: "#e6e8eb",
+                display: "flex",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: 12,
+                  top: 33,
+                  width: 16,
+                  height: 7,
+                  borderRadius: 4,
+                  background: "#0a0c0e",
+                  transform: "rotate(45deg)",
+                  display: "flex",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: 22,
+                  top: 12,
+                  width: 30,
+                  height: 7,
+                  borderRadius: 4,
+                  background: "#0a0c0e",
+                  transform: "rotate(-45deg)",
+                  display: "flex",
+                }}
+              />
+            </div>
+            <div style={{ fontSize: 72, color: "#e6e8eb", display: "flex" }}>
+              PostShip
+            </div>
           </div>
           <div style={{ fontSize: 28, color: "#8b949e", display: "flex" }}>
             Vérifie votre site après chaque déploiement — Discord + email si

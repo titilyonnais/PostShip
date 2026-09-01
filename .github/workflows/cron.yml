@@ -2,9 +2,12 @@ name: PostShip cron tick
 
 on:
   schedule:
-    # Vercel Hobby plan caps Cron Jobs at once/day, so we trigger
-    # /api/cron/tick from here instead (see docs/ARCHITECTURE.md — Runner).
-    - cron: "*/5 * * * *"
+    # Backup only — GitHub's scheduled workflows are not reliable at tight
+    # intervals on a low-activity repo (observed 3-5h gaps in practice, not
+    # minutes). The primary 5-min trigger is an external cron service (see
+    # docs/ARCHITECTURE.md — Runner); this hourly run is a safety net in
+    # case that service is down, not the main driver.
+    - cron: "0 * * * *"
   workflow_dispatch: {}
 
 jobs:

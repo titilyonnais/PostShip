@@ -6,14 +6,17 @@ import { BackToProjectLink } from "@/components/back-to-project-link";
 import { CheckoutReturnToast } from "@/components/checkout-return-toast";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
+import { avatarUrl } from "@/lib/avatar";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { TOKEN_PACKS, type TokenPackId } from "@/lib/stripe";
 import { AccountTabs } from "./account-tabs";
 import { DeleteAccountButton } from "./delete-account-button";
+import { IdentitySection } from "./identity-section";
 import { LocaleSelect } from "./locale-select";
 import { TeamSizeSelect } from "./team-size-select";
 import {
+  setPassword,
   updateBillingAddress,
   updateDisplayName,
   updateNotificationPrefs,
@@ -46,7 +49,7 @@ export default async function AccountPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "email, display_name, full_name, company_name, phone, team_size, plan, billing_address, stripe_customer_id, email_alerts_enabled, locale, token_balance",
+      "email, display_name, username, avatar_seed, full_name, company_name, phone, team_size, plan, billing_address, stripe_customer_id, email_alerts_enabled, locale, token_balance",
     )
     .eq("id", user?.id)
     .single();
@@ -61,19 +64,18 @@ export default async function AccountPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       <Suspense fallback={null}>
         <CheckoutReturnToast />
-      </Suspense>
-      <Suspense fallback={null}>
         <BackToProjectLink />
       </Suspense>
 
       <div>
-        <h1 className="text-lg font-semibold">Compte</h1>
+        <h1 className="text-lg font-semibold">Paramètres</h1>
         <p className="text-sm text-muted-foreground">
           {profile?.email ?? user?.email} — plan {PLAN_LABEL[plan]} (
           {limits.retentionDays} jours de rétention)
         </p>
       </div>
 
+      <Suspense fallback={null}>
       <AccountTabs
         overview={
           <div className="flex flex-col gap-4">
@@ -95,14 +97,23 @@ export default async function AccountPage() {
                   Pour les scans complets de site
                 </p>
               </div>
-              <div className="rounded-md border border-border bg-card p-4">
-                <p className="text-xs text-muted-foreground">Profil</p>
-                <p className="mt-1 text-lg font-medium">
-                  {profileComplete ? "Complet" : "À compléter"}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {profile?.full_name || profile?.email}
-                </p>
+              <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4">
+                {/* eslint-disable-next-line @next/next/no-img-element -- external DiceBear SVG */}
+                <img
+                  src={avatarUrl(profile?.avatar_seed ?? user?.id ?? "", 64)}
+                  alt=""
+                  className="size-10 shrink-0 rounded-full bg-secondary"
+                  width={40}
+                  height={40}
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {profile?.username || profile?.full_name || profile?.email}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {profileComplete ? "Profil complet" : "Profil à compléter"}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -126,6 +137,11 @@ export default async function AccountPage() {
         }
         profile={
           <div className="flex flex-col gap-6">
+            <IdentitySection
+              username={profile?.username ?? ""}
+              avatarSeed={profile?.avatar_seed ?? user?.id ?? ""}
+            />
+
             <ActionForm
               action={updateDisplayName}
               className="flex max-w-sm items-end gap-2"
@@ -210,6 +226,34 @@ export default async function AccountPage() {
                 </SubmitButton>
               </div>
             </ActionForm>
+
+            <div className="flex flex-col gap-2 border-t border-border pt-6">
+              <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Mot de passe
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Définissez un mot de passe pour vous connecter sans lien
+                magique ni Google/GitHub.
+              </p>
+              <ActionForm action={setPassword} className="flex max-w-sm gap-2">
+                <label htmlFor="new-password" className="sr-only">
+                  Nouveau mot de passe
+                </label>
+                <Input
+                  id="new-password"
+                  name="password"
+                  type="password"
+                  placeholder="8 caractères minimum"
+                  minLength={8}
+                  autoComplete="new-password"
+                  className="flex-1"
+                  required
+                />
+                <SubmitButton variant="outline" pendingText="...">
+                  Définir
+                </SubmitButton>
+              </ActionForm>
+            </div>
           </div>
         }
         billing={
@@ -412,6 +456,7 @@ export default async function AccountPage() {
           </div>
         }
       />
+      </Suspense>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { StatusDot } from "@/components/status-dot";
@@ -42,13 +43,6 @@ type RunRow = {
   ttfb_ms: number | null;
   fingerprint: string;
   details: CheckRunDetails | null;
-};
-
-const SCAN_STATUS_LABEL: Record<string, string> = {
-  queued: "En attente",
-  running: "En cours",
-  done: "Terminé",
-  error: "Erreur",
 };
 
 function formatPct(window: { pct: number | null; count: number }): string {
@@ -122,10 +116,16 @@ export default async function ProjectPage({
 
   const { data: recentScans } = await supabase
     .from("site_scans")
-    .select("id, seed_url, status, pages_scanned, pages_ok, pages_failed, created_at")
+    .select(
+      "id, seed_url, status, pages_scanned, total_pages, pages_ok, pages_failed, created_at",
+    )
     .eq("project_id", projectId)
     .order("created_at", { ascending: false })
     .limit(5);
+
+  const hasActiveScan = (recentScans ?? []).some(
+    (s) => s.status === "queued" || s.status === "running",
+  );
 
   const backTo = `/app/${projectId}`;
 
@@ -320,15 +320,16 @@ export default async function ProjectPage({
               </p>
 
               <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+                {hasActiveScan && <AutoRefresh intervalMs={5000} />}
                 <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   <ScanSearch className="size-3.5" aria-hidden="true" />
                   Scanner tout le site
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Découvre et vérifie l&apos;état de chaque page du site à
-                  l&apos;instant T (jusqu&apos;à 500 pages). Ne modifie pas
-                  vos URLs surveillées — c&apos;est un rapport ponctuel.
-                  Coûte 1 token par page.
+                  Vérifie l&apos;état de chaque page (jusqu&apos;à 500) à
+                  l&apos;instant T — un rapport ponctuel, indépendant de vos
+                  URLs surveillées. 1 token/page, traité par lots toutes les
+                  ~5 min.
                 </p>
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Coins className="size-3.5" aria-hidden="true" />
@@ -366,24 +367,44 @@ export default async function ProjectPage({
                 </ActionForm>
 
                 {recentScans && recentScans.length > 0 && (
-                  <ul className="mt-1 flex flex-col gap-1.5 border-t border-border pt-2">
-                    {recentScans.map((scan) => (
-                      <li key={scan.id} className="text-xs">
-                        <Link
-                          href={`/app/${projectId}/scans/${scan.id}`}
-                          className="flex items-center justify-between gap-2 text-muted-foreground hover:text-foreground"
-                        >
-                          <span className="truncate">
-                            {new Date(scan.created_at).toLocaleDateString("fr-FR")}
-                          </span>
-                          <span className="shrink-0">
-                            {SCAN_STATUS_LABEL[scan.status] ?? scan.status}
-                            {scan.status !== "queued" &&
-                              ` — ${scan.pages_ok}/${scan.pages_scanned} OK`}
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
+                  <ul className="mt-1 flex flex-col gap-2 border-t border-border pt-2">
+                    {recentScans.map((scan) => {
+                      const active =
+                        scan.status === "queued" || scan.status === "running";
+                      const pct =
+                        scan.total_pages > 0
+                          ? Math.round((scan.pages_scanned / scan.total_pages) * 100)
+                          : 0;
+                      return (
+                        <li key={scan.id} className="text-xs">
+                          <Link
+                            href={`/app/${projectId}/scans/${scan.id}`}
+                            className="flex flex-col gap-1 text-muted-foreground hover:text-foreground"
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="truncate">
+                                {new Date(scan.created_at).toLocaleDateString("fr-FR")}
+                              </span>
+                              <span className="shrink-0 font-mono">
+                                {scan.status === "queued"
+                                  ? "Découverte..."
+                                  : scan.status === "error"
+                                    ? "Erreur"
+                                    : `${scan.pages_scanned}/${scan.total_pages || "?"}`}
+                              </span>
+                            </span>
+                            {active && scan.total_pages > 0 && (
+                              <span className="h-1 overflow-hidden rounded-full bg-secondary">
+                                <span
+                                  className="block h-full rounded-full bg-foreground transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </span>
+                            )}
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

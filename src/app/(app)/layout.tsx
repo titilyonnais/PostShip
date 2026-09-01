@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Logo } from "@/components/logo";
+import { avatarUrl } from "@/lib/avatar";
 import { createClient } from "@/lib/db/server";
-import { signOut } from "./actions";
+import { UserMenu } from "./user-menu";
 
 export default async function AppLayout({
   children,
@@ -12,6 +14,14 @@ export default async function AppLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("username, display_name, email, avatar_seed")
+        .eq("id", user.id)
+        .single()
+    : { data: null };
+
   return (
     <div className="min-h-screen">
       <a
@@ -21,39 +31,29 @@ export default async function AppLayout({
         Aller au contenu
       </a>
       <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <div className="flex items-center gap-5">
-          <Link href="/app" className="font-mono text-sm text-foreground">
-            PostShip
+        <div className="flex items-center gap-6">
+          <Link href="/app">
+            <Logo />
           </Link>
           {user && (
             <nav aria-label="Principale" className="flex items-center gap-4">
               <Link
-                href="/app/billing"
+                href="/app"
                 className="text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
-                Abonnement
-              </Link>
-              <Link
-                href="/app/account"
-                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Compte
+                Projets
               </Link>
             </nav>
           )}
         </div>
         {user && (
-          <form action={signOut} className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">
-              {user.email}
-            </span>
-            <button
-              type="submit"
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Déconnexion
-            </button>
-          </form>
+          <UserMenu
+            displayName={
+              profile?.username || profile?.display_name || user.email || "Compte"
+            }
+            email={profile?.email ?? user.email ?? ""}
+            avatarUrl={avatarUrl(profile?.avatar_seed ?? user.id)}
+          />
         )}
       </header>
       <main id="main" className="p-6">

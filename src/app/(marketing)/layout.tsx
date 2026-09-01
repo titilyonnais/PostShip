@@ -1,10 +1,26 @@
 import Link from "next/link";
+import { Logo } from "@/components/logo";
+import { avatarUrl } from "@/lib/avatar";
+import { createClient } from "@/lib/db/server";
 
-export default function MarketingLayout({
+export default async function MarketingLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("username, display_name, avatar_seed")
+        .eq("id", user.id)
+        .single()
+    : { data: null };
+
   return (
     <div className="flex min-h-screen flex-col">
       <a
@@ -15,11 +31,8 @@ export default function MarketingLayout({
       </a>
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 sm:px-10">
-          <Link
-            href="/"
-            className="font-mono text-sm font-medium tracking-tight text-foreground"
-          >
-            PostShip
+          <Link href="/">
+            <Logo />
           </Link>
           <nav aria-label="Principale" className="flex items-center gap-6">
             <Link
@@ -34,12 +47,29 @@ export default function MarketingLayout({
             >
               Documentation
             </Link>
-            <Link
-              href="/login"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Connexion
-            </Link>
+            {user ? (
+              <Link
+                href="/app"
+                className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- external DiceBear SVG */}
+                <img
+                  src={avatarUrl(profile?.avatar_seed ?? user.id)}
+                  alt=""
+                  className="size-5 rounded-full bg-secondary"
+                  width={20}
+                  height={20}
+                />
+                {profile?.username || profile?.display_name || "Mon espace"}
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Connexion
+              </Link>
+            )}
           </nav>
         </div>
       </header>

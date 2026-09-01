@@ -176,7 +176,10 @@ async function discoverScan(
     .from("site_scan_pages")
     .insert(urls.map((url) => ({ scan_id: scan.id, url })));
 
-  await supabase.from("site_scans").update({ status: "running" }).eq("id", scan.id);
+  await supabase
+    .from("site_scans")
+    .update({ status: "running", total_pages: urls.length })
+    .eq("id", scan.id);
 }
 
 async function processBatch(
@@ -296,10 +299,16 @@ async function processBatch(
   }
 }
 
-// Called from the cron tick alongside runProjectChecks. Advances at most one
-// scan per invocation (one discovery OR one batch) so each cron call stays
-// short — a 500-page scan spreads over several ticks rather than one long
-// serverless invocation.
+// Up to this many batches of a single running scan get processed per cron
+// tick — trades a longer serverless invocation for a much shorter wall-clock
+// scan time (at 5-min ticks, 500 pages would otherwise take over an hour).
+const MAX_BATCHES_PER_TICK = 4;
+
+// Called from the cron tick alongside runProjectChecks. Discovery for a
+// newly queued scan falls straight through into processing its first batch
+// in the same invocation — waiting a full external-cron cycle just to start
+// checking pages was the main source of "why is this stuck" complaints for
+// small scans.
 export async function advanceSiteScans(): Promise<void> {
   const supabase = createServiceClient();
 
@@ -313,18 +322,27 @@ export async function advanceSiteScans(): Promise<void> {
 
   if (queued) {
     await discoverScan(supabase, queued);
-    return;
   }
 
   const { data: running } = await supabase
     .from("site_scans")
-    .select("id, user_id")
+    .select("id, user_id, status")
     .eq("status", "running")
     .order("created_at")
     .limit(1)
     .maybeSingle();
 
-  if (running) {
+  if (!running) return;
+
+  for (let i = 0; i < MAX_BATCHES_PER_TICK; i++) {
+    const { count: pending } = await supabase
+      .from("site_scan_pages")
+      .select("id", { count: "exact", head: true })
+      .eq("scan_id", running.id)
+      .eq("status", "pending");
+
+    if (!pending) break;
+
     await processBatch(supabase, running);
   }
 }

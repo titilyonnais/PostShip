@@ -177,6 +177,84 @@ export async function updateNotificationPrefs(
   return { success: "Préférences enregistrées." };
 }
 
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "3 caractères minimum.")
+  .max(24, "24 caractères maximum.")
+  .regex(/^[a-zA-Z0-9_-]+$/, "Lettres, chiffres, - et _ uniquement.");
+
+export async function updateIdentity(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = usernameSchema.safeParse(formData.get("username"));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Pseudo invalide." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ username: parsed.data })
+    .eq("id", user.id);
+
+  if (error) {
+    if (error.code === "23505") return { error: "Ce pseudo est déjà pris." };
+    return { error: error.message };
+  }
+
+  return { success: "Pseudo mis à jour." };
+}
+
+export async function regenerateAvatar(
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  await supabase
+    .from("profiles")
+    .update({ avatar_seed: crypto.randomUUID() })
+    .eq("id", user.id);
+
+  return { success: "Nouvel avatar généré." };
+}
+
+const setPasswordSchema = z.string().min(8, "8 caractères minimum.");
+
+export async function setPassword(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = setPasswordSchema.safeParse(formData.get("password"));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Mot de passe invalide." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data });
+  if (error) return { error: error.message };
+
+  return { success: "Mot de passe défini." };
+}
+
 export async function deleteAccount() {
   const supabase = await createClient();
   const {

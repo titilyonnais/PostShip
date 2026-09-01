@@ -28,8 +28,6 @@ export default async function BillingPage() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       <Suspense fallback={null}>
         <CheckoutReturnToast />
-      </Suspense>
-      <Suspense fallback={null}>
         <BackToProjectLink />
       </Suspense>
 

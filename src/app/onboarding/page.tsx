@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/db/server";
 import { OnboardingForm } from "./onboarding-form";
 
@@ -37,7 +38,7 @@ export default async function OnboardingPage({
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center gap-6 px-6 py-16">
       <div className="flex flex-col gap-1">
-        <span className="font-mono text-sm text-foreground">PostShip</span>
+        <Logo />
         <h1 className="text-lg font-semibold">Bienvenue — dernière étape</h1>
         <p className="text-sm text-muted-foreground">
           {normalizedPlan
