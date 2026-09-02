@@ -3,14 +3,11 @@ import { notFound } from "next/navigation";
 import {
   AlertTriangle,
   BadgeCheck,
-  CreditCard,
-  MessageSquare,
   PauseCircle,
   PlayCircle,
   ShieldCheck,
   Trash2,
   UserPlus,
-  Webhook,
 } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
@@ -26,202 +23,19 @@ import { getPlanLimits } from "@/lib/entitlements";
 import {
   deleteProject,
   renameProject,
-  toggleCheckPreviews,
   toggleProjectPause,
   updateProjectBaseUrl,
-  updateStripeSuccessUrl,
 } from "../../actions";
-import {
-  disableDiscordWebhook,
-  disableGithubCheck,
-  disableSlackWebhook,
-  disableTelegram,
-  setCloudflareHookSecret,
-  setDiscordWebhook,
-  setGithubCheck,
-  setNetlifyHookSecret,
-  setSlackWebhook,
-  setTelegramConfig,
-  setVercelHookSecret,
-} from "../actions";
 import { rotateDomainToken, verifyProjectDomain } from "../domain-actions";
 import {
   inviteProjectMember,
   leaveProject,
   removeProjectMember,
 } from "../members-actions";
-import type { ActionResult } from "@/lib/use-toast-action";
 
 export const metadata = {
   title: "Paramètres du projet",
 };
-
-function DeployHookSection({
-  title,
-  routePath,
-  instructions,
-  action,
-  inputName,
-  configured,
-}: {
-  title: string;
-  routePath: string;
-  instructions: React.ReactNode;
-  action: (
-    prevState: ActionResult,
-    formData: FormData,
-  ) => Promise<ActionResult>;
-  inputName: string;
-  configured: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
-      <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <Webhook className="size-3.5" aria-hidden="true" />
-        {title}
-      </h2>
-      <p className="text-xs text-muted-foreground">{instructions}</p>
-      <p className="break-all rounded-sm bg-secondary px-2 py-1 font-mono text-xs text-muted-foreground">
-        {process.env.NEXT_PUBLIC_APP_URL}
-        {routePath}
-      </p>
-      <ActionForm action={action} className="flex gap-2">
-        <label htmlFor={inputName} className="sr-only">
-          Secret {title}
-        </label>
-        <Input
-          id={inputName}
-          name={inputName}
-          type="password"
-          placeholder={configured ? "•••••••• (déjà configuré)" : "Secret"}
-          className="flex-1"
-        />
-        <SubmitButton variant="outline" pendingText="Enregistrement...">
-          Enregistrer
-        </SubmitButton>
-      </ActionForm>
-    </div>
-  );
-}
-
-function ChatWebhookSection({
-  title,
-  instructions,
-  placeholder,
-  action,
-  disableAction,
-  inputName,
-  configured,
-}: {
-  title: string;
-  instructions: React.ReactNode;
-  placeholder: string;
-  action: (
-    prevState: ActionResult,
-    formData: FormData,
-  ) => Promise<ActionResult>;
-  disableAction: (prevState: ActionResult) => Promise<ActionResult>;
-  inputName: string;
-  configured: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
-      <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <MessageSquare className="size-3.5" aria-hidden="true" />
-        {title}
-      </h2>
-      <p className="text-xs text-muted-foreground">{instructions}</p>
-      <ActionForm action={action} className="flex gap-2">
-        <label htmlFor={inputName} className="sr-only">
-          URL du webhook {title}
-        </label>
-        <Input
-          id={inputName}
-          name={inputName}
-          type="url"
-          placeholder={configured ? "•••••••• (déjà configuré)" : placeholder}
-          className="flex-1"
-        />
-        <SubmitButton variant="outline" pendingText="Enregistrement...">
-          Enregistrer
-        </SubmitButton>
-      </ActionForm>
-      {configured && (
-        <ActionForm action={disableAction}>
-          <SubmitButton
-            variant="ghost"
-            size="sm"
-            className="self-start text-muted-foreground"
-            pendingText="..."
-          >
-            Désactiver
-          </SubmitButton>
-        </ActionForm>
-      )}
-    </div>
-  );
-}
-
-function TelegramSection({
-  action,
-  disableAction,
-  configured,
-}: {
-  action: (
-    prevState: ActionResult,
-    formData: FormData,
-  ) => Promise<ActionResult>;
-  disableAction: (prevState: ActionResult) => Promise<ActionResult>;
-  configured: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
-      <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <MessageSquare className="size-3.5" aria-hidden="true" />
-        Telegram
-      </h2>
-      <p className="text-xs text-muted-foreground">
-        Créez un bot via @BotFather pour obtenir le token, puis récupérez le
-        chat ID (envoyez un message au bot et consultez
-        api.telegram.org/bot&lt;token&gt;/getUpdates). Laissez les champs
-        vides pour ne rien changer.
-      </p>
-      <ActionForm action={action} className="flex flex-col gap-2">
-        <label htmlFor="telegram_bot_token" className="sr-only">
-          Token du bot Telegram
-        </label>
-        <Input
-          id="telegram_bot_token"
-          name="telegram_bot_token"
-          placeholder={configured ? "•••••••• (déjà configuré)" : "123456:AbC-..."}
-        />
-        <label htmlFor="telegram_chat_id" className="sr-only">
-          Chat ID Telegram
-        </label>
-        <Input
-          id="telegram_chat_id"
-          name="telegram_chat_id"
-          placeholder={configured ? "•••• (déjà configuré)" : "-100123456789"}
-        />
-        <SubmitButton variant="outline" pendingText="Enregistrement...">
-          Enregistrer
-        </SubmitButton>
-      </ActionForm>
-      {configured && (
-        <ActionForm action={disableAction}>
-          <SubmitButton
-            variant="ghost"
-            size="sm"
-            className="self-start text-muted-foreground"
-            pendingText="..."
-          >
-            Désactiver
-          </SubmitButton>
-        </ActionForm>
-      )}
-    </div>
-  );
-}
 
 export default async function ProjectSettingsPage({
   params,
@@ -246,10 +60,10 @@ export default async function ProjectSettingsPage({
     // base_url is already validated at write time (assertRegisterableHttpsUrl) — this only guards a row written before that existed.
   }
 
-  // The project OWNER's plan gates its features (interval, Discord/Slack,
-  // deploy hooks, collaborators) — never the current viewer's own plan,
-  // which for a collaborator can be Free while the project itself is on
-  // Team. See the comment on getProjectOwnerPlan.
+  // The project OWNER's plan gates its features (collaborators, etc.) —
+  // never the current viewer's own plan, which for a collaborator can be
+  // Free while the project itself is on Team. See the comment on
+  // getProjectOwnerPlan.
   const [ownerPlan, members, domainVerification] = await Promise.all([
     getProjectOwnerPlan(project.user_id),
     isOwner ? getProjectMembers(projectId) : Promise.resolve([]),
@@ -261,6 +75,25 @@ export default async function ProjectSettingsPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <p className="text-xs text-muted-foreground">
+        Webhooks de déploiement, alertes Discord/Slack/Telegram, GitHub et
+        badge public ont leur propre page :{" "}
+        <Link
+          href={`/app/${projectId}/integrations`}
+          className="text-foreground underline underline-offset-2"
+        >
+          Intégrations
+        </Link>{" "}
+        et{" "}
+        <Link
+          href={`/app/${projectId}/share`}
+          className="text-foreground underline underline-offset-2"
+        >
+          Partage
+        </Link>
+        .
+      </p>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <ActionForm
           action={renameProject.bind(null, project.id)}
@@ -410,266 +243,6 @@ export default async function ProjectSettingsPage({
           </ActionForm>
         </div>
       </div>
-
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            <MessageSquare className="size-3.5" aria-hidden="true" />
-            Alertes chat
-          </h2>
-          <Link
-            href={`/app/${projectId}/bot`}
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          >
-            Gérer le bot →
-          </Link>
-        </div>
-        {limits.chatWebhooks ? (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <ChatWebhookSection
-              title="Discord"
-              instructions="Collez l'URL d'un webhook Discord (Paramètres du salon → Intégrations → Webhooks). Laissez le champ vide pour ne rien changer."
-              placeholder="https://discord.com/api/webhooks/..."
-              action={setDiscordWebhook.bind(null, projectId)}
-              disableAction={disableDiscordWebhook.bind(null, projectId)}
-              inputName="discord_webhook_url"
-              configured={!!project.discord_webhook_configured}
-            />
-            <ChatWebhookSection
-              title="Slack"
-              instructions="Collez l'URL d'un webhook entrant Slack (créé depuis api.slack.com/apps → Incoming Webhooks). Laissez le champ vide pour ne rien changer."
-              placeholder="https://hooks.slack.com/services/..."
-              action={setSlackWebhook.bind(null, projectId)}
-              disableAction={disableSlackWebhook.bind(null, projectId)}
-              inputName="slack_webhook_url"
-              configured={!!project.slack_webhook_configured}
-            />
-            <TelegramSection
-              action={setTelegramConfig.bind(null, projectId)}
-              disableAction={disableTelegram.bind(null, projectId)}
-              configured={!!project.telegram_configured}
-            />
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Disponible à partir du plan Solo.{" "}
-            <Link
-              href={`/app/billing?from=${encodeURIComponent(backTo)}`}
-              className="text-foreground underline underline-offset-2"
-            >
-              Passer à Solo/Pro
-            </Link>
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
-        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <Webhook className="size-3.5" aria-hidden="true" />
-          Vérification au déploiement
-        </h2>
-        {limits.deployHooks ? (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <DeployHookSection
-              title="Vercel"
-              routePath={`/api/vercel/deploy/${projectId}`}
-              instructions={
-                <>
-                  Dans Vercel, créez un webhook sur l&apos;événement{" "}
-                  <code className="rounded-sm bg-secondary px-1 py-0.5 font-mono">
-                    deployment.ready
-                  </code>{" "}
-                  pointant vers l&apos;URL ci-dessous, puis collez le secret
-                  généré par Vercel.
-                </>
-              }
-              action={setVercelHookSecret.bind(null, projectId)}
-              inputName="vercel_hook_secret"
-              configured={!!project.vercel_hook_configured}
-            />
-            <DeployHookSection
-              title="Netlify"
-              routePath={`/api/netlify/deploy/${projectId}`}
-              instructions={
-                <>
-                  Dans Netlify : Project configuration → Notifications →
-                  Deploy notifications → Add notification → Outgoing webhook,
-                  événement &laquo; Deploy succeeded &raquo;, URL ci-dessous.
-                  Générez un secret et collez-le ici — c&apos;est le même
-                  qu&apos;à saisir dans le champ &laquo; JWS secret token
-                  &raquo; côté Netlify.
-                </>
-              }
-              action={setNetlifyHookSecret.bind(null, projectId)}
-              inputName="netlify_hook_secret"
-              configured={!!project.netlify_hook_configured}
-            />
-            <DeployHookSection
-              title="Cloudflare Pages"
-              routePath={`/api/cloudflare/deploy/${projectId}`}
-              instructions={
-                <>
-                  Dans Cloudflare : Notifications → Destinations → Webhooks,
-                  ajoutez l&apos;URL ci-dessous et copiez le secret généré par
-                  Cloudflare. Puis créez une Notification sur &laquo; Pages
-                  Deployment Success &raquo; pointant vers ce webhook.
-                </>
-              }
-              action={setCloudflareHookSecret.bind(null, projectId)}
-              inputName="cloudflare_hook_secret"
-              configured={!!project.cloudflare_hook_configured}
-            />
-          </div>
-        ) : null}
-        {limits.deployHooks && (
-          <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4">
-            <p className="text-xs text-muted-foreground">
-              Vérifier aussi les previews Vercel : lance les checks contre
-              l&apos;URL de preview (pas la prod) à chaque déploiement de
-              preview, avec des alertes préfixées &laquo; Preview &raquo;.
-            </p>
-            <div>
-              <ActionForm
-                action={toggleCheckPreviews.bind(
-                  null,
-                  project.id,
-                  !!project.check_previews,
-                )}
-              >
-                <SubmitButton variant="outline" pendingText="...">
-                  {project.check_previews
-                    ? "Désactiver la vérification des previews"
-                    : "Activer la vérification des previews"}
-                </SubmitButton>
-              </ActionForm>
-            </div>
-          </div>
-        )}
-        {limits.deployHooks && (
-          <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4">
-            <p className="text-xs text-muted-foreground">
-              Check GitHub : après chaque déploiement Vercel, publie le
-              résultat directement sur le commit (PAT fine-grained, scope
-              &laquo; checks:write &raquo;, jamais réaffiché).
-            </p>
-            <ActionForm
-              action={setGithubCheck.bind(null, project.id)}
-              className="flex flex-col gap-2"
-            >
-              <label htmlFor="github_repo" className="sr-only">
-                Dépôt GitHub
-              </label>
-              <Input
-                id="github_repo"
-                name="github_repo"
-                placeholder={
-                  project.github_connected
-                    ? `${project.github_repo} (configuré)`
-                    : "owner/repo"
-                }
-              />
-              <label htmlFor="github_token" className="sr-only">
-                Token GitHub
-              </label>
-              <Input
-                id="github_token"
-                name="github_token"
-                type="password"
-                placeholder={
-                  project.github_connected ? "•••••••• (déjà configuré)" : "github_pat_..."
-                }
-              />
-              <SubmitButton variant="outline" pendingText="Enregistrement...">
-                Enregistrer
-              </SubmitButton>
-            </ActionForm>
-            {project.github_connected && (
-              <ActionForm action={disableGithubCheck.bind(null, project.id)}>
-                <SubmitButton
-                  variant="ghost"
-                  size="sm"
-                  className="self-start text-muted-foreground"
-                  pendingText="..."
-                >
-                  Désactiver
-                </SubmitButton>
-              </ActionForm>
-            )}
-          </div>
-        )}
-        {!limits.deployHooks && (
-          <p className="text-xs text-muted-foreground">
-            Disponible à partir du plan Solo.{" "}
-            <Link
-              href={`/app/billing?from=${encodeURIComponent(backTo)}`}
-              className="text-foreground underline underline-offset-2"
-            >
-              Passer à Solo/Pro
-            </Link>
-          </p>
-        )}
-      </div>
-
-      {isOwner && (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-4">
-          <div className="flex items-center gap-2">
-            <BadgeCheck className="size-3.5 text-muted-foreground" aria-hidden="true" />
-            <div>
-              <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Badge public
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {project.badge_public ? "Activé" : "Désactivé"} — cartes OG et
-                snippet dans Partage.
-              </p>
-            </div>
-          </div>
-          <Link
-            href={`/app/${projectId}/share`}
-            className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          >
-            Gérer le partage →
-          </Link>
-        </div>
-      )}
-
-      {limits.stripeHealth && (
-        <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
-          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            <CreditCard className="size-3.5" aria-hidden="true" />
-            Stripe — URL de succès
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Utilisée par vos cibles &laquo; Stripe health &raquo; à la place de
-            leur propre URL — pratique si la page de succès change sans
-            toucher chaque cible. Laissez vide pour que chaque cible utilise
-            sa propre URL.
-          </p>
-          <ActionForm
-            action={updateStripeSuccessUrl.bind(null, project.id)}
-            className="flex items-end gap-2"
-          >
-            <div className="flex flex-1 flex-col gap-1">
-              <label
-                htmlFor="stripe-success-url"
-                className="text-xs text-muted-foreground"
-              >
-                URL de succès
-              </label>
-              <Input
-                id="stripe-success-url"
-                name="stripe_success_url"
-                type="url"
-                placeholder="https://exemple.com/merci"
-                defaultValue={project.stripe_success_url ?? ""}
-              />
-            </div>
-            <SubmitButton variant="outline" pendingText="...">
-              Enregistrer
-            </SubmitButton>
-          </ActionForm>
-        </div>
-      )}
 
       {isOwner && (
         <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
