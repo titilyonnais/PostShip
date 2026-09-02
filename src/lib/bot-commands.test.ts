@@ -47,6 +47,7 @@ describe("parseBotCommand", () => {
     expect(parseBotCommand("/uptime")).toBe("/uptime");
     expect(parseBotCommand("/ssl")).toBe("/ssl");
     expect(parseBotCommand("/silence")).toBe("/silence");
+    expect(parseBotCommand("/rules")).toBe("/rules");
     expect(parseBotCommand("/help")).toBe("/help");
   });
 
@@ -112,5 +113,34 @@ describe("runBotCommand", () => {
     );
     expect(text).toBe("Alertes reprises.");
     expect(updates).toEqual([{ alerts_silenced_until: null }]);
+  });
+
+  it("/rules reports confirm-count and quiet hours, read-only", async () => {
+    const updates: unknown[] = [];
+    const supabase = fakeSupabase(
+      {
+        projects: {
+          alert_confirm_count: 2,
+          quiet_hours_start: 22,
+          quiet_hours_end: 8,
+        },
+      },
+      updates,
+    );
+    const text = await runBotCommand("/rules", { supabase, projectId: "p1" });
+    expect(text).toBe("confirm=2 · calme=22-08");
+    expect(updates).toHaveLength(0);
+  });
+
+  it("/rules reports calme=off when quiet hours are unset", async () => {
+    const supabase = fakeSupabase({
+      projects: {
+        alert_confirm_count: 1,
+        quiet_hours_start: null,
+        quiet_hours_end: null,
+      },
+    });
+    const text = await runBotCommand("/rules", { supabase, projectId: "p1" });
+    expect(text).toBe("confirm=1 · calme=off");
   });
 });

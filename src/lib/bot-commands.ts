@@ -107,12 +107,35 @@ async function silenceCommand(ctx: BotCommandContext, rawText: string): Promise<
     : "Alertes reprises.";
 }
 
+// D6 (drill-nav backlog): read-only by design — a bot command that could
+// change confirm-count or quiet hours would be trivial to trigger by
+// mistake in a group chat (see /rules doc: "Pas d'écriture par le bot").
+async function rulesCommand(ctx: BotCommandContext): Promise<string> {
+  const { data: project } = await ctx.supabase
+    .from("projects")
+    .select("alert_confirm_count, quiet_hours_start, quiet_hours_end")
+    .eq("id", ctx.projectId)
+    .single();
+
+  const confirm = project?.alert_confirm_count ?? 1;
+  const calme =
+    project?.quiet_hours_start !== null &&
+    project?.quiet_hours_start !== undefined &&
+    project?.quiet_hours_end !== null &&
+    project?.quiet_hours_end !== undefined
+      ? `${String(project.quiet_hours_start).padStart(2, "0")}-${String(project.quiet_hours_end).padStart(2, "0")}`
+      : "off";
+
+  return `confirm=${confirm} · calme=${calme}`;
+}
+
 export const HELP_TEXT = [
   "/status — état actuel",
   "/check — relance une vérification",
   "/uptime — taux de réussite 24h/7j",
   "/ssl — jours restants du certificat",
   "/silence 1h|4h|24h|off — coupe ou reprend les alertes",
+  "/rules — confirm-count et heures calmes actuels",
   "/help — cette liste",
 ].join("\n");
 
@@ -122,6 +145,7 @@ const COMMAND_NAMES = [
   "/uptime",
   "/ssl",
   "/silence",
+  "/rules",
   "/help",
 ] as const;
 export type BotCommand = (typeof COMMAND_NAMES)[number];
@@ -194,6 +218,8 @@ export async function runBotCommand(
       return sslCommand(ctx);
     case "/silence":
       return silenceCommand(ctx, rawText);
+    case "/rules":
+      return rulesCommand(ctx);
     case "/help":
     default:
       return HELP_TEXT;

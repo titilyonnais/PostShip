@@ -785,3 +785,131 @@ export async function silenceAlerts(
       : "Alertes reprises.",
   };
 }
+
+// D6 (drill-nav backlog): rules gated the same as chatWebhooks (Solo+,
+// see docs/PLAN table) — reusing that flag rather than adding a
+// same-shaped one, same shortcut already taken for GithubCheckCard's
+// deployHooks gate above.
+async function assertRulesAllowed(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string,
+): Promise<ActionResult | null> {
+  const { data: project } = await supabase
+    .from("projects")
+    .select("user_id")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) return { error: "Projet introuvable." };
+
+  const { data: ownerProfile } = await createServiceClient()
+    .from("profiles")
+    .select("plan")
+    .eq("id", project.user_id)
+    .single();
+
+  if (!getPlanLimits((ownerProfile?.plan as Plan) ?? "free").chatWebhooks) {
+    return { error: "Les règles d'alerte ne sont disponibles qu'avec un plan payant." };
+  }
+
+  return null;
+}
+
+const confirmCountSchema = z.coerce.number().int().min(1).max(3);
+
+export async function setAlertConfirmCount(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = confirmCountSchema.safeParse(formData.get("alert_confirm_count"));
+  if (!parsed.success) return { error: "Valeur invalide." };
+
+  const supabase = await createClient();
+  const denied = await assertRulesAllowed(supabase, projectId);
+  if (denied) return denied;
+
+  const { error } = await supabase
+    .from("projects")
+    .update({ alert_confirm_count: parsed.data })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/rules`);
+  return { success: "Règle enregistrée." };
+}
+
+const quietHourSchema = z.coerce.number().int().min(0).max(23);
+
+export async function setQuietHours(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const startRaw = formData.get("quiet_hours_start");
+  const endRaw = formData.get("quiet_hours_end");
+
+  const supabase = await createClient();
+  const denied = await assertRulesAllowed(supabase, projectId);
+  if (denied) return denied;
+
+  // Either field left on "Désactivé" turns the whole window off — a
+  // one-sided window (only a start, no end) isn't a valid schedule.
+  let start: number | null = null;
+  let end: number | null = null;
+  if (startRaw && endRaw) {
+    const parsedStart = quietHourSchema.safeParse(startRaw);
+    const parsedEnd = quietHourSchema.safeParse(endRaw);
+    if (!parsedStart.success || !parsedEnd.success) {
+      return { error: "Heure invalide." };
+    }
+    start = parsedStart.data;
+    end = parsedEnd.data;
+  }
+
+  const { error } = await supabase
+    .from("projects")
+    .update({ quiet_hours_start: start, quiet_hours_end: end })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/rules`);
+  revalidatePath(`/app/${projectId}/incidents`);
+  return {
+    success:
+      start !== null
+        ? `Heures calmes : ${start}h–${end}h.`
+        : "Heures calmes désactivées.",
+  };
+}
+
+// D6 (drill-nav backlog): per-URL silence — "Couper 4h" on /urls, and
+// "Reprendre" from either /urls or /rules. hours <= 0 resumes immediately.
+// Owner-or-member via RLS's "own or member targets" policy (migration
+// 0022); silenced_until is a plain user-writable column (migration 0045).
+export async function silenceTarget(
+  projectId: string,
+  targetId: string,
+  hours: number,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const silencedUntil =
+    hours > 0 ? new Date(Date.now() + hours * 60 * 60 * 1000).toISOString() : null;
+
+  const { error } = await supabase
+    .from("check_targets")
+    .update({ silenced_until: silencedUntil })
+    .eq("id", targetId)
+    .eq("project_id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/urls`);
+  revalidatePath(`/app/${projectId}/rules`);
+  return {
+    success: silencedUntil ? `URL coupée pour ${hours}h.` : "URL reprise.",
+  };
+}

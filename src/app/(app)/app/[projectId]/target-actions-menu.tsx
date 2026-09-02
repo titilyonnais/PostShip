@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  BellOff,
   Copy,
   MoreHorizontal,
   Power,
@@ -25,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ActionResult } from "@/lib/use-toast-action";
-import { deleteTarget, runTargetNow, toggleTarget } from "./actions";
+import { deleteTarget, runTargetNow, silenceTarget, toggleTarget } from "./actions";
 
 const initialState: ActionResult = {};
 
@@ -34,11 +35,13 @@ export function TargetActionsMenu({
   targetId,
   url,
   enabled,
+  silenced,
 }: {
   projectId: string;
   targetId: string;
   url: string;
   enabled: boolean;
+  silenced?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -55,10 +58,14 @@ export function TargetActionsMenu({
     deleteTarget.bind(null, projectId, targetId),
     initialState,
   );
+  const [silenceState, silence, silencePending] = useActionState(
+    silenceTarget.bind(null, projectId, targetId, silenced ? 0 : 4),
+    initialState,
+  );
 
   const handled = useRef<ActionResult | null>(null);
   useEffect(() => {
-    for (const state of [relaunchState, toggleState, deleteState]) {
+    for (const state of [relaunchState, toggleState, deleteState, silenceState]) {
       if (state === handled.current || (!state.success && !state.error)) continue;
       handled.current = state;
       if (state.success) {
@@ -68,9 +75,9 @@ export function TargetActionsMenu({
         toast.error(state.error);
       }
     }
-  }, [relaunchState, toggleState, deleteState, router]);
+  }, [relaunchState, toggleState, deleteState, silenceState, router]);
 
-  const pending = relaunchPending || togglePending || deletePending;
+  const pending = relaunchPending || togglePending || deletePending || silencePending;
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -106,6 +113,10 @@ export function TargetActionsMenu({
         <DropdownMenuItem onClick={() => startTransition(() => toggle())}>
           <Power className="size-3.5" aria-hidden="true" />
           {enabled ? "Désactiver" : "Activer"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => startTransition(() => silence())}>
+          <BellOff className="size-3.5" aria-hidden="true" />
+          {silenced ? "Reprendre les alertes" : "Couper 4h"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

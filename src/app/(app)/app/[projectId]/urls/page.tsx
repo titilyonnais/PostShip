@@ -71,7 +71,7 @@ export default async function UrlsPage({
     supabase
       .from("check_targets")
       .select(
-        "id, project_id, url, kind, expect_status, expect_contains, expect_not_contains, enabled, created_at, last_outcome, assertions, request_header_configured",
+        "id, project_id, url, kind, expect_status, expect_contains, expect_not_contains, enabled, created_at, last_outcome, assertions, request_header_configured, silenced_until",
       )
       .eq("project_id", projectId)
       .order("created_at"),
@@ -206,6 +206,10 @@ export default async function UrlsPage({
                           targetId={target.id}
                           url={target.url}
                           enabled={target.enabled}
+                          silenced={
+                            !!target.silenced_until &&
+                            new Date(target.silenced_until).getTime() > Date.now()
+                          }
                         />
                       </td>
                     </tr>

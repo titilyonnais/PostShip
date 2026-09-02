@@ -10,6 +10,11 @@ import { computeFingerprint, type CheckResult } from "@/lib/checks/shared";
 import { runWithConcurrencyLimit } from "@/lib/concurrency";
 import { dispatchAlerts, shouldSendFailAlert, type AlertItem } from "@/lib/alerts";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import {
+  nextConsecutiveFails,
+  shouldAlertFail,
+  shouldAlertRecovered,
+} from "@/lib/alert-confirm";
 
 const MAX_CONCURRENCY_PER_PROJECT = 3;
 
@@ -24,6 +29,8 @@ type CheckTargetRow = {
   request_header_name?: string | null;
   request_header_value?: string | null;
   last_outcome?: "pass" | "fail" | "error" | null;
+  consecutive_fails?: number | null;
+  silenced_until?: string | null;
 };
 
 type SingleTargetResult = {
@@ -34,6 +41,8 @@ type SingleTargetResult = {
   ttfb_ms: number | null;
   fingerprint: string;
   missing: string[] | null;
+  consecutiveFails: number;
+  silencedUntil: string | null;
 };
 
 async function runSingleTarget(
@@ -118,6 +127,14 @@ async function runSingleTarget(
     details: result.details,
   });
 
+  // D6 (drill-nav backlog): consecutive_fails gates whether dispatchAlerts
+  // fires (see runOneTarget/runProjectChecks) — computed from the streak
+  // length as it stood before this run, captured by the caller.
+  const consecutiveFails = nextConsecutiveFails(
+    result.outcome,
+    target.consecutive_fails ?? 0,
+  );
+
   // Cached on the target row (migration 0031) so callers can read "last
   // outcome" without scanning check_runs — see runOneTarget/runProjectChecks.
   await supabase
@@ -126,6 +143,7 @@ async function runSingleTarget(
       last_outcome: result.outcome,
       last_fingerprint: result.fingerprint,
       last_started_at: startedAt,
+      consecutive_fails: consecutiveFails,
     })
     .eq("id", target.id);
 
@@ -141,6 +159,8 @@ async function runSingleTarget(
     ttfb_ms: result.ttfb_ms,
     fingerprint: result.fingerprint,
     missing,
+    consecutiveFails,
+    silencedUntil: target.silenced_until ?? null,
   };
 }
 
@@ -150,7 +170,7 @@ export async function runOneTarget(targetId: string) {
   const { data: target } = await supabase
     .from("check_targets")
     .select(
-      "*, projects(id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, profiles(plan, email, email_alerts_enabled))",
+      "*, projects(id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, profiles(plan, email, email_alerts_enabled))",
     )
     .eq("id", targetId)
     .single();
@@ -168,6 +188,10 @@ export async function runOneTarget(targetId: string) {
     telegram_chat_id: string | null;
     alerts_silenced_until: string | null;
     stripe_success_url: string | null;
+    alert_confirm_count: number;
+    quiet_hours_start: number | null;
+    quiet_hours_end: number | null;
+    quiet_hours_tz: string;
     profiles: {
       plan: Plan;
       email: string | null;
@@ -176,10 +200,12 @@ export async function runOneTarget(targetId: string) {
   };
   const owner = project.profiles;
   const ownerPlan = owner?.plan ?? "free";
+  const confirmCount = project.alert_confirm_count ?? 1;
 
-  // Captured before runSingleTarget overwrites check_targets.last_outcome
-  // with this run's own result (migration 0031).
+  // Captured before runSingleTarget overwrites check_targets.last_outcome /
+  // consecutive_fails with this run's own result (migration 0031, 0045).
   const previous = (target as CheckTargetRow).last_outcome ?? null;
+  const previousConsecutiveFails = (target as CheckTargetRow).consecutive_fails ?? 0;
 
   const result = await runSingleTarget(
     supabase,
@@ -192,7 +218,7 @@ export async function runOneTarget(targetId: string) {
   const alertItems: AlertItem[] = [];
 
   if (result.outcome === "pass") {
-    if (previous && previous !== "pass") {
+    if (shouldAlertRecovered(previous, previousConsecutiveFails, confirmCount)) {
       alertItems.push({
         targetId: result.targetId,
         url: result.url,
@@ -202,9 +228,10 @@ export async function runOneTarget(targetId: string) {
         fingerprint: result.fingerprint,
         missing: result.missing,
         ttfbMs: result.ttfb_ms,
+        silencedUntil: result.silencedUntil,
       });
     }
-  } else {
+  } else if (shouldAlertFail(result.consecutiveFails, confirmCount)) {
     const shouldAlert = await shouldSendFailAlert(
       supabase,
       project.id,
@@ -221,6 +248,7 @@ export async function runOneTarget(targetId: string) {
         fingerprint: result.fingerprint,
         missing: result.missing,
         ttfbMs: result.ttfb_ms,
+        silencedUntil: result.silencedUntil,
       });
     }
   }
@@ -236,6 +264,9 @@ export async function runOneTarget(targetId: string) {
         telegram_bot_token: project.telegram_bot_token,
         telegram_chat_id: project.telegram_chat_id,
         alerts_silenced_until: project.alerts_silenced_until,
+        quiet_hours_start: project.quiet_hours_start,
+        quiet_hours_end: project.quiet_hours_end,
+        quiet_hours_tz: project.quiet_hours_tz,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
@@ -289,7 +320,7 @@ export async function runPreviewChecks(
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, profiles(plan, email, email_alerts_enabled)",
+      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, quiet_hours_start, quiet_hours_end, quiet_hours_tz, profiles(plan, email, email_alerts_enabled)",
     )
     .eq("id", projectId)
     .single();
@@ -374,6 +405,7 @@ export async function runPreviewChecks(
           ? (result.details.missing as string[])
           : null,
         ttfbMs: result.ttfb_ms,
+        silencedUntil: target.silenced_until ?? null,
       });
     }
   }
@@ -389,6 +421,9 @@ export async function runPreviewChecks(
         telegram_bot_token: project.telegram_bot_token,
         telegram_chat_id: project.telegram_chat_id,
         alerts_silenced_until: project.alerts_silenced_until,
+        quiet_hours_start: project.quiet_hours_start,
+        quiet_hours_end: project.quiet_hours_end,
+        quiet_hours_tz: project.quiet_hours_tz,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
@@ -414,7 +449,7 @@ export async function runProjectChecks(
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, profiles(plan, email, email_alerts_enabled)",
+      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, profiles(plan, email, email_alerts_enabled)",
     )
     .eq("id", projectId)
     .single();
@@ -428,6 +463,7 @@ export async function runProjectChecks(
     email: string | null;
     email_alerts_enabled: boolean;
   } | null;
+  const confirmCount = project.alert_confirm_count ?? 1;
 
   const { data: targets, error } = await supabase
     .from("check_targets")
@@ -439,14 +475,17 @@ export async function runProjectChecks(
     throw new Error(`Impossible de charger les targets: ${error.message}`);
   }
 
-  // Latest outcome per target before this run, to detect fail -> pass
-  // recoveries — read from the already-fetched rows' cached last_outcome
-  // (migration 0031), captured before runSingleTarget overwrites it below.
-  const previousOutcomeByTarget = new Map<string, string>();
+  // Latest outcome / fail-streak length per target before this run, to
+  // detect fail -> pass recoveries and gate confirm-after-N-fails — read
+  // from the already-fetched rows' cached columns (migrations 0031, 0045),
+  // captured before runSingleTarget overwrites them below.
+  const previousOutcomeByTarget = new Map<string, "pass" | "fail" | "error">();
+  const previousConsecutiveFailsByTarget = new Map<string, number>();
   for (const target of (targets ?? []) as CheckTargetRow[]) {
     if (target.last_outcome) {
       previousOutcomeByTarget.set(target.id, target.last_outcome);
     }
+    previousConsecutiveFailsByTarget.set(target.id, target.consecutive_fails ?? 0);
   }
 
   const ownerPlan = owner?.plan ?? "free";
@@ -468,9 +507,11 @@ export async function runProjectChecks(
   const alertItems: AlertItem[] = [];
   for (const result of results) {
     const previous = previousOutcomeByTarget.get(result.targetId) ?? null;
+    const previousConsecutiveFails =
+      previousConsecutiveFailsByTarget.get(result.targetId) ?? 0;
 
     if (result.outcome === "pass") {
-      if (previous && previous !== "pass") {
+      if (shouldAlertRecovered(previous, previousConsecutiveFails, confirmCount)) {
         alertItems.push({
           targetId: result.targetId,
           url: result.url,
@@ -481,10 +522,13 @@ export async function runProjectChecks(
           missing: result.missing,
           ttfbMs: result.ttfb_ms,
           deployHint,
+          silencedUntil: result.silencedUntil,
         });
       }
       continue;
     }
+
+    if (!shouldAlertFail(result.consecutiveFails, confirmCount)) continue;
 
     const shouldAlert = await shouldSendFailAlert(
       supabase,
@@ -504,6 +548,7 @@ export async function runProjectChecks(
         missing: result.missing,
         ttfbMs: result.ttfb_ms,
         deployHint,
+        silencedUntil: result.silencedUntil,
       });
     }
   }
@@ -519,6 +564,9 @@ export async function runProjectChecks(
         telegram_bot_token: project.telegram_bot_token,
         telegram_chat_id: project.telegram_chat_id,
         alerts_silenced_until: project.alerts_silenced_until,
+        quiet_hours_start: project.quiet_hours_start,
+        quiet_hours_end: project.quiet_hours_end,
+        quiet_hours_tz: project.quiet_hours_tz,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,

@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import { buildAlertCopy, describeAlertItem } from "@/lib/alert-copy";
+import { isInQuietHours } from "@/lib/quiet-hours";
 
 const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
@@ -17,6 +18,10 @@ export type AlertItem = {
   missing?: string[] | null;
   ttfbMs?: number | null;
   deployHint?: string | null;
+  // D6 (drill-nav backlog): the target's own check_targets.silenced_until —
+  // dispatchAlerts drops this item (but check_runs was already written by
+  // the runner regardless) rather than the whole project going quiet.
+  silencedUntil?: string | null;
 };
 
 export async function shouldSendFailAlert(
@@ -207,6 +212,9 @@ export async function dispatchAlerts(
     ownerEmail: string | null;
     ownerPlanAllowsChatWebhooks: boolean;
     alerts_silenced_until?: string | null;
+    quiet_hours_start?: number | null;
+    quiet_hours_end?: number | null;
+    quiet_hours_tz?: string | null;
   },
   items: AlertItem[],
   options?: { recordDedup?: boolean },
@@ -222,6 +230,28 @@ export async function dispatchAlerts(
   ) {
     return;
   }
+
+  // D6 (drill-nav backlog): quiet hours are project-wide, same
+  // all-or-nothing suppression as alerts_silenced_until above.
+  if (
+    isInQuietHours(
+      new Date(),
+      project.quiet_hours_start ?? null,
+      project.quiet_hours_end ?? null,
+      project.quiet_hours_tz ?? "Europe/Paris",
+    )
+  ) {
+    return;
+  }
+
+  // D6: per-URL silence ("Couper 4h" on /urls) drops just that item — the
+  // run itself already happened and was recorded regardless.
+  const activeItems = items.filter(
+    (item) =>
+      !item.silencedUntil || new Date(item.silencedUntil).getTime() <= Date.now(),
+  );
+  if (activeItems.length === 0) return;
+  items = activeItems;
 
   // Preview-deployment alerts (runner.ts's runPreviewChecks) pass
   // recordDedup: false — their fingerprint doesn't encode the preview URL

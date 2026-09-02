@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Siren } from "lucide-react";
+import { Moon, Siren } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { createClient } from "@/lib/db/server";
@@ -49,9 +49,22 @@ export default async function IncidentsPage({
     getIncidentLog(supabase, projectId, since),
   ]);
 
+  const hasQuietHours =
+    project.quiet_hours_start !== null && project.quiet_hours_end !== null;
+
   return (
     <div className="flex flex-col gap-8">
       <SilenceBar projectId={projectId} silencedUntil={project.alerts_silenced_until} />
+
+      {hasQuietHours && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Moon className="size-3.5" aria-hidden="true" />
+          Heures calmes ·{" "}
+          {String(project.quiet_hours_start).padStart(2, "0")}:00–
+          {String(project.quiet_hours_end).padStart(2, "0")}:00{" "}
+          {project.quiet_hours_tz}
+        </p>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
