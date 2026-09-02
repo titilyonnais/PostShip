@@ -9,6 +9,7 @@ import {
   HeartPulse,
   LayoutDashboard,
   Link2,
+  ListChecks,
   Receipt,
   Rocket,
   ScanSearch,
@@ -30,13 +31,17 @@ export type NavItem = {
 };
 
 export type NavGroup = {
+  id: string;
   label: string;
+  icon: LucideIcon;
   items: NavItem[];
 };
 
 export const PROJECT_NAV_GROUPS: NavGroup[] = [
   {
+    id: "surveillance",
     label: "Surveillance",
+    icon: LayoutDashboard,
     items: [
       { label: "Aperçu", href: (id) => `/app/${id}`, icon: LayoutDashboard },
       { label: "URLs", href: (id) => `/app/${id}/urls`, icon: Link2, segment: "urls" },
@@ -55,7 +60,9 @@ export const PROJECT_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "controles",
     label: "Contrôles",
+    icon: HeartPulse,
     items: [
       {
         label: "Santé",
@@ -78,8 +85,16 @@ export const PROJECT_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "outils",
     label: "Outils",
+    icon: Blocks,
     items: [
+      {
+        label: "Règles",
+        href: (id) => `/app/${id}/rules`,
+        icon: ListChecks,
+        segment: "rules",
+      },
       { label: "Bot", href: (id) => `/app/${id}/bot`, icon: Bot, segment: "bot" },
       {
         label: "Intégrations",
@@ -97,9 +112,26 @@ export const PROJECT_NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// Flattened for lookups that don't care about grouping (active-segment
-// matching, the incidents badge count, etc).
+// Flattened for lookups that don't care about grouping (the incidents
+// badge count, etc).
 export const PROJECT_NAV: NavItem[] = PROJECT_NAV_GROUPS.flatMap((g) => g.items);
+
+// Which drill-down group owns a given project sub-route segment.
+// `undefined` segment is the project root (Aperçu). Any segment that
+// doesn't match a known item (e.g. a target-detail id under /urls, or a
+// scan-detail id under /scans — the id itself never equals a nav
+// segment) falls back to Surveillance, since that's always where a
+// drill-in-deeper page like that was reached from.
+export function groupIdForProjectSegment(segment: string | undefined): string {
+  for (const group of PROJECT_NAV_GROUPS) {
+    for (const item of group.items) {
+      if (item.segment ? item.segment === segment : segment === undefined) {
+        return group.id;
+      }
+    }
+  }
+  return "surveillance";
+}
 
 export type AccountNavItem = {
   label: string;
@@ -146,6 +178,16 @@ export const ACCOUNT_NAV: AccountNavItem[] = [
   ...ACCOUNT_NAV_GROUPS.flatMap((g) => g.items),
   ACCOUNT_DANGER_ITEM,
 ];
+
+// The drill-down's 4th level-0 category, alongside the 3 project groups
+// (D1-D4, drill-nav backlog) — same shape as a NavGroup's identity fields
+// so the sidebar can render all 4 category rows uniformly.
+export const ACCOUNT_DRILL_CATEGORY = {
+  id: "compte",
+  label: "Compte",
+  icon: Gauge,
+  href: "/app/account",
+};
 
 // Top-level segments right after "/app/" that are NOT project ids.
 export const RESERVED_APP_SEGMENTS = new Set(["account", "billing"]);
