@@ -26,7 +26,6 @@ import { getPlanLimits } from "@/lib/entitlements";
 import {
   deleteProject,
   renameProject,
-  toggleBadgePublic,
   toggleCheckPreviews,
   toggleProjectPause,
   updateProjectBaseUrl,
@@ -612,39 +611,25 @@ export default async function ProjectSettingsPage({
       </div>
 
       {isOwner && (
-        <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
-          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            <BadgeCheck className="size-3.5" aria-hidden="true" />
-            Badge public
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Un badge SVG minimal (&laquo; passing &raquo; / &laquo; failing
-            &raquo;) que vous pouvez intégrer dans votre README — aucune URL
-            ni détail de vos vérifications n&apos;y figure. Désactivé par
-            défaut.
-          </p>
-          {project.badge_public && (
-            <p className="rounded-sm bg-secondary px-2 py-1.5 font-mono text-xs break-all">
-              [![PostShip](
-              {process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr"}/badge/{project.id})](
-              {process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr"})
-            </p>
-          )}
-          <div>
-            <ActionForm
-              action={toggleBadgePublic.bind(
-                null,
-                project.id,
-                !!project.badge_public,
-              )}
-            >
-              <SubmitButton variant="outline" pendingText="...">
-                {project.badge_public
-                  ? "Désactiver le badge public"
-                  : "Activer le badge public"}
-              </SubmitButton>
-            </ActionForm>
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-4">
+          <div className="flex items-center gap-2">
+            <BadgeCheck className="size-3.5 text-muted-foreground" aria-hidden="true" />
+            <div>
+              <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Badge public
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {project.badge_public ? "Activé" : "Désactivé"} — cartes OG et
+                snippet dans Partage.
+              </p>
+            </div>
           </div>
+          <Link
+            href={`/app/${projectId}/share`}
+            className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            Gérer le partage →
+          </Link>
         </div>
       )}
 
