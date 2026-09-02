@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { createServiceClient } from "@/lib/db/service";
+import { linkPendingProjectInvites } from "@/lib/project-members";
 import { getStripe, STRIPE_PRICE_IDS } from "@/lib/stripe";
 
 const planSchema = z.enum(["free", "solo", "team"]).nullable();
@@ -87,6 +88,10 @@ export async function completeOnboarding(
     team_size: parsed.data.team_size || null,
     billing_address: billingAddress,
   });
+
+  if (user.email) {
+    await linkPendingProjectInvites(createServiceClient(), user.id, user.email);
+  }
 
   if (!isPaidSignup) {
     redirect("/app");

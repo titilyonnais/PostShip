@@ -103,7 +103,7 @@ export async function addTarget(
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id")
+    .select("id, user_id")
     .eq("id", projectId)
     .single();
 
@@ -111,18 +111,23 @@ export async function addTarget(
     return { error: "Projet introuvable." };
   }
 
-  const { data: profile } = await supabase
+  // Quota is governed by the project OWNER's plan and their total URL
+  // count across all of *their* projects — not the current viewer's own
+  // plan/targets. A collaborator's session can't see the owner's other
+  // projects via RLS to count them, so this deliberately goes through the
+  // service role, scoped explicitly to project.user_id.
+  const service = createServiceClient();
+  const { data: ownerProfile } = await service
     .from("profiles")
     .select("plan")
-    .eq("id", user.id)
+    .eq("id", project.user_id)
     .single();
+  const limits = getPlanLimits((ownerProfile?.plan as Plan) ?? "free");
 
-  // RLS scopes this count to the current user's own targets across all projects.
-  const { count } = await supabase
+  const { count } = await service
     .from("check_targets")
-    .select("id", { count: "exact", head: true });
-
-  const limits = getPlanLimits((profile?.plan as Plan) ?? "free");
+    .select("id, projects!inner(user_id)", { count: "exact", head: true })
+    .eq("projects.user_id", project.user_id);
 
   if ((count ?? 0) >= limits.urls) {
     return {
@@ -281,8 +286,24 @@ async function setDeployHookSecret(
   if (!parsed.success) return { error: "Secret invalide." };
 
   const supabase = await createClient();
-  if (!(await assertOwnsProject(supabase, projectId))) {
+  const { data: project } = await supabase
+    .from("projects")
+    .select("user_id")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) {
     return { error: "Projet introuvable." };
+  }
+
+  const { data: ownerProfile } = await createServiceClient()
+    .from("profiles")
+    .select("plan")
+    .eq("id", project.user_id)
+    .single();
+
+  if (!getPlanLimits((ownerProfile?.plan as Plan) ?? "free").deployHooks) {
+    return { error: `${providerLabel} n'est disponible qu'avec un plan payant.` };
   }
 
   const { error } = await createServiceClient()
@@ -374,18 +395,26 @@ async function setChatWebhook(
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan")
-    .eq("id", user.id)
+  // project.user_id (the owner), not the current viewer — see the same
+  // reasoning in addTarget above.
+  const { data: project } = await supabase
+    .from("projects")
+    .select("user_id")
+    .eq("id", projectId)
     .single();
 
-  if (!getPlanLimits((profile?.plan as Plan) ?? "free").chatWebhooks) {
-    return { error: `${providerLabel} n'est disponible qu'avec un plan payant.` };
+  if (!project) {
+    return { error: "Projet introuvable." };
   }
 
-  if (!(await assertOwnsProject(supabase, projectId))) {
-    return { error: "Projet introuvable." };
+  const { data: ownerProfile } = await createServiceClient()
+    .from("profiles")
+    .select("plan")
+    .eq("id", project.user_id)
+    .single();
+
+  if (!getPlanLimits((ownerProfile?.plan as Plan) ?? "free").chatWebhooks) {
+    return { error: `${providerLabel} n'est disponible qu'avec un plan payant.` };
   }
 
   const { error } = await createServiceClient()

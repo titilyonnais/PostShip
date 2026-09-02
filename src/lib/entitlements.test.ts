@@ -13,6 +13,7 @@ const DOCUMENTED_LIMITS: Record<Plan, (typeof PLAN_LIMITS)[Plan]> = {
     chatWebhooks: false,
     deployHooks: false,
     stripeHealth: false,
+    teamMembers: false,
     retentionDays: 7,
   },
   solo: {
@@ -22,6 +23,7 @@ const DOCUMENTED_LIMITS: Record<Plan, (typeof PLAN_LIMITS)[Plan]> = {
     chatWebhooks: true,
     deployHooks: true,
     stripeHealth: false,
+    teamMembers: false,
     retentionDays: 14,
   },
   team: {
@@ -31,6 +33,7 @@ const DOCUMENTED_LIMITS: Record<Plan, (typeof PLAN_LIMITS)[Plan]> = {
     chatWebhooks: true,
     deployHooks: true,
     stripeHealth: true,
+    teamMembers: true,
     retentionDays: 30,
   },
 };
@@ -48,10 +51,13 @@ describe("getPlanLimits", () => {
     expect(getPlanLimits("free").stripeHealth).toBe(false);
   });
 
-  it("only grants Stripe health to Team", () => {
+  it("only grants Stripe health/team members to Team", () => {
     expect(getPlanLimits("free").stripeHealth).toBe(false);
     expect(getPlanLimits("solo").stripeHealth).toBe(false);
     expect(getPlanLimits("team").stripeHealth).toBe(true);
+    expect(getPlanLimits("free").teamMembers).toBe(false);
+    expect(getPlanLimits("solo").teamMembers).toBe(false);
+    expect(getPlanLimits("team").teamMembers).toBe(true);
   });
 
   it("keeps the 5-minute interval promise for paid plans", () => {

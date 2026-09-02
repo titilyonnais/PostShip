@@ -6,13 +6,19 @@ import {
   PauseCircle,
   PlayCircle,
   Trash2,
+  UserPlus,
   Webhook,
 } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
-import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
-import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import {
+  getAuthUser,
+  getProject,
+  getProjectMembers,
+  getProjectOwnerPlan,
+} from "@/lib/db/loaders";
+import { getPlanLimits } from "@/lib/entitlements";
 import {
   deleteProject,
   renameProject,
@@ -28,6 +34,11 @@ import {
   setSlackWebhook,
   setVercelHookSecret,
 } from "../actions";
+import {
+  inviteProjectMember,
+  leaveProject,
+  removeProjectMember,
+} from "../members-actions";
 import type { ActionResult } from "@/lib/use-toast-action";
 
 export const metadata = {
@@ -156,9 +167,17 @@ export default async function ProjectSettingsPage({
 
   if (!project) notFound();
 
-  const profile = user ? await getProfile(user.id) : null;
-  const plan = (profile?.plan as Plan) ?? "free";
-  const limits = getPlanLimits(plan);
+  const isOwner = user?.id === project.user_id;
+
+  // The project OWNER's plan gates its features (interval, Discord/Slack,
+  // deploy hooks, collaborators) — never the current viewer's own plan,
+  // which for a collaborator can be Free while the project itself is on
+  // Team. See the comment on getProjectOwnerPlan.
+  const [ownerPlan, members] = await Promise.all([
+    getProjectOwnerPlan(project.user_id),
+    isOwner ? getProjectMembers(projectId) : Promise.resolve([]),
+  ]);
+  const limits = getPlanLimits(ownerPlan);
   const backTo = `/app/${projectId}`;
 
   return (
@@ -339,24 +358,125 @@ export default async function ProjectSettingsPage({
         )}
       </div>
 
-      <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-4">
-        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-destructive uppercase">
-          <AlertTriangle className="size-3.5" aria-hidden="true" />
-          Zone dangereuse
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          Supprime définitivement ce projet, ses URLs surveillées et tout
-          l&apos;historique de vérification associé.
-        </p>
-        <div>
-          <form action={deleteProject.bind(null, project.id)}>
-            <SubmitButton variant="destructive" pendingText="Suppression...">
-              <Trash2 className="size-3.5" aria-hidden="true" />
-              Supprimer le projet
-            </SubmitButton>
-          </form>
+      {isOwner && (
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <UserPlus className="size-3.5" aria-hidden="true" />
+            Collaborateurs
+          </h2>
+          {limits.teamMembers ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Un collaborateur accède aux URLs, alertes et webhooks de ce
+                projet, mais pas à votre facturation. Pas besoin qu&apos;il
+                ait déjà un compte PostShip.
+              </p>
+              <ActionForm
+                action={inviteProjectMember.bind(null, projectId)}
+                className="flex gap-2"
+              >
+                <label htmlFor="member-email" className="sr-only">
+                  Email à inviter
+                </label>
+                <Input
+                  id="member-email"
+                  name="email"
+                  type="email"
+                  placeholder="collegue@exemple.com"
+                  className="flex-1"
+                />
+                <SubmitButton variant="outline" pendingText="Envoi...">
+                  Inviter
+                </SubmitButton>
+              </ActionForm>
+              {members.length > 0 && (
+                <ul className="flex flex-col gap-1">
+                  {members.map((member) => (
+                    <li
+                      key={member.id}
+                      className="flex items-center justify-between gap-2 rounded-sm bg-secondary px-2 py-1.5 text-xs"
+                    >
+                      <span className="font-mono">{member.invited_email}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="text-muted-foreground">
+                          {member.status === "accepted"
+                            ? "Actif"
+                            : "Invitation en attente"}
+                        </span>
+                        <ActionForm
+                          action={removeProjectMember.bind(
+                            null,
+                            projectId,
+                            member.id,
+                          )}
+                        >
+                          <SubmitButton
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto p-0 text-muted-foreground underline underline-offset-2"
+                            pendingText="..."
+                          >
+                            Retirer
+                          </SubmitButton>
+                        </ActionForm>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Disponible à partir du plan Team.{" "}
+              <Link
+                href={`/app/billing?from=${encodeURIComponent(backTo)}`}
+                className="text-foreground underline underline-offset-2"
+              >
+                Passer à Team
+              </Link>
+            </p>
+          )}
         </div>
-      </div>
+      )}
+
+      {isOwner ? (
+        <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-4">
+          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-destructive uppercase">
+            <AlertTriangle className="size-3.5" aria-hidden="true" />
+            Zone dangereuse
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Supprime définitivement ce projet, ses URLs surveillées et tout
+            l&apos;historique de vérification associé.
+          </p>
+          <div>
+            <form action={deleteProject.bind(null, project.id)}>
+              <SubmitButton variant="destructive" pendingText="Suppression...">
+                <Trash2 className="size-3.5" aria-hidden="true" />
+                Supprimer le projet
+              </SubmitButton>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <UserPlus className="size-3.5" aria-hidden="true" />
+            Vous êtes collaborateur sur ce projet
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Le propriétaire garde la main sur la facturation et la
+            suppression du projet.
+          </p>
+          <div>
+            <ActionForm action={leaveProject.bind(null, projectId)}>
+              <SubmitButton variant="outline" pendingText="...">
+                Quitter le projet
+              </SubmitButton>
+            </ActionForm>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,6 +36,7 @@ export const PUBLIC_PLANS: {
       "50 URLs",
       "Discord + hooks Vercel/Netlify/Cloudflare",
       "Vérification Stripe",
+      "Collaborateurs par projet",
       "Rétention 30 jours",
     ],
   },

@@ -1,6 +1,6 @@
 # PostShip — Claude Code context
 
-Post-deploy / synthetic monitoring for indie SaaS. After each deploy (or on cron), fetch the customer's critical URLs like a user would: HTTP, OG/Twitter, sitemap, JSON-LD, SSL, optional Stripe success page. Alert Discord + email on fail and recover. Stay silent when green.
+Post-deploy / synthetic monitoring for indie SaaS. After each deploy (or on cron), fetch the customer's critical URLs like a user would: HTTP, OG/Twitter, sitemap, JSON-LD, SSL, optional Stripe success page. Alert Discord/Slack + email on fail and recover. Stay silent when green.
 
 ## Stack
 
@@ -55,9 +55,10 @@ pnpm build
 | Projects | 1 | 3 | 10 |
 | URLs | 3 | 15 | 50 |
 | Interval | 30 min | 5 min | 5 min |
-| Discord | no | yes | yes |
-| Vercel hook | no | yes | yes |
+| Chat webhooks (Discord/Slack) | no | yes | yes |
+| Deploy hooks (Vercel/Netlify/Cloudflare Pages) | no | yes | yes |
 | Stripe health | no | no | yes |
+| Collaborators (per-project, see `project_members`) | no | no | yes |
 | Retention | 7 days | 14 days | 30 days |
 
 ## Git

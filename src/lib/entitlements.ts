@@ -9,6 +9,7 @@ export const PLAN_LIMITS: Record<
     chatWebhooks: boolean;
     deployHooks: boolean;
     stripeHealth: boolean;
+    teamMembers: boolean;
     retentionDays: number;
   }
 > = {
@@ -19,6 +20,7 @@ export const PLAN_LIMITS: Record<
     chatWebhooks: false,
     deployHooks: false,
     stripeHealth: false,
+    teamMembers: false,
     retentionDays: 7,
   },
   solo: {
@@ -28,6 +30,7 @@ export const PLAN_LIMITS: Record<
     chatWebhooks: true,
     deployHooks: true,
     stripeHealth: false,
+    teamMembers: false,
     retentionDays: 14,
   },
   team: {
@@ -37,6 +40,7 @@ export const PLAN_LIMITS: Record<
     chatWebhooks: true,
     deployHooks: true,
     stripeHealth: true,
+    teamMembers: true,
     retentionDays: 30,
   },
 };

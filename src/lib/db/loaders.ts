@@ -1,5 +1,7 @@
 import { cache } from "react";
 import { createClient } from "./server";
+import { createServiceClient } from "./service";
+import type { Plan } from "@/lib/entitlements";
 
 // Wrapped in React's cache() so a value fetched once per request (e.g. by a
 // layout) is reused by every page/component that asks for the same thing
@@ -31,9 +33,27 @@ export const getUserProjects = cache(async () => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("projects")
-    .select("id, name, base_url, last_status, last_checked_at, paused")
+    .select("id, name, base_url, last_status, last_checked_at, paused, user_id")
     .order("created_at");
   return data ?? [];
+});
+
+// A project's plan-gated features (interval, Discord/Slack, deploy hooks,
+// collaborators) are governed by its OWNER's plan, not whoever happens to
+// be viewing it — a Team-plan owner's collaborator can be on the Free
+// plan personally and must still see/manage the project's actual
+// features. profiles RLS only lets a user read their own row, so a
+// collaborator's session client can't see the owner's plan directly;
+// this deliberately reads it via the service role instead. A plan name
+// isn't sensitive, and this never returns anything beyond that one field.
+export const getProjectOwnerPlan = cache(async (ownerId: string): Promise<Plan> => {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("plan")
+    .eq("id", ownerId)
+    .single();
+  return (data?.plan as Plan) ?? "free";
 });
 
 export const getProject = cache(async (projectId: string) => {
@@ -44,4 +64,14 @@ export const getProject = cache(async (projectId: string) => {
     .eq("id", projectId)
     .single();
   return data;
+});
+
+export const getProjectMembers = cache(async (projectId: string) => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("project_members")
+    .select("id, invited_email, status, created_at")
+    .eq("project_id", projectId)
+    .order("created_at");
+  return data ?? [];
 });

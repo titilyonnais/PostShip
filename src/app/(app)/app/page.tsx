@@ -2,8 +2,8 @@ import Link from "next/link";
 import { ChevronRight, Rocket } from "lucide-react";
 import { LastChecked } from "@/components/last-checked";
 import { StatusDot } from "@/components/status-dot";
-import { getAuthUser, getProfile, getUserProjects } from "@/lib/db/loaders";
-import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { getProjectOwnerPlan, getUserProjects } from "@/lib/db/loaders";
+import { getPlanLimits } from "@/lib/entitlements";
 import { CreateProjectForm } from "./create-project-form";
 
 export default async function AppHomePage({
@@ -13,10 +13,20 @@ export default async function AppHomePage({
 }) {
   const { error, success } = await searchParams;
 
-  const [projects, user] = await Promise.all([getUserProjects(), getAuthUser()]);
-  const profile = user ? await getProfile(user.id) : null;
-  const intervalMinutes = getPlanLimits((profile?.plan as Plan) ?? "free")
-    .intervalMinutes;
+  const projects = await getUserProjects();
+
+  // Each project's expected check interval comes from ITS owner's plan —
+  // a collaborator's own plan (which can be Free) is irrelevant here, a
+  // project someone else pays Team for still ticks every 5 minutes
+  // regardless of who's looking at the dashboard.
+  const intervalByProjectId = new Map(
+    await Promise.all(
+      projects.map(
+        async (p) =>
+          [p.id, getPlanLimits(await getProjectOwnerPlan(p.user_id)).intervalMinutes] as const,
+      ),
+    ),
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
@@ -55,7 +65,7 @@ export default async function AppHomePage({
                   <LastChecked
                     lastCheckedAt={project.last_checked_at}
                     paused={project.paused}
-                    intervalMinutes={intervalMinutes}
+                    intervalMinutes={intervalByProjectId.get(project.id) ?? 30}
                   />
                 </div>
                 <div className="flex items-center gap-3">

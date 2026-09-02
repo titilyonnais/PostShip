@@ -4,8 +4,8 @@ import { ActionForm } from "@/components/action-form";
 import { Badge } from "@/components/ui/badge";
 import { LastChecked } from "@/components/last-checked";
 import { SubmitButton } from "@/components/submit-button";
-import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
-import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { getProject, getProjectOwnerPlan } from "@/lib/db/loaders";
+import { getPlanLimits } from "@/lib/entitlements";
 import { runProjectNow } from "./actions";
 
 export default async function ProjectLayout({
@@ -17,13 +17,15 @@ export default async function ProjectLayout({
 }) {
   const { projectId } = await params;
 
-  const [project, user] = await Promise.all([getProject(projectId), getAuthUser()]);
+  const project = await getProject(projectId);
 
   if (!project) notFound();
 
-  const profile = user ? await getProfile(user.id) : null;
-  const intervalMinutes = getPlanLimits((profile?.plan as Plan) ?? "free")
-    .intervalMinutes;
+  // The project's OWNER's plan, not the current viewer's — see the
+  // comment on getProjectOwnerPlan.
+  const intervalMinutes = getPlanLimits(
+    await getProjectOwnerPlan(project.user_id),
+  ).intervalMinutes;
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">

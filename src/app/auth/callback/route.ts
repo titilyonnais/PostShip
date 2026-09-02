@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/db/server";
+import { createServiceClient } from "@/lib/db/service";
+import { linkPendingProjectInvites } from "@/lib/project-members";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -22,6 +24,14 @@ export async function GET(request: Request) {
         id: data.user.id,
         email: data.user.email,
       });
+
+      if (data.user.email) {
+        await linkPendingProjectInvites(
+          createServiceClient(),
+          data.user.id,
+          data.user.email,
+        );
+      }
 
       return NextResponse.redirect(`${origin}${next}`);
     }

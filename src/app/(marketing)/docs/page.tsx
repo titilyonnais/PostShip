@@ -132,8 +132,23 @@ export default function DocsPage() {
         <p className="text-sm text-muted-foreground">
           Un email est envoyé au premier échec détecté, puis à chaque
           rétablissement — jamais deux alertes identiques en moins de 10
-          minutes. Discord reçoit la même chose en plus de l&apos;email, si
-          configuré. Rien n&apos;est envoyé tant que tout est vert.
+          minutes. Discord et Slack reçoivent la même chose en plus de
+          l&apos;email, si configurés. Rien n&apos;est envoyé tant que tout
+          est vert.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Collaborateurs (plan Team)
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Depuis Paramètres du projet → Collaborateurs, invitez quelqu&apos;un
+          par email — pas besoin qu&apos;il ait déjà un compte PostShip. Un
+          collaborateur accède aux URLs, alertes et webhooks de ce projet
+          précis, mais jamais à votre facturation ni aux autres projets. Vous
+          restez seul à pouvoir inviter, retirer un collaborateur ou
+          supprimer le projet.
         </p>
       </section>
 
