@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { createClient } from "@/lib/db/server";
 import { createServiceClient } from "@/lib/db/service";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
@@ -44,4 +45,67 @@ export async function sendBotTestStatus(
   await sendBotMessage(secrets, `/status\n${text}`);
 
   return { success: "Message de test envoyé." };
+}
+
+export async function setTelegramWebhook(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id, user_id")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) return { error: "Projet introuvable." };
+
+  const service = createServiceClient();
+  const { data: ownerProfile } = await service
+    .from("profiles")
+    .select("plan")
+    .eq("id", project.user_id)
+    .single();
+
+  if (!getPlanLimits((ownerProfile?.plan as Plan) ?? "free").chatWebhooks) {
+    return { error: "Le bot n'est disponible qu'avec un plan payant." };
+  }
+
+  const { data: secrets } = await service
+    .from("projects")
+    .select("telegram_bot_token")
+    .eq("id", projectId)
+    .single();
+
+  if (!secrets?.telegram_bot_token) {
+    return { error: "Configurez d'abord le token Telegram dans Paramètres." };
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr";
+  const secretToken = randomBytes(32).toString("hex");
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${secrets.telegram_bot_token}/setWebhook`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: `${appUrl}/api/telegram/webhook/${projectId}`,
+        secret_token: secretToken,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    return { error: "Échec de la connexion à Telegram — vérifiez le token." };
+  }
+
+  const { error } = await service
+    .from("projects")
+    .update({ telegram_webhook_secret: secretToken })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  return { success: "Commandes Telegram activées — essayez /status dans le salon." };
 }

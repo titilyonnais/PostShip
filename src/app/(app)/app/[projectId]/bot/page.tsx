@@ -6,7 +6,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { getProject, getProjectOwnerPlan } from "@/lib/db/loaders";
 import { getPlanLimits } from "@/lib/entitlements";
 import { HELP_TEXT } from "@/lib/bot-commands";
-import { sendBotTestStatus } from "../bot-actions";
+import { sendBotTestStatus, setTelegramWebhook } from "../bot-actions";
 
 export const metadata = {
   title: "Bot",
@@ -46,12 +46,22 @@ export default async function BotPage({
             <span className={project.telegram_configured ? "text-[#3fb950]" : "text-muted-foreground"}>
               {project.telegram_configured ? "connecté" : "non connecté"}
             </span>
+            {project.telegram_configured && (
+              <>
+                {" · commandes "}
+                <span className={project.telegram_commands_enabled ? "text-[#3fb950]" : "text-muted-foreground"}>
+                  {project.telegram_commands_enabled ? "activées" : "désactivées"}
+                </span>
+              </>
+            )}
           </p>
           <p>
             Discord :{" "}
             <span className={project.discord_webhook_configured ? "text-[#3fb950]" : "text-muted-foreground"}>
               {project.discord_webhook_configured ? "webhook configuré" : "non configuré"}
             </span>
+            {" "}
+            <span className="text-muted-foreground">(notifications seulement)</span>
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -64,6 +74,15 @@ export default async function BotPage({
           </Link>
           .
         </p>
+        {project.telegram_configured && hasBotAccess && (
+          <ActionForm action={setTelegramWebhook.bind(null, projectId)}>
+            <SubmitButton variant="outline" pendingText="Connexion...">
+              {project.telegram_commands_enabled
+                ? "Reconnecter les commandes Telegram"
+                : "Activer les commandes Telegram"}
+            </SubmitButton>
+          </ActionForm>
+        )}
       </div>
 
       <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
