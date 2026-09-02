@@ -413,10 +413,18 @@ export default async function ProjectSettingsPage({
       </div>
 
       <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
-        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <MessageSquare className="size-3.5" aria-hidden="true" />
-          Alertes chat
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <MessageSquare className="size-3.5" aria-hidden="true" />
+            Alertes chat
+          </h2>
+          <Link
+            href={`/app/${projectId}/bot`}
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            Gérer le bot →
+          </Link>
+        </div>
         {limits.chatWebhooks ? (
           <div className="grid gap-4 sm:grid-cols-3">
             <ChatWebhookSection
