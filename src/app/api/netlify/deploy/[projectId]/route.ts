@@ -37,7 +37,11 @@ export async function POST(
   // one specific trigger event ("Deploy succeeded") at setup time — a
   // validly-signed request here already IS that event by construction.
   try {
-    await runProjectChecks(projectId);
+    await runProjectChecks(
+      projectId,
+      undefined,
+      `deploy Netlify ${new Date().toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" })}`,
+    );
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Check failed" },

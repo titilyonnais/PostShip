@@ -49,7 +49,11 @@ export async function POST(
   // Cloudflare's side, so an authenticated delivery here already IS that
   // event.
   try {
-    await runProjectChecks(projectId);
+    await runProjectChecks(
+      projectId,
+      undefined,
+      `deploy Cloudflare Pages ${new Date().toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" })}`,
+    );
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Check failed" },

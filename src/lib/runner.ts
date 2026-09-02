@@ -31,6 +31,7 @@ type SingleTargetResult = {
   http_status: number | null;
   ttfb_ms: number | null;
   fingerprint: string;
+  missing: string[] | null;
 };
 
 async function runSingleTarget(
@@ -122,6 +123,10 @@ async function runSingleTarget(
     })
     .eq("id", target.id);
 
+  const missing = Array.isArray(result.details?.missing)
+    ? (result.details.missing as string[])
+    : null;
+
   return {
     targetId: target.id,
     url: target.url,
@@ -129,6 +134,7 @@ async function runSingleTarget(
     http_status: result.http_status,
     ttfb_ms: result.ttfb_ms,
     fingerprint: result.fingerprint,
+    missing,
   };
 }
 
@@ -185,6 +191,8 @@ export async function runOneTarget(targetId: string) {
         outcome: result.outcome,
         httpStatus: result.http_status,
         fingerprint: result.fingerprint,
+        missing: result.missing,
+        ttfbMs: result.ttfb_ms,
       });
     }
   } else {
@@ -202,6 +210,8 @@ export async function runOneTarget(targetId: string) {
         outcome: result.outcome,
         httpStatus: result.http_status,
         fingerprint: result.fingerprint,
+        missing: result.missing,
+        ttfbMs: result.ttfb_ms,
       });
     }
   }
@@ -348,6 +358,10 @@ export async function runPreviewChecks(
         outcome: result.outcome,
         httpStatus: result.http_status,
         fingerprint: result.fingerprint,
+        missing: Array.isArray(result.details?.missing)
+          ? (result.details.missing as string[])
+          : null,
+        ttfbMs: result.ttfb_ms,
       });
     }
   }
@@ -372,7 +386,14 @@ export async function runPreviewChecks(
   return { ranTargets, failedTargets: alertItems.length };
 }
 
-export async function runProjectChecks(projectId: string, budget?: FetchBudget) {
+export async function runProjectChecks(
+  projectId: string,
+  budget?: FetchBudget,
+  // Set by the deploy webhook routes (vercel/netlify/cloudflare) so the
+  // alert copy can prefix "Depuis le dernier déploiement : " — cron ticks
+  // and manual "Lancer maintenant" runs leave it unset.
+  deployHint?: string,
+) {
   const supabase = createServiceClient();
 
   const { data: project } = await supabase
@@ -442,6 +463,9 @@ export async function runProjectChecks(projectId: string, budget?: FetchBudget) 
           outcome: result.outcome,
           httpStatus: result.http_status,
           fingerprint: result.fingerprint,
+          missing: result.missing,
+          ttfbMs: result.ttfb_ms,
+          deployHint,
         });
       }
       continue;
@@ -462,6 +486,9 @@ export async function runProjectChecks(projectId: string, budget?: FetchBudget) 
         outcome: result.outcome,
         httpStatus: result.http_status,
         fingerprint: result.fingerprint,
+        missing: result.missing,
+        ttfbMs: result.ttfb_ms,
+        deployHint,
       });
     }
   }

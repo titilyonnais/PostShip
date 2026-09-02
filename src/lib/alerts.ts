@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
+import { buildAlertCopy, describeAlertItem } from "@/lib/alert-copy";
 
 const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
@@ -11,6 +12,11 @@ export type AlertItem = {
   outcome: string;
   httpStatus: number | null;
   fingerprint: string;
+  // Read by src/lib/alert-copy.ts to write a one-sentence, deterministic
+  // description per item instead of a raw "{url} ({status})" line.
+  missing?: string[] | null;
+  ttfbMs?: number | null;
+  deployHint?: string | null;
 };
 
 export async function shouldSendFailAlert(
@@ -60,7 +66,8 @@ function escapeHtml(value: string): string {
 }
 
 // Dark, operational, no purple-AI gradient nonsense (CLAUDE.md) — a plain
-// list with a colored dot, the mono URL, and the status, same information
+// list with a colored dot and the one-sentence, deterministically-written
+// description of what happened (src/lib/alert-copy.ts), same information
 // as the text fallback and nothing more.
 function buildFailEmailHtml(projectName: string, items: AlertItem[]): string {
   const rows = items
@@ -73,8 +80,7 @@ function buildFailEmailHtml(projectName: string, items: AlertItem[]): string {
           <td style="padding:10px 0;border-bottom:1px solid #2a2f36;">
             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:10px;"></span>
             <span style="color:#8b949e;font-size:12px;">${label}</span><br />
-            <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#e6edf3;">${escapeHtml(i.url)}</span>
-            <span style="color:#8b949e;font-size:12px;"> (${i.httpStatus ?? "—"})</span>
+            <span style="font-size:13px;color:#e6edf3;">${escapeHtml(describeAlertItem(i))}</span>
           </td>
         </tr>`;
     })
@@ -104,20 +110,13 @@ async function sendFailEmail(
   items: AlertItem[],
 ) {
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const lines = items
-    .map(
-      (i) =>
-        `${i.kind === "recovered" ? "Rétabli" : "En échec"} — ${i.url} (${i.httpStatus ?? "—"})`,
-    )
-    .join("\n");
-
-  const hasNewFail = items.some((i) => i.kind === "fail");
+  const copy = buildAlertCopy(projectName, items);
 
   await resend.emails.send({
     from: process.env.RESEND_FROM!,
     to,
-    subject: `[PostShip] ${projectName} — ${hasNewFail ? "échec détecté" : "rétabli"}`,
-    text: lines,
+    subject: copy.subject,
+    text: copy.text,
     html: buildFailEmailHtml(projectName, items),
   });
 }
@@ -137,18 +136,13 @@ async function sendDiscordAlert(
     return;
   }
 
-  const description = items
-    .map(
-      (i) =>
-        `${i.kind === "recovered" ? "✅" : "🔴"} \`${i.url}\` (${i.httpStatus ?? "—"})`,
-    )
-    .join("\n");
+  const { discordDescription } = buildAlertCopy(projectName, items);
 
   await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      embeds: [{ title: `PostShip — ${projectName}`, description }],
+      embeds: [{ title: `PostShip — ${projectName}`, description: discordDescription }],
     }),
   });
 }
@@ -168,18 +162,13 @@ async function sendSlackAlert(
     return;
   }
 
-  const lines = items
-    .map(
-      (i) =>
-        `${i.kind === "recovered" ? ":large_green_circle:" : ":red_circle:"} \`${i.url}\` (${i.httpStatus ?? "—"})`,
-    )
-    .join("\n");
+  const { slackText } = buildAlertCopy(projectName, items);
 
   await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text: `*PostShip — ${projectName}*\n${lines}`,
+      text: `*PostShip — ${projectName}*\n${slackText}`,
     }),
   });
 }

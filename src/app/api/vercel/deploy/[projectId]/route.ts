@@ -119,7 +119,11 @@ export async function POST(
   }
 
   try {
-    await runProjectChecks(projectId);
+    await runProjectChecks(
+      projectId,
+      undefined,
+      `deploy Vercel ${new Date().toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" })}`,
+    );
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Check failed" },
