@@ -3,7 +3,6 @@ import { BUDGET_EXHAUSTED_MESSAGE, createFetchBudget } from "@/lib/budgets";
 import { createServiceClient } from "@/lib/db/service";
 import { runWithConcurrencyLimit } from "@/lib/concurrency";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
-import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runProjectChecks } from "@/lib/runner";
 import { advanceSiteScans } from "@/lib/scan";
 
@@ -17,14 +16,6 @@ const LOCK_ID = 1;
 // for the next one rather than block it.
 const LOCK_TTL_MS = 55_000;
 const INTER_PROJECT_CONCURRENCY = 5;
-
-type DueProjectRow = {
-  id: string;
-  base_url: string;
-  last_checked_at: string | null;
-  paused: boolean;
-  profiles: { plan: Plan } | null;
-};
 
 type AcquireLockResult = "acquired" | "held" | "error";
 
@@ -78,32 +69,37 @@ export async function GET(request: Request) {
   const budget = createFetchBudget();
 
   try {
-    const now = Date.now();
+    // Computed in SQL (migration 0030) against an index on
+    // (paused, last_checked_at) — the previous version fetched every
+    // project row (plan joined in) and filtered in JS regardless of how
+    // many were actually due.
+    const { data: dueIds, error: dueError } = (await supabase.rpc(
+      "due_project_ids",
+    )) as { data: { project_id: string }[] | null; error: { message: string } | null };
 
-    const { data: projects, error } = await supabase
-      .from("projects")
-      .select("id, base_url, last_checked_at, paused, profiles(plan)");
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (dueError) {
+      return NextResponse.json({ error: dueError.message }, { status: 500 });
     }
 
-    const dueProjects = ((projects ?? []) as unknown as DueProjectRow[])
-      .filter((project) => !project.paused)
-      .filter((project) => {
-        const plan = project.profiles?.plan ?? "free";
-        const intervalMs = getPlanLimits(plan).intervalMinutes * 60_000;
-        if (!project.last_checked_at) return true;
-        return now - new Date(project.last_checked_at).getTime() >= intervalMs;
-      });
-
-    if (dueProjects.length === 0) {
+    if (!dueIds || dueIds.length === 0) {
       try {
         await advanceSiteScans(budget);
       } catch (err) {
         console.error("Échec avancement scan de site", err);
       }
       return NextResponse.json({ checked: 0, failed: 0, skippedUnverified: 0 });
+    }
+
+    const { data: dueProjects, error } = await supabase
+      .from("projects")
+      .select("id, base_url")
+      .in(
+        "id",
+        dueIds.map((row) => row.project_id),
+      );
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     // Cron only runs projects whose base_url host has proven ownership
@@ -117,12 +113,12 @@ export async function GET(request: Request) {
       .select("project_id, host")
       .in(
         "project_id",
-        dueProjects.map((p) => p.id),
+        (dueProjects ?? []).map((p) => p.id),
       )
       .not("verified_at", "is", null);
 
     const verifiedProjectIds = new Set(
-      dueProjects
+      (dueProjects ?? [])
         .filter((project) => {
           let host: string;
           try {
@@ -137,8 +133,8 @@ export async function GET(request: Request) {
         .map((p) => p.id),
     );
 
-    const skippedUnverified = dueProjects.length - verifiedProjectIds.size;
-    const dueProjectIds = dueProjects
+    const skippedUnverified = (dueProjects?.length ?? 0) - verifiedProjectIds.size;
+    const dueProjectIds = (dueProjects ?? [])
       .filter((p) => verifiedProjectIds.has(p.id))
       .map((p) => p.id);
 

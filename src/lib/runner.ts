@@ -20,6 +20,7 @@ type CheckTargetRow = {
   expect_status: number;
   expect_contains: string | null;
   expect_not_contains: string | null;
+  last_outcome?: "pass" | "fail" | "error" | null;
 };
 
 type SingleTargetResult = {
@@ -103,6 +104,17 @@ async function runSingleTarget(
     details: result.details,
   });
 
+  // Cached on the target row (migration 0031) so callers can read "last
+  // outcome" without scanning check_runs — see runOneTarget/runProjectChecks.
+  await supabase
+    .from("check_targets")
+    .update({
+      last_outcome: result.outcome,
+      last_fingerprint: result.fingerprint,
+      last_started_at: startedAt,
+    })
+    .eq("id", target.id);
+
   return {
     targetId: target.id,
     url: target.url,
@@ -142,13 +154,9 @@ export async function runOneTarget(targetId: string) {
   const owner = project.profiles;
   const ownerPlan = owner?.plan ?? "free";
 
-  const { data: previousRun } = await supabase
-    .from("check_runs")
-    .select("outcome")
-    .eq("target_id", targetId)
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Captured before runSingleTarget overwrites check_targets.last_outcome
+  // with this run's own result (migration 0031).
+  const previous = (target as CheckTargetRow).last_outcome ?? null;
 
   const result = await runSingleTarget(
     supabase,
@@ -156,8 +164,6 @@ export async function runOneTarget(targetId: string) {
     target as CheckTargetRow,
     ownerPlan,
   );
-
-  const previous = previousRun?.outcome ?? null;
   const alertItems: AlertItem[] = [];
 
   if (result.outcome === "pass") {
@@ -206,26 +212,22 @@ export async function runOneTarget(targetId: string) {
     );
   }
 
-  // Recompute the project's overall badge from the latest outcome per
-  // target, not just this one — a single-target rerun shouldn't report
-  // "pass" at the project level while another target is still failing.
+  // Recompute the project's overall badge from each target's cached last
+  // outcome (migration 0031), not just this one — a single-target rerun
+  // shouldn't report "pass" at the project level while another target is
+  // still failing. Reads check_targets directly instead of scanning
+  // check_runs for the whole project.
   const { data: allLatest } = await supabase
-    .from("check_runs")
-    .select("target_id, outcome")
+    .from("check_targets")
+    .select("last_outcome")
     .eq("project_id", project.id)
-    .order("started_at", { ascending: false })
-    .limit(500);
+    .eq("enabled", true);
 
-  const seen = new Set<string>();
-  let overallStatus: "pass" | "fail" = "pass";
-  for (const run of allLatest ?? []) {
-    if (seen.has(run.target_id)) continue;
-    seen.add(run.target_id);
-    if (run.outcome === "fail" || run.outcome === "error") {
-      overallStatus = "fail";
-      break;
-    }
-  }
+  const overallStatus: "pass" | "fail" = (allLatest ?? []).some(
+    (t) => t.last_outcome === "fail" || t.last_outcome === "error",
+  )
+    ? "fail"
+    : "pass";
 
   await supabase
     .from("projects")
@@ -269,18 +271,13 @@ export async function runProjectChecks(projectId: string, budget?: FetchBudget) 
     throw new Error(`Impossible de charger les targets: ${error.message}`);
   }
 
-  // Latest outcome per target before this run, to detect fail -> pass recoveries.
-  const { data: previousRuns } = await supabase
-    .from("check_runs")
-    .select("target_id, outcome")
-    .eq("project_id", projectId)
-    .order("started_at", { ascending: false })
-    .limit(500);
-
+  // Latest outcome per target before this run, to detect fail -> pass
+  // recoveries — read from the already-fetched rows' cached last_outcome
+  // (migration 0031), captured before runSingleTarget overwrites it below.
   const previousOutcomeByTarget = new Map<string, string>();
-  for (const run of previousRuns ?? []) {
-    if (!previousOutcomeByTarget.has(run.target_id)) {
-      previousOutcomeByTarget.set(run.target_id, run.outcome);
+  for (const target of (targets ?? []) as CheckTargetRow[]) {
+    if (target.last_outcome) {
+      previousOutcomeByTarget.set(target.id, target.last_outcome);
     }
   }
 

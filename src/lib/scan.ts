@@ -365,18 +365,20 @@ async function processBatch(
     },
   );
 
-  for (const r of results) {
-    await supabase
-      .from("site_scan_pages")
-      .update({
-        status: "done",
-        outcome: r.outcome,
-        http_status: r.http_status,
-        ttfb_ms: r.ttfb_ms,
-        error: r.error,
-      })
-      .eq("id", r.id);
-  }
+  // One round-trip for the whole batch instead of PROCESS_BATCH_SIZE
+  // sequential updates: upsert-by-id with merge-duplicates only touches the
+  // columns listed here, leaving url/scan_id/etc. on each row untouched.
+  await supabase.from("site_scan_pages").upsert(
+    results.map((r) => ({
+      id: r.id,
+      status: "done" as const,
+      outcome: r.outcome,
+      http_status: r.http_status,
+      ttfb_ms: r.ttfb_ms,
+      error: r.error,
+    })),
+    { onConflict: "id" },
+  );
 
   const okCount = results.filter((r) => r.outcome === "pass").length;
 

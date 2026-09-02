@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const SECURITY_HEADERS = [
+  // Vercel terminates TLS for every request already; this just stops a
+  // browser from ever trying plain http:// again for this origin.
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
