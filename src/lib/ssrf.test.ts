@@ -63,6 +63,36 @@ describe("assertPublicHttpsUrl", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("rejects the pure-hex form of the same IPv4-mapped address", async () => {
+    // ::ffff:7f00:1 is ::ffff:127.0.0.1 written without dotted notation —
+    // the same address, missed by a naive dotted-substring check.
+    const result = await assertPublicHttpsUrl("https://[::ffff:7f00:1]/");
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects a 6to4 literal embedding a private IPv4 address", async () => {
+    // 2002:a00:1:: embeds 10.0.0.1 (RFC 3056).
+    const result = await assertPublicHttpsUrl("https://[2002:a00:1::]/");
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects the Teredo prefix outright", async () => {
+    const result = await assertPublicHttpsUrl("https://[2001::1]/");
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects a NAT64/DNS64 literal embedding a loopback IPv4 address", async () => {
+    // 64:ff9b::7f00:1 is the well-known NAT64 prefix (RFC 6052) embedding
+    // 127.0.0.1.
+    const result = await assertPublicHttpsUrl("https://[64:ff9b::7f00:1]/");
+    expect(result.ok).toBe(false);
+  });
+
+  it("accepts a public IPv6 literal", async () => {
+    const result = await assertPublicHttpsUrl("https://[2606:4700:4700::1111]/");
+    expect(result.ok).toBe(true);
+  });
+
   it("accepts a literal public IPv4 address", async () => {
     const result = await assertPublicHttpsUrl("https://93.184.216.34/");
     expect(result.ok).toBe(true);

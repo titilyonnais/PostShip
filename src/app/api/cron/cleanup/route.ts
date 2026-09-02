@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
+import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 
 type ProjectRow = { id: string; profiles: { plan: Plan } | null };
@@ -8,8 +9,7 @@ type ProjectRow = { id: string; profiles: { plan: Plan } | null };
 // (CLAUDE.md: 7/14/30 days). Runs once/day (see vercel.json) — retention
 // doesn't need finer granularity than that.
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

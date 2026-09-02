@@ -21,6 +21,50 @@ function isBlockedIPv4(ip: string): boolean {
   return false;
 }
 
+// Expands any valid textual IPv6 address (including embedded-IPv4 and "::"
+// compression) into its 8 16-bit groups, so ranges can be matched against
+// the numeric groups rather than substring-matching the many equivalent
+// textual forms the same address can take.
+function expandIPv6(ip: string): number[] | null {
+  const doubleColonIdx = ip.indexOf("::");
+  const hasDoubleColon = doubleColonIdx !== -1;
+  const head = hasDoubleColon ? ip.slice(0, doubleColonIdx) : ip;
+  const tail = hasDoubleColon ? ip.slice(doubleColonIdx + 2) : "";
+
+  const headGroups = head.length ? head.split(":") : [];
+  const tailGroups = tail.length ? tail.split(":") : [];
+
+  // An embedded IPv4 tail (e.g. "::ffff:127.0.0.1" or "2002:c000:0201::")
+  // only ever appears as the last group.
+  const lastGroupHolder = tailGroups.length ? tailGroups : headGroups;
+  const last = lastGroupHolder[lastGroupHolder.length - 1];
+  if (last && last.includes(".")) {
+    const octets = last.split(".").map(Number);
+    if (octets.length !== 4 || octets.some((o) => !Number.isInteger(o) || o < 0 || o > 255)) {
+      return null;
+    }
+    lastGroupHolder.pop();
+    lastGroupHolder.push((((octets[0] << 8) | octets[1]) >>> 0).toString(16));
+    lastGroupHolder.push((((octets[2] << 8) | octets[3]) >>> 0).toString(16));
+  }
+
+  const total = headGroups.length + tailGroups.length;
+  if (hasDoubleColon ? total > 8 : total !== 8) return null;
+
+  const fillCount = hasDoubleColon ? 8 - total : 0;
+  const allGroups = [...headGroups, ...Array(fillCount).fill("0"), ...tailGroups];
+  if (allGroups.length !== 8) return null;
+
+  const nums = allGroups.map((g) => (g === "" ? 0 : Number.parseInt(g, 16)));
+  if (nums.some((n) => Number.isNaN(n) || n < 0 || n > 0xffff)) return null;
+
+  return nums;
+}
+
+function ipv4FromGroups(hi: number, lo: number): string {
+  return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+}
+
 function isBlockedIPv6(ip: string): boolean {
   const lower = ip.toLowerCase();
 
@@ -28,10 +72,32 @@ function isBlockedIPv6(ip: string): boolean {
   if (lower.startsWith("fe80:")) return true; // link-local
   if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // unique local, fc00::/7
 
-  if (lower.startsWith("::ffff:")) {
-    const embedded = lower.split(":").pop();
-    if (embedded && net.isIPv4(embedded)) return isBlockedIPv4(embedded);
+  const groups = expandIPv6(lower);
+  if (!groups) return true; // unparseable — refuse rather than let it through
+  const [g0, g1, g2, g3, g4, g5, g6, g7] = groups;
+
+  // IPv4-mapped, RFC 4291 (::ffff:0:0/96) — covers both the dotted form
+  // (::ffff:127.0.0.1) and the pure-hex form (::ffff:7f00:1), which are the
+  // same address but the dotted-only substring check above missed the hex one.
+  if (g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0xffff) {
+    return isBlockedIPv4(ipv4FromGroups(g6, g7));
   }
+
+  // NAT64 well-known prefix, RFC 6052 (64:ff9b::/96) — DNS64 resolvers embed
+  // the IPv4 destination in the last 32 bits the same way.
+  if (g0 === 0x0064 && g1 === 0xff9b && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0) {
+    return isBlockedIPv4(ipv4FromGroups(g6, g7));
+  }
+
+  // 6to4, RFC 3056 (2002::/16) — the next 32 bits are the embedded IPv4.
+  if (g0 === 0x2002) {
+    return isBlockedIPv4(ipv4FromGroups(g1, g2));
+  }
+
+  // Teredo, RFC 4380 (2001::/32) — the embedded client address is obscured
+  // (XORed), not a reliable signal either way; block the whole relay-based
+  // prefix rather than try to decode it.
+  if (g0 === 0x2001 && g1 === 0) return true;
 
   return false;
 }
@@ -61,7 +127,14 @@ export async function assertPublicHttpsUrl(
     return { ok: false, reason: "https uniquement." };
   }
 
-  const hostname = url.hostname.toLowerCase();
+  // WHATWG URL.hostname keeps the brackets for an IPv6 literal (e.g.
+  // "[::1]"), which made net.isIP(hostname) below always return 0 for any
+  // literal IPv6 URL — the entire literal-IP fast path (and its IPv6
+  // range checks) was silently dead code. It still ended up blocked in
+  // practice for most cases because Node's dns.lookup() is lenient enough
+  // to resolve a bracketed literal back to the same address, but that's an
+  // implementation detail to route around, not rely on.
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
 
   if (
     BLOCKED_HOSTNAMES.has(hostname) ||

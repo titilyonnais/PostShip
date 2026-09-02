@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { assertPublicHttpsUrl } from "@/lib/ssrf";
 
 const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
@@ -78,6 +79,16 @@ async function sendDiscordAlert(
   projectName: string,
   items: AlertItem[],
 ) {
+  // Defense in depth: discord_webhook_url is DB-locked to Discord's own
+  // domain (migration 0017 + the regex in setDiscordWebhook), but every
+  // outbound fetch in this codebase goes through the SSRF guard regardless
+  // of how trusted the source looks (CLAUDE.md).
+  const guard = await assertPublicHttpsUrl(webhookUrl);
+  if (!guard.ok) {
+    console.error("Webhook Discord refusé par le garde SSRF", guard.reason);
+    return;
+  }
+
   const description = items
     .map(
       (i) =>

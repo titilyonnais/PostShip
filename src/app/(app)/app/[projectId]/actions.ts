@@ -6,8 +6,29 @@ import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runOneTarget, runProjectChecks } from "@/lib/runner";
+import { createServiceClient } from "@/lib/db/service";
+import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import type { ActionResult } from "@/lib/use-toast-action";
 import { httpsUrlSchema } from "@/lib/validation";
+
+// discord_webhook_url and vercel_hook_secret are service-role-only columns
+// (see migration 0017) — the "own projects" RLS policy is `for all`, so
+// leaving them user-writable would let a direct PostgREST call bypass the
+// Discord-domain regex and plan gating below (discord_webhook_url is
+// fetched directly by src/lib/alerts.ts, making a bypassed value a stored
+// SSRF target). Every write to these two columns must go through this
+// ownership check first — createServiceClient() bypasses RLS entirely.
+async function assertOwnsProject(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .single();
+  return !!data;
+}
 
 const discordWebhookSchema = z
   .string()
@@ -84,6 +105,11 @@ export async function addTarget(
     return {
       error: "Stripe health n'est disponible qu'avec le plan Team.",
     };
+  }
+
+  const guard = await assertPublicHttpsUrl(parsed.data.url);
+  if (!guard.ok) {
+    return { error: guard.reason };
   }
 
   const { error } = await supabase.from("check_targets").insert({
@@ -222,7 +248,11 @@ export async function setVercelHookSecret(
   if (!parsed.success) return { error: "Secret invalide." };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  if (!(await assertOwnsProject(supabase, projectId))) {
+    return { error: "Projet introuvable." };
+  }
+
+  const { error } = await createServiceClient()
     .from("projects")
     .update({ vercel_hook_secret: parsed.data })
     .eq("id", projectId);
@@ -238,7 +268,11 @@ export async function disableDiscordWebhook(
   _prevState: ActionResult,
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase
+  if (!(await assertOwnsProject(supabase, projectId))) {
+    return { error: "Projet introuvable." };
+  }
+
+  const { error } = await createServiceClient()
     .from("projects")
     .update({ discord_webhook_url: null })
     .eq("id", projectId);
@@ -285,7 +319,11 @@ export async function setDiscordWebhook(
     return { error: "Discord n'est disponible qu'avec un plan payant." };
   }
 
-  const { error } = await supabase
+  if (!(await assertOwnsProject(supabase, projectId))) {
+    return { error: "Projet introuvable." };
+  }
+
+  const { error } = await createServiceClient()
     .from("projects")
     .update({ discord_webhook_url: parsed.data })
     .eq("id", projectId);

@@ -39,16 +39,12 @@ export async function creditTokenPurchase(
     return { credited: false, reason: "duplicate" };
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("token_balance")
-    .eq("id", params.userId)
-    .single();
-
-  await supabase
-    .from("profiles")
-    .update({ token_balance: (profile?.token_balance ?? 0) + params.tokens })
-    .eq("id", params.userId);
+  // Atomic in SQL (see migration 0018) — two purchases credited close
+  // together must not race a read-then-write and drop one of them.
+  await supabase.rpc("increment_token_balance", {
+    p_user_id: params.userId,
+    p_amount: params.tokens,
+  });
 
   return { credited: true };
 }

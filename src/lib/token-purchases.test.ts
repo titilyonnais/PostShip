@@ -31,32 +31,16 @@ function createFakeSupabase() {
         };
       }
 
-      if (table === "profiles") {
-        return {
-          select() {
-            return {
-              eq(_col: string, id: string) {
-                return {
-                  single: () =>
-                    Promise.resolve({
-                      data: profiles.get(id) ?? { token_balance: 0 },
-                    }),
-                };
-              },
-            };
-          },
-          update(patch: { token_balance: number }) {
-            return {
-              eq(_col: string, id: string) {
-                profiles.set(id, { token_balance: patch.token_balance });
-                return Promise.resolve({ error: null });
-              },
-            };
-          },
-        };
-      }
-
       throw new Error(`unexpected table in fake client: ${table}`);
+    },
+    rpc(fn: string, args: { p_user_id: string; p_amount: number }) {
+      if (fn !== "increment_token_balance") {
+        throw new Error(`unexpected rpc in fake client: ${fn}`);
+      }
+      const current = profiles.get(args.p_user_id) ?? { token_balance: 0 };
+      const next = { token_balance: current.token_balance + args.p_amount };
+      profiles.set(args.p_user_id, next);
+      return Promise.resolve({ data: next.token_balance, error: null });
     },
   };
 

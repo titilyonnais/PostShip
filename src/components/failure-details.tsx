@@ -4,6 +4,7 @@ const MISSING_LABELS: Record<string, string> = {
   json_ld_syntax_error: "Le JSON-LD contient une erreur de syntaxe.",
   html_unparsable: "Le HTML retourné est illisible.",
   ssl_expiring_soon: "Le certificat SSL expire bientôt.",
+  ssl_expired: "Le certificat SSL a expiré.",
 };
 
 export type CheckRunDetails = {

@@ -73,7 +73,8 @@ export async function runSslCheck(target: SslCheckTarget): Promise<CheckResult> 
     );
 
     const missing: string[] = [];
-    if (daysRemaining < WARNING_DAYS) missing.push("ssl_expiring_soon");
+    if (daysRemaining < 0) missing.push("ssl_expired");
+    else if (daysRemaining < WARNING_DAYS) missing.push("ssl_expiring_soon");
 
     const outcome: "pass" | "fail" = missing.length === 0 ? "pass" : "fail";
     const details = { url: target.url, validTo, daysRemaining, missing };
