@@ -117,6 +117,12 @@ export async function checkAssets(
       // whole check.
     }
 
+    // 401 on a shared asset most often means the *page* is behind a
+    // request header (F6, features backlog) that assets never receive
+    // (see guardedFetch's extraHeaders) — not a genuinely broken asset.
+    // Never block the whole check on that.
+    if (status === 401) continue;
+
     const isBroken =
       status === null ||
       status >= 400 ||

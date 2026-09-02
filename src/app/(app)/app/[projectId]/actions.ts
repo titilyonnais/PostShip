@@ -61,6 +61,17 @@ const TARGET_KINDS = ["http", "og", "sitemap", "ssl", "stripe_health"] as const;
 const RUN_NOW_COOLDOWN_MS = 30_000;
 const TARGET_COOLDOWN_MS = 10_000;
 
+// F6 (features backlog): a fixed allowlist of header names a monitoring
+// check may send — refuses anything that could tamper with the request
+// itself (Host, Content-Length) or leak/replay a session (Cookie,
+// X-Forwarded-For).
+const ALLOWED_REQUEST_HEADER_NAMES = [
+  "Authorization",
+  "X-Monitoring-Key",
+  "X-Health-Token",
+  "X-Api-Key",
+];
+
 const addTargetSchema = z.object({
   kind: z.enum(TARGET_KINDS).default("http"),
   // Only meaningful for kind "http" — the runner ignores these for every
@@ -110,6 +121,23 @@ export async function addTarget(
     return { error: urlCheck.reason };
   }
 
+  const rawHeaderName = formData.get("request_header_name");
+  const rawHeaderValue = formData.get("request_header_value");
+  const headerName = typeof rawHeaderName === "string" ? rawHeaderName.trim() : "";
+  const headerValue = typeof rawHeaderValue === "string" ? rawHeaderValue.trim() : "";
+  const hasHeader = !!headerName || !!headerValue;
+
+  if (hasHeader) {
+    if (!headerName || !headerValue) {
+      return { error: "Nom et valeur du header requis ensemble." };
+    }
+    if (!ALLOWED_REQUEST_HEADER_NAMES.includes(headerName)) {
+      return {
+        error: `Nom de header non autorisé. Choix possibles : ${ALLOWED_REQUEST_HEADER_NAMES.join(", ")}.`,
+      };
+    }
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -157,13 +185,20 @@ export async function addTarget(
     };
   }
 
-  const { error } = await supabase.from("check_targets").insert({
+  // request_header_value is service-role-only (migration 0037) — the
+  // insert goes through the service client once a header is set, ownership
+  // already having been confirmed above via the user's own client.
+  const writer = hasHeader ? service : supabase;
+  const { error } = await writer.from("check_targets").insert({
     project_id: projectId,
     url: urlCheck.url,
     kind: parsed.data.kind,
     expect_status: parsed.data.expect_status,
     expect_contains: parsed.data.expect_contains,
     expect_not_contains: parsed.data.expect_not_contains,
+    ...(hasHeader
+      ? { request_header_name: headerName, request_header_value: headerValue }
+      : {}),
   });
 
   if (error) {

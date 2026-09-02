@@ -22,6 +22,10 @@ export type HttpCheckTarget = {
   expect_contains: string | null;
   expect_not_contains: string | null;
   assertions?: MoneyPathAssertions | null;
+  // F6 (features backlog): a shared-secret header for a private page
+  // (e.g. Authorization, X-Monitoring-Key). Applies only to this target's
+  // own request — never to the F1 asset checks (see checkPageAssets).
+  requestHeader?: { name: string; value: string } | null;
 };
 
 const AUTH_LINK_PATTERN = /google|github|connexion|se connecter|log in|sign in/i;
@@ -138,6 +142,9 @@ export async function runHttpCheck(
     const fetchResult = await guardedFetch(target.url, {
       signal: controller.signal,
       budget,
+      extraHeaders: target.requestHeader
+        ? { [target.requestHeader.name]: target.requestHeader.value }
+        : undefined,
     });
 
     if (!fetchResult.ok) {

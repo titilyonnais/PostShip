@@ -17,7 +17,9 @@ export default async function TargetPage({
   const [{ data: target }, { data: runs }] = await Promise.all([
     supabase
       .from("check_targets")
-      .select("*")
+      .select(
+        "id, project_id, url, kind, expect_status, expect_contains, expect_not_contains, enabled, created_at, assertions, request_header_configured",
+      )
       .eq("id", targetId)
       .eq("project_id", projectId)
       .single(),
@@ -44,6 +46,11 @@ export default async function TargetPage({
           Retour au projet
         </Link>
         <h1 className="font-mono text-lg">{target.url}</h1>
+        {target.kind === "http" && (
+          <p className="text-xs text-muted-foreground">
+            Header configuré : {target.request_header_configured ? "oui" : "non"}
+          </p>
+        )}
       </div>
 
       {target.kind === "og" && latestDetails && (

@@ -47,10 +47,26 @@ export type GuardedFetchResult =
 // internal address and bypass the initial check entirely.
 export async function guardedFetch(
   initialUrl: string,
-  options: { signal: AbortSignal; method?: string; budget?: FetchBudget },
+  options: {
+    signal: AbortSignal;
+    method?: string;
+    budget?: FetchBudget;
+    // F6 (features backlog): a per-target header (e.g. Authorization) for
+    // monitoring a page behind a shared secret. Only ever set by runner.ts
+    // for the target's own URL — never forwarded to redirect targets on a
+    // different host, and never used for F1's asset HEAD checks.
+    extraHeaders?: Record<string, string>;
+  },
 ): Promise<GuardedFetchResult> {
   let currentUrl = initialUrl;
   let redirects = 0;
+  const initialHostname = (() => {
+    try {
+      return new URL(initialUrl).hostname;
+    } catch {
+      return null;
+    }
+  })();
 
   while (true) {
     // Checked on every hop, not just the first — a redirect chain is
@@ -71,11 +87,21 @@ export async function guardedFetch(
       return { ok: false, reason: guard.reason, redirects, httpStatus: null };
     }
 
+    // Only sent to the original host — a redirect to a different host
+    // must never receive the caller's secret header.
+    const sendExtraHeaders =
+      options.extraHeaders &&
+      initialHostname &&
+      new URL(currentUrl).hostname === initialHostname;
+
     const response = await fetch(currentUrl, {
       method: options.method ?? "GET",
       redirect: "manual",
       signal: options.signal,
-      headers: { "User-Agent": USER_AGENT },
+      headers: {
+        "User-Agent": USER_AGENT,
+        ...(sendExtraHeaders ? options.extraHeaders : {}),
+      },
     });
 
     const isRedirect = response.status >= 300 && response.status < 400;

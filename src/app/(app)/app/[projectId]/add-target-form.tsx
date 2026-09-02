@@ -120,6 +120,40 @@ export function AddTargetForm({ projectId }: { projectId: string }) {
                   placeholder="ex: Erreur 500"
                 />
               </div>
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="request-header-name"
+                  className="text-xs text-muted-foreground"
+                >
+                  Nom du header (page privée)
+                </label>
+                <Input
+                  id="request-header-name"
+                  name="request_header_name"
+                  placeholder="ex: X-Monitoring-Key"
+                  list="request-header-names"
+                />
+                <datalist id="request-header-names">
+                  <option value="Authorization" />
+                  <option value="X-Monitoring-Key" />
+                  <option value="X-Health-Token" />
+                  <option value="X-Api-Key" />
+                </datalist>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="request-header-value"
+                  className="text-xs text-muted-foreground"
+                >
+                  Valeur du header
+                </label>
+                <Input
+                  id="request-header-value"
+                  name="request_header_value"
+                  type="password"
+                  placeholder="Secret envoyé avec chaque vérification"
+                />
+              </div>
             </div>
           )}
         </div>

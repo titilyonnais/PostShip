@@ -21,6 +21,8 @@ type CheckTargetRow = {
   expect_contains: string | null;
   expect_not_contains: string | null;
   assertions?: MoneyPathAssertions | null;
+  request_header_name?: string | null;
+  request_header_value?: string | null;
   last_outcome?: "pass" | "fail" | "error" | null;
 };
 
@@ -54,6 +56,10 @@ async function runSingleTarget(
           expect_contains: target.expect_contains,
           expect_not_contains: target.expect_not_contains,
           assertions: target.assertions,
+          requestHeader:
+            target.request_header_name && target.request_header_value
+              ? { name: target.request_header_name, value: target.request_header_value }
+              : null,
         },
         budget,
         true,

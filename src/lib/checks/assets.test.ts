@@ -28,6 +28,19 @@ afterEach(() => {
 });
 
 describe("checkAssets", () => {
+  it("ignores a 401 on an asset instead of flagging it broken (F6)", async () => {
+    mockFetchByUrl({
+      "https://example.com/app.js": new Response(null, { status: 401 }),
+    });
+
+    const html = `<html><body><script src="/app.js"></script></body></html>`;
+    const result = await checkAssets(html, "https://example.com/", new AbortController().signal);
+
+    expect(result.missing).toEqual([]);
+    expect(result.brokenAssets).toEqual([]);
+  });
+
+
   it("flags a same-origin script that 404s", async () => {
     mockFetchByUrl({
       "https://example.com/app.js": new Response(null, { status: 404 }),

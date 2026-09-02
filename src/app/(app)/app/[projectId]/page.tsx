@@ -59,7 +59,9 @@ export default async function ProjectOverviewPage({
     getAuthUser(),
     supabase
       .from("check_targets")
-      .select("*")
+      .select(
+        "id, project_id, url, kind, expect_status, expect_contains, expect_not_contains, enabled, created_at, last_outcome, assertions, request_header_configured",
+      )
       .eq("project_id", projectId)
       .order("created_at"),
     supabase

@@ -87,6 +87,20 @@ export default function DocsPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Pages protégées
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Pour surveiller une page derrière un secret partagé — un tableau de
+          bord interne, un endpoint /api/health — ajoutez un header (nom et
+          valeur) à une cible HTTP depuis les options avancées. La valeur
+          n&apos;est jamais réaffichée une fois enregistrée. Le header ne
+          s&apos;applique qu&apos;à cette URL, jamais aux fichiers JS/CSS
+          vérifiés en plus (voir plus bas).
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Vérification de domaine
         </h2>
         <p className="text-sm text-muted-foreground">
