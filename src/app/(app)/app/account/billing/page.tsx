@@ -4,16 +4,11 @@ import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { type Plan } from "@/lib/entitlements";
+import { PLAN_LABEL } from "@/lib/pricing";
 import { updateBillingAddress } from "../actions";
 
 export const metadata = {
   title: "Facturation",
-};
-
-const PLAN_LABEL: Record<Plan, string> = {
-  free: "Free",
-  solo: "Solo",
-  team: "Team",
 };
 
 type BillingAddress = {

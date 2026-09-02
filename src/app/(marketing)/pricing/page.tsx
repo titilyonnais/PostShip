@@ -62,6 +62,11 @@ export default function PricingPage() {
             <div>
               <h2 className="text-sm font-medium">{PLAN_LABEL[plan.id]}</h2>
               <p className="mt-1 font-mono text-2xl">{plan.price}</p>
+              {plan.subtitle && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {plan.subtitle}
+                </p>
+              )}
             </div>
             <ul className="flex flex-1 flex-col gap-2 text-sm text-muted-foreground">
               {plan.features.map((feature) => (

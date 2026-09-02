@@ -1,14 +1,18 @@
 import type { Plan } from "@/lib/entitlements";
 
+// Displayed as "Pro" everywhere in the UI — the internal plan value stays
+// "team" in the database and in Stripe (planFromPriceId, webhooks) so this
+// is a display-only rename, not a data migration. See docs/PLAN.md.
 export const PLAN_LABEL: Record<Plan, string> = {
   free: "Free",
   solo: "Solo",
-  team: "Team",
+  team: "Pro",
 };
 
 export const PUBLIC_PLANS: {
   id: Plan;
   price: string;
+  subtitle?: string;
   features: string[];
   highlight?: boolean;
 }[] = [
@@ -31,6 +35,7 @@ export const PUBLIC_PLANS: {
   {
     id: "team",
     price: "29€ / mois",
+    subtitle: "Pour un indie qui surveille plusieurs produits. Pas de sièges multiples.",
     features: [
       "10 projets",
       "50 URLs",

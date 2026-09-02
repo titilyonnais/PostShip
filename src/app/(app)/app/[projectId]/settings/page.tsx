@@ -376,7 +376,7 @@ export default async function ProjectSettingsPage({
               href={`/app/billing?from=${encodeURIComponent(backTo)}`}
               className="text-foreground underline underline-offset-2"
             >
-              Passer à Solo/Team
+              Passer à Solo/Pro
             </Link>
           </p>
         )}
@@ -446,7 +446,7 @@ export default async function ProjectSettingsPage({
               href={`/app/billing?from=${encodeURIComponent(backTo)}`}
               className="text-foreground underline underline-offset-2"
             >
-              Passer à Solo/Team
+              Passer à Solo/Pro
             </Link>
           </p>
         )}
@@ -521,12 +521,12 @@ export default async function ProjectSettingsPage({
             </>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Disponible à partir du plan Team.{" "}
+              Disponible à partir du plan Pro.{" "}
               <Link
                 href={`/app/billing?from=${encodeURIComponent(backTo)}`}
                 className="text-foreground underline underline-offset-2"
               >
-                Passer à Team
+                Passer à Pro
               </Link>
             </p>
           )}
