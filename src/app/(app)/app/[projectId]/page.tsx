@@ -4,24 +4,19 @@ import {
   AlertTriangle,
   Bot,
   Coins,
-  ExternalLink,
   Rocket,
   ScanSearch,
   ShieldAlert,
   Siren,
 } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { Badge } from "@/components/ui/badge";
 import { StatusDot } from "@/components/status-dot";
-import { FailureDetails, type CheckRunDetails } from "@/components/failure-details";
+import { type CheckRunDetails } from "@/components/failure-details";
 import { createClient } from "@/lib/db/server";
 import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { getUptimeStats } from "@/lib/uptime";
-import { AddTargetForm } from "./add-target-form";
-import { MoneyPathDialog } from "./money-path-dialog";
 import { ScanLaunchForm } from "./scan-launch-form";
-import { TargetActionsMenu } from "./target-actions-menu";
 
 type RunRow = {
   target_id: string;
@@ -120,9 +115,10 @@ export default async function ProjectOverviewPage({
 
   const backTo = `/app/${projectId}`;
 
-  const openIncidentCount = (targets ?? []).filter(
+  const openTargets = (targets ?? []).filter(
     (t) => t.last_outcome === "fail" || t.last_outcome === "error",
-  ).length;
+  );
+  const openIncidentCount = openTargets.length;
   const botConnected = project.telegram_configured || project.discord_webhook_configured;
 
   return (
@@ -156,6 +152,13 @@ export default async function ProjectOverviewPage({
           </Link>
         </div>
 
+        <Link
+          href={`/app/${projectId}/urls`}
+          className="self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Voir toutes les URLs ({(targets ?? []).length}/{limits.urls}) →
+        </Link>
+
         {expiringSslTargets.length > 0 && (
           <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-600 dark:text-amber-400">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -180,104 +183,71 @@ export default async function ProjectOverviewPage({
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              URLs surveillées
+              Ouverts
             </h2>
-            <span className="text-xs text-muted-foreground">
-              {urlsUsed}/{limits.urls}
-            </span>
+            <Link
+              href={`/app/${projectId}/incidents`}
+              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              Voir les incidents
+            </Link>
           </div>
-
-          {targets && targets.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {targets.map((target) => {
-                const run = latestRunByTarget.get(target.id);
-                const isFailing =
-                  run && (run.outcome === "fail" || run.outcome === "error");
-
-                return (
-                  <li
-                    key={target.id}
-                    className="flex flex-col gap-2 rounded-md border border-border bg-card px-3 py-2.5 transition-colors hover:border-foreground/20"
+          {openTargets.length > 0 ? (
+            <ul className="flex flex-col gap-1.5">
+              {openTargets.slice(0, 5).map((target) => (
+                <li key={target.id}>
+                  <Link
+                    href={`/app/${projectId}/${target.id}`}
+                    className="flex min-w-0 items-center gap-2 text-sm hover:underline"
                   >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          [{target.kind}]
-                        </span>
-                        <Link
-                          href={`/app/${projectId}/${target.id}`}
-                          className="truncate font-mono text-sm hover:underline"
-                        >
-                          {target.url}
-                        </Link>
-                        <a
-                          href={target.url}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                          className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-                          aria-label={`Ouvrir ${target.url} dans un nouvel onglet`}
-                        >
-                          <ExternalLink className="size-3.5" aria-hidden="true" />
-                        </a>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-3">
-                        {run ? (
-                          <span className="text-xs text-muted-foreground">
-                            {run.http_status ?? "—"} ·{" "}
-                            {run.ttfb_ms != null ? `${run.ttfb_ms} ms` : "—"} ·{" "}
-                            {new Date(run.started_at).toLocaleString("fr-FR", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Jamais vérifié
-                          </span>
-                        )}
-                        <StatusDot status={run?.outcome ?? null} />
-                        <Badge variant={target.enabled ? "default" : "outline"}>
-                          {target.enabled ? "Actif" : "Désactivé"}
-                        </Badge>
-                        <TargetActionsMenu
-                          projectId={projectId}
-                          targetId={target.id}
-                          url={target.url}
-                          enabled={target.enabled}
-                        />
-                      </div>
-                    </div>
-
-                    {isFailing && run?.details && (
-                      <FailureDetails
-                        details={run.details}
-                        httpStatus={run.http_status}
-                        expectStatus={target.expect_status}
-                      />
-                    )}
-                  </li>
-                );
-              })}
+                    <StatusDot status={target.last_outcome} />
+                    <span className="min-w-0 flex-1 truncate font-mono text-xs">
+                      {target.url}
+                    </span>
+                  </Link>
+                </li>
+              ))}
             </ul>
           ) : (
-            <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-10 text-center">
-              <Rocket className="size-6 text-muted-foreground" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">
-                Aucune URL surveillée pour le moment — ajoutez-en une
-                ci-dessous pour démarrer.
-              </p>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Aucun incident ouvert.
+            </p>
           )}
+        </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <AddTargetForm projectId={projectId} />
-            <MoneyPathDialog projectId={projectId} baseUrl={project.base_url} />
+        <div className="flex flex-col gap-1 rounded-md border border-border bg-card p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Dernier déploiement
+            </h2>
+            <Link
+              href={`/app/${projectId}/deploys`}
+              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              Historique
+            </Link>
           </div>
+          {lastDeploy ? (
+            <p className="flex items-center gap-2 text-sm">
+              <StatusDot status={lastDeploy.outcome ?? null} />
+              <span className="text-muted-foreground">
+                {lastDeploy.provider} · {lastDeploy.kind === "preview" ? "preview" : "prod"} ·{" "}
+                {new Date(lastDeploy.started_at).toLocaleString("fr-FR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Aucun déploiement suivi pour le moment.
+            </p>
+          )}
         </div>
       </div>
 
