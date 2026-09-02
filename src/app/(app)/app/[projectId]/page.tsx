@@ -16,6 +16,8 @@ import { createClient } from "@/lib/db/server";
 import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { getUptimeStats } from "@/lib/uptime";
+import { getReliability } from "@/lib/reliability";
+import { ReliabilityHeatmap } from "./reliability-heatmap";
 import { ScanLaunchForm } from "./scan-launch-form";
 
 type RunRow = {
@@ -53,6 +55,7 @@ export default async function ProjectOverviewPage({
     { count: urlCount },
     { data: latestScan },
     { data: lastDeploy },
+    reliability,
   ] = await Promise.all([
     getAuthUser(),
     supabase
@@ -86,6 +89,7 @@ export default async function ProjectOverviewPage({
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    getReliability(supabase, projectId),
   ]);
 
   const profile = user ? await getProfile(user.id) : null;
@@ -182,6 +186,12 @@ export default async function ProjectOverviewPage({
             </span>
           </div>
         )}
+
+        <ReliabilityHeatmap
+          heatmap={reliability.heatmap}
+          mttrMinutes={reliability.mttrMinutes}
+          incidents30d={reliability.incidents30d}
+        />
 
         <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-4">
           <div className="flex items-center justify-between">
