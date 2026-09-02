@@ -215,7 +215,9 @@ export async function runHttpCheck(
       redirects,
       bodyTruncated: truncated,
       missing,
-      meta: htmlMeta?.meta ?? null,
+      meta: htmlMeta?.meta
+        ? { ...htmlMeta.meta, xRobotsTag: response.headers.get("x-robots-tag") }
+        : null,
       brokenAssets,
     };
 
