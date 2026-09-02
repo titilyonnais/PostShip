@@ -10,8 +10,8 @@ const DOCUMENTED_LIMITS: Record<Plan, (typeof PLAN_LIMITS)[Plan]> = {
     projects: 1,
     urls: 3,
     intervalMinutes: 30,
-    discord: false,
-    vercelHook: false,
+    chatWebhooks: false,
+    deployHooks: false,
     stripeHealth: false,
     retentionDays: 7,
   },
@@ -19,8 +19,8 @@ const DOCUMENTED_LIMITS: Record<Plan, (typeof PLAN_LIMITS)[Plan]> = {
     projects: 3,
     urls: 15,
     intervalMinutes: 5,
-    discord: true,
-    vercelHook: true,
+    chatWebhooks: true,
+    deployHooks: true,
     stripeHealth: false,
     retentionDays: 14,
   },
@@ -28,8 +28,8 @@ const DOCUMENTED_LIMITS: Record<Plan, (typeof PLAN_LIMITS)[Plan]> = {
     projects: 10,
     urls: 50,
     intervalMinutes: 5,
-    discord: true,
-    vercelHook: true,
+    chatWebhooks: true,
+    deployHooks: true,
     stripeHealth: true,
     retentionDays: 30,
   },
@@ -42,9 +42,9 @@ describe("getPlanLimits", () => {
     });
   }
 
-  it("only grants Discord/Vercel-hook/Stripe-health to paying plans", () => {
-    expect(getPlanLimits("free").discord).toBe(false);
-    expect(getPlanLimits("free").vercelHook).toBe(false);
+  it("only grants chat webhooks/deploy-hooks/Stripe-health to paying plans", () => {
+    expect(getPlanLimits("free").chatWebhooks).toBe(false);
+    expect(getPlanLimits("free").deployHooks).toBe(false);
     expect(getPlanLimits("free").stripeHealth).toBe(false);
   });
 

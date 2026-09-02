@@ -43,8 +43,8 @@ const CHECK_TYPES = [
 const INTEGRATIONS = [
   {
     icon: Webhook,
-    title: "Webhook Vercel (plans Solo et Team)",
-    body: "Dans Vercel : Project Settings → Webhooks → créez un webhook sur l'événement deployment.ready, pointant vers l'URL fournie dans Paramètres du projet → Webhook Vercel. Collez le secret généré par Vercel dans le champ correspondant. Chaque déploiement réussi déclenche une vérification immédiate, en plus du cycle automatique.",
+    title: "Webhook de déploiement — Vercel, Netlify, Cloudflare Pages (plans Solo et Team)",
+    body: "Chaque hébergeur pointe vers sa propre URL dans Paramètres du projet → Vérification au déploiement. Vercel : Project Settings → Webhooks, événement deployment.ready. Netlify : Notifications → Deploy notifications → Outgoing webhook, événement « Deploy succeeded ». Cloudflare Pages : Notifications → Destinations → Webhooks, puis une Notification sur « Pages Deployment Success ». Dans les trois cas, un déploiement réussi déclenche une vérification immédiate, en plus du cycle automatique.",
   },
   {
     icon: MessageSquare,
@@ -143,9 +143,10 @@ export default function DocsPage() {
         </h2>
         <p className="text-sm text-muted-foreground">
           En plus de la surveillance continue, un scan ponctuel explore votre
-          sitemap et les liens de la page d&apos;accueil (jusqu&apos;à 500
-          pages) et teste chacune. Consomme des tokens achetés séparément —
-          voir{" "}
+          sitemap (y compris un sitemapindex) puis suit les liens internes en
+          largeur depuis la page de départ, jusqu&apos;à 500 pages, en
+          respectant les règles Disallow de votre robots.txt. Consomme des
+          tokens achetés séparément — voir{" "}
           <Link href="/pricing#tokens" className="text-foreground underline underline-offset-2">
             les tarifs
           </Link>

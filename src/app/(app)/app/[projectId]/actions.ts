@@ -11,12 +11,13 @@ import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import type { ActionResult } from "@/lib/use-toast-action";
 import { httpsUrlSchema } from "@/lib/validation";
 
-// discord_webhook_url and vercel_hook_secret are service-role-only columns
-// (see migration 0017) — the "own projects" RLS policy is `for all`, so
-// leaving them user-writable would let a direct PostgREST call bypass the
-// Discord-domain regex and plan gating below (discord_webhook_url is
+// discord_webhook_url, slack_webhook_url, and the deploy-hook secret
+// columns are service-role-only (see migrations 0017 and 0021) — the "own
+// projects" RLS policy is `for all`, so leaving them user-writable would
+// let a direct PostgREST call bypass the Discord/Slack-domain regexes and
+// plan gating below (discord_webhook_url and slack_webhook_url are
 // fetched directly by src/lib/alerts.ts, making a bypassed value a stored
-// SSRF target). Every write to these two columns must go through this
+// SSRF target). Every write to these columns must go through this
 // ownership check first — createServiceClient() bypasses RLS entirely.
 async function assertOwnsProject(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -36,6 +37,14 @@ const discordWebhookSchema = z
   .regex(
     /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/,
     "URL de webhook Discord invalide.",
+  );
+
+const slackWebhookSchema = z
+  .string()
+  .trim()
+  .regex(
+    /^https:\/\/hooks\.slack\.com\/services\/[\w-]+\/[\w-]+\/[\w-]+$/,
+    "URL de webhook Slack invalide.",
   );
 
 const TARGET_KINDS = ["http", "og", "sitemap", "ssl", "stripe_health"] as const;
@@ -257,16 +266,17 @@ export async function runTargetNow(
   };
 }
 
-export async function setVercelHookSecret(
+async function setDeployHookSecret(
+  column: "vercel_hook_secret" | "netlify_hook_secret" | "cloudflare_hook_secret",
+  providerLabel: string,
   projectId: string,
-  _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
   const parsed = z
     .string()
     .trim()
     .min(1, "Secret invalide.")
-    .safeParse(formData.get("vercel_hook_secret"));
+    .safeParse(formData.get(column));
 
   if (!parsed.success) return { error: "Secret invalide." };
 
@@ -277,18 +287,48 @@ export async function setVercelHookSecret(
 
   const { error } = await createServiceClient()
     .from("projects")
-    .update({ vercel_hook_secret: parsed.data })
+    .update({ [column]: parsed.data })
     .eq("id", projectId);
 
   if (error) return { error: error.message };
 
   revalidatePath(`/app/${projectId}`);
-  return { success: "Secret Vercel enregistré." };
+  return { success: `Secret ${providerLabel} enregistré.` };
 }
 
-export async function disableDiscordWebhook(
+export async function setVercelHookSecret(
   projectId: string,
   _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  return setDeployHookSecret("vercel_hook_secret", "Vercel", projectId, formData);
+}
+
+export async function setNetlifyHookSecret(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  return setDeployHookSecret("netlify_hook_secret", "Netlify", projectId, formData);
+}
+
+export async function setCloudflareHookSecret(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  return setDeployHookSecret(
+    "cloudflare_hook_secret",
+    "Cloudflare",
+    projectId,
+    formData,
+  );
+}
+
+async function disableChatWebhook(
+  column: "discord_webhook_url" | "slack_webhook_url",
+  providerLabel: string,
+  projectId: string,
 ): Promise<ActionResult> {
   const supabase = await createClient();
   if (!(await assertOwnsProject(supabase, projectId))) {
@@ -297,21 +337,23 @@ export async function disableDiscordWebhook(
 
   const { error } = await createServiceClient()
     .from("projects")
-    .update({ discord_webhook_url: null })
+    .update({ [column]: null })
     .eq("id", projectId);
 
   if (error) return { error: error.message };
 
   revalidatePath(`/app/${projectId}`);
-  return { success: "Webhook Discord désactivé." };
+  return { success: `Webhook ${providerLabel} désactivé.` };
 }
 
-export async function setDiscordWebhook(
+async function setChatWebhook(
+  column: "discord_webhook_url" | "slack_webhook_url",
+  providerLabel: string,
+  schema: typeof discordWebhookSchema,
   projectId: string,
-  _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const raw = formData.get("discord_webhook_url");
+  const raw = formData.get(column);
 
   // The input never carries the existing URL back to the browser (see the
   // settings page — it's shown as a masked placeholder instead), so an
@@ -321,7 +363,7 @@ export async function setDiscordWebhook(
     return { success: "Aucun changement." };
   }
 
-  const parsed = discordWebhookSchema.safeParse(raw);
+  const parsed = schema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "URL invalide." };
   }
@@ -338,8 +380,8 @@ export async function setDiscordWebhook(
     .eq("id", user.id)
     .single();
 
-  if (!getPlanLimits((profile?.plan as Plan) ?? "free").discord) {
-    return { error: "Discord n'est disponible qu'avec un plan payant." };
+  if (!getPlanLimits((profile?.plan as Plan) ?? "free").chatWebhooks) {
+    return { error: `${providerLabel} n'est disponible qu'avec un plan payant.` };
   }
 
   if (!(await assertOwnsProject(supabase, projectId))) {
@@ -348,13 +390,55 @@ export async function setDiscordWebhook(
 
   const { error } = await createServiceClient()
     .from("projects")
-    .update({ discord_webhook_url: parsed.data })
+    .update({ [column]: parsed.data })
     .eq("id", projectId);
 
   if (error) return { error: error.message };
 
   revalidatePath(`/app/${projectId}`);
-  return { success: "Webhook Discord enregistré." };
+  return { success: `Webhook ${providerLabel} enregistré.` };
+}
+
+export async function disableDiscordWebhook(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  return disableChatWebhook("discord_webhook_url", "Discord", projectId);
+}
+
+export async function setDiscordWebhook(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  return setChatWebhook(
+    "discord_webhook_url",
+    "Discord",
+    discordWebhookSchema,
+    projectId,
+    formData,
+  );
+}
+
+export async function disableSlackWebhook(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  return disableChatWebhook("slack_webhook_url", "Slack", projectId);
+}
+
+export async function setSlackWebhook(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  return setChatWebhook(
+    "slack_webhook_url",
+    "Slack",
+    slackWebhookSchema,
+    projectId,
+    formData,
+  );
 }
 
 export async function toggleTarget(

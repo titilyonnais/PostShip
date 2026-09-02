@@ -20,7 +20,12 @@ export const PUBLIC_PLANS: {
   {
     id: "solo",
     price: "12€ TTC / mois",
-    features: ["3 projets", "15 URLs", "Toutes les 5 min", "Discord + Vercel"],
+    features: [
+      "3 projets",
+      "15 URLs",
+      "Toutes les 5 min",
+      "Discord + hooks Vercel/Netlify/Cloudflare",
+    ],
     highlight: true,
   },
   {
@@ -29,7 +34,7 @@ export const PUBLIC_PLANS: {
     features: [
       "10 projets",
       "50 URLs",
-      "Discord + Vercel",
+      "Discord + hooks Vercel/Netlify/Cloudflare",
       "Vérification Stripe",
       "Rétention 30 jours",
     ],

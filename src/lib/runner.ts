@@ -114,7 +114,7 @@ export async function runOneTarget(targetId: string) {
   const { data: target } = await supabase
     .from("check_targets")
     .select(
-      "*, projects(id, name, discord_webhook_url, profiles(plan, email, email_alerts_enabled))",
+      "*, projects(id, name, discord_webhook_url, slack_webhook_url, profiles(plan, email, email_alerts_enabled))",
     )
     .eq("id", targetId)
     .single();
@@ -127,6 +127,7 @@ export async function runOneTarget(targetId: string) {
     id: string;
     name: string;
     discord_webhook_url: string | null;
+    slack_webhook_url: string | null;
     profiles: {
       plan: Plan;
       email: string | null;
@@ -191,9 +192,10 @@ export async function runOneTarget(targetId: string) {
         id: project.id,
         name: project.name,
         discord_webhook_url: project.discord_webhook_url,
+        slack_webhook_url: project.slack_webhook_url,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
-        ownerPlanAllowsDiscord: getPlanLimits(ownerPlan).discord,
+        ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
       },
       alertItems,
     );
@@ -237,7 +239,7 @@ export async function runProjectChecks(projectId: string) {
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, name, discord_webhook_url, profiles(plan, email, email_alerts_enabled)",
+      "id, name, discord_webhook_url, slack_webhook_url, profiles(plan, email, email_alerts_enabled)",
     )
     .eq("id", projectId)
     .single();
@@ -329,9 +331,10 @@ export async function runProjectChecks(projectId: string) {
         id: project.id,
         name: project.name,
         discord_webhook_url: project.discord_webhook_url,
+        slack_webhook_url: project.slack_webhook_url,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
-        ownerPlanAllowsDiscord: getPlanLimits(ownerPlan).discord,
+        ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
       },
       alertItems,
     );

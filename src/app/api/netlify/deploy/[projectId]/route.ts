@@ -1,17 +1,8 @@
-import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { isValidNetlifySignature } from "@/lib/netlify-webhook";
 import { runProjectChecks } from "@/lib/runner";
-
-// Signature scheme confirmed via Vercel docs (context7, vercel.com/docs/headers/request-headers):
-// HMAC-SHA1 of the raw body, hex-encoded, in the `x-vercel-signature` header.
-function isValidSignature(rawBody: string, secret: string, header: string | null) {
-  if (!header) return false;
-  const expected = crypto.createHmac("sha1", secret).update(rawBody).digest("hex");
-  if (header.length !== expected.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(header), Buffer.from(expected));
-}
 
 export async function POST(
   request: Request,
@@ -19,20 +10,20 @@ export async function POST(
 ) {
   const { projectId } = await params;
   const rawBody = await request.text();
-  const signature = request.headers.get("x-vercel-signature");
+  const signature = request.headers.get("x-webhook-signature");
 
   const supabase = createServiceClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("id, vercel_hook_secret, profiles(plan)")
+    .select("id, netlify_hook_secret, profiles(plan)")
     .eq("id", projectId)
     .single();
 
-  if (!project?.vercel_hook_secret) {
+  if (!project?.netlify_hook_secret) {
     return NextResponse.json({ error: "Not configured" }, { status: 404 });
   }
 
-  if (!isValidSignature(rawBody, project.vercel_hook_secret, signature)) {
+  if (!isValidNetlifySignature(rawBody, project.netlify_hook_secret, signature)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
@@ -41,19 +32,10 @@ export async function POST(
     return NextResponse.json({ error: "Plan does not include this" }, { status: 403 });
   }
 
-  let event: { type?: string };
-  try {
-    event = JSON.parse(rawBody);
-  } catch {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
-  }
-
-  // Only a successfully ready deployment should trigger a check — ignore
-  // deployment.created / deployment.error / anything else.
-  if (event.type !== "deployment.ready") {
-    return NextResponse.json({ skipped: true });
-  }
-
+  // Unlike Vercel's single webhook carrying multiple event types (filtered
+  // by event.type below there), Netlify's notification is created against
+  // one specific trigger event ("Deploy succeeded") at setup time — a
+  // validly-signed request here already IS that event by construction.
   try {
     await runProjectChecks(projectId);
   } catch (err) {

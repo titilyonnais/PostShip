@@ -6,8 +6,8 @@ export const PLAN_LIMITS: Record<
     projects: number;
     urls: number;
     intervalMinutes: number;
-    discord: boolean;
-    vercelHook: boolean;
+    chatWebhooks: boolean;
+    deployHooks: boolean;
     stripeHealth: boolean;
     retentionDays: number;
   }
@@ -16,8 +16,8 @@ export const PLAN_LIMITS: Record<
     projects: 1,
     urls: 3,
     intervalMinutes: 30,
-    discord: false,
-    vercelHook: false,
+    chatWebhooks: false,
+    deployHooks: false,
     stripeHealth: false,
     retentionDays: 7,
   },
@@ -25,8 +25,8 @@ export const PLAN_LIMITS: Record<
     projects: 3,
     urls: 15,
     intervalMinutes: 5,
-    discord: true,
-    vercelHook: true,
+    chatWebhooks: true,
+    deployHooks: true,
     stripeHealth: false,
     retentionDays: 14,
   },
@@ -34,8 +34,8 @@ export const PLAN_LIMITS: Record<
     projects: 10,
     urls: 50,
     intervalMinutes: 5,
-    discord: true,
-    vercelHook: true,
+    chatWebhooks: true,
+    deployHooks: true,
     stripeHealth: true,
     retentionDays: 30,
   },
