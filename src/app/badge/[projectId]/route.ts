@@ -13,10 +13,15 @@ function escapeXml(value: string): string {
     .replace(/>/g, "&gt;");
 }
 
+// Fixed 140x20, shields.io-style — "PostShip | passing/failing/pending".
+const WIDTH = 140;
+const LABEL_WIDTH = 62;
+const MESSAGE_WIDTH = WIDTH - LABEL_WIDTH;
+
 function buildBadgeSvg(label: string, message: string, color: string): string {
-  const labelWidth = 62;
-  const messageWidth = message.length * 7 + 20;
-  const width = labelWidth + messageWidth;
+  const labelWidth = LABEL_WIDTH;
+  const messageWidth = MESSAGE_WIDTH;
+  const width = WIDTH;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="20" role="img" aria-label="${escapeXml(label)}: ${escapeXml(message)}">
   <linearGradient id="s" x2="0" y2="100%">
@@ -66,7 +71,7 @@ export async function GET(
   }
 
   const status = project.last_status as "pass" | "fail" | null;
-  const message = status === "pass" ? "pass" : status === "fail" ? "fail" : "unknown";
+  const message = status === "pass" ? "passing" : status === "fail" ? "failing" : "pending";
   const color = status === "pass" ? "#3fb950" : status === "fail" ? "#f85149" : "#9e9e9e";
 
   return svgResponse(buildBadgeSvg("PostShip", message, color));

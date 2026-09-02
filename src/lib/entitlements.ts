@@ -16,6 +16,7 @@ export const PLAN_LIMITS: Record<
     stripeHealth: boolean;
     teamMembers: boolean;
     retentionDays: number;
+    digest: boolean; // weekly Monday-morning email (F8a, features backlog)
   }
 > = {
   free: {
@@ -27,6 +28,7 @@ export const PLAN_LIMITS: Record<
     stripeHealth: false,
     teamMembers: false,
     retentionDays: 7,
+    digest: false,
   },
   solo: {
     projects: 3,
@@ -37,6 +39,7 @@ export const PLAN_LIMITS: Record<
     stripeHealth: false,
     teamMembers: false,
     retentionDays: 14,
+    digest: true,
   },
   team: {
     projects: 10,
@@ -47,6 +50,7 @@ export const PLAN_LIMITS: Record<
     stripeHealth: true,
     teamMembers: true,
     retentionDays: 30,
+    digest: true,
   },
 };
 

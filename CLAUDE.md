@@ -55,11 +55,12 @@ pnpm build
 | Projects | 1 | 3 | 10 |
 | URLs | 3 | 15 | 50 |
 | Interval | 30 min | 5 min | 5 min |
-| Chat webhooks (Discord/Slack) | no | yes | yes |
+| Chat webhooks (Discord/Slack/Telegram) | no | yes | yes |
 | Deploy hooks (Vercel/Netlify/Cloudflare Pages) | no | yes | yes |
 | Stripe health | no | no | yes |
 | Collaborators (per-project, see `project_members`) | no | no | yes |
 | Retention | 7 days | 14 days | 30 days |
+| Weekly digest email | no | yes | yes |
 
 ## Git
 

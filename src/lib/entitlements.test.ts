@@ -15,6 +15,7 @@ const DOCUMENTED_LIMITS: Record<Plan, (typeof PLAN_LIMITS)[Plan]> = {
     stripeHealth: false,
     teamMembers: false,
     retentionDays: 7,
+    digest: false,
   },
   solo: {
     projects: 3,
@@ -25,6 +26,7 @@ const DOCUMENTED_LIMITS: Record<Plan, (typeof PLAN_LIMITS)[Plan]> = {
     stripeHealth: false,
     teamMembers: false,
     retentionDays: 14,
+    digest: true,
   },
   team: {
     projects: 10,
@@ -35,6 +37,7 @@ const DOCUMENTED_LIMITS: Record<Plan, (typeof PLAN_LIMITS)[Plan]> = {
     stripeHealth: true,
     teamMembers: true,
     retentionDays: 30,
+    digest: true,
   },
 };
 

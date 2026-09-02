@@ -610,14 +610,16 @@ export default async function ProjectSettingsPage({
             Badge public
           </h2>
           <p className="text-xs text-muted-foreground">
-            Un badge SVG minimal (&laquo; pass &raquo; / &laquo; fail &raquo;)
-            que vous pouvez intégrer dans votre README ou votre statut —
-            aucune URL ni détail de vos vérifications n&apos;y figure.
-            Désactivé par défaut.
+            Un badge SVG minimal (&laquo; passing &raquo; / &laquo; failing
+            &raquo;) que vous pouvez intégrer dans votre README — aucune URL
+            ni détail de vos vérifications n&apos;y figure. Désactivé par
+            défaut.
           </p>
           {project.badge_public && (
             <p className="rounded-sm bg-secondary px-2 py-1.5 font-mono text-xs break-all">
-              {process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr"}/badge/{project.id}
+              [![PostShip](
+              {process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr"}/badge/{project.id})](
+              {process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr"})
             </p>
           )}
           <div>
