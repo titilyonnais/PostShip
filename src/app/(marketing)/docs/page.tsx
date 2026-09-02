@@ -51,6 +51,11 @@ const INTEGRATIONS = [
     title: "Alertes Discord (plans Solo et Team)",
     body: "Dans Discord : Paramètres du salon → Intégrations → Webhooks → Nouveau webhook. Collez l'URL générée dans Paramètres du projet → Alertes Discord. Les alertes Discord viennent en complément de l'email, jamais à sa place.",
   },
+  {
+    icon: MessageSquare,
+    title: "Alertes Telegram (plans Solo et Team)",
+    body: "Créez un bot via @BotFather sur Telegram pour obtenir un token, puis récupérez le chat ID du salon ou de la conversation à alerter (envoyez-lui un message, puis consultez api.telegram.org/bot<token>/getUpdates). Collez les deux dans Paramètres du projet → Telegram.",
+  },
 ];
 
 export default function DocsPage() {

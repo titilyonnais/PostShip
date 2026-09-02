@@ -28,7 +28,7 @@ export const PUBLIC_PLANS: {
       "3 projets",
       "15 URLs",
       "Toutes les 5 min",
-      "Discord + hooks Vercel/Netlify/Cloudflare",
+      "Discord, Slack ou Telegram · webhook deploy (Vercel, Netlify, Cloudflare) · pack argent",
     ],
     highlight: true,
   },
@@ -39,7 +39,7 @@ export const PUBLIC_PLANS: {
     features: [
       "10 projets",
       "50 URLs",
-      "Discord + hooks Vercel/Netlify/Cloudflare",
+      "Discord, Slack ou Telegram · webhook deploy (Vercel, Netlify, Cloudflare) · pack argent",
       "Vérification Stripe",
       "Collaborateurs par projet",
       "Rétention 30 jours",

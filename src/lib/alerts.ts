@@ -43,7 +43,7 @@ async function recordAlertEvents(
   supabase: SupabaseClient,
   projectId: string,
   items: AlertItem[],
-  channel: "email" | "discord" | "slack",
+  channel: "email" | "discord" | "slack" | "telegram",
 ) {
   if (items.length === 0) return;
   await supabase.from("alert_events").insert(
@@ -173,6 +173,28 @@ async function sendSlackAlert(
   });
 }
 
+// Host is a literal, not user input — nothing to SSRF-guard here, unlike
+// discord_webhook_url/slack_webhook_url which are stored URLs the user
+// could otherwise point anywhere (see the guards in sendDiscordAlert /
+// sendSlackAlert above).
+async function sendTelegramAlert(
+  botToken: string,
+  chatId: string,
+  projectName: string,
+  items: AlertItem[],
+) {
+  const { text } = buildAlertCopy(projectName, items);
+
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: `PostShip — ${projectName}\n${text}`,
+    }),
+  });
+}
+
 export async function dispatchAlerts(
   supabase: SupabaseClient,
   project: {
@@ -180,6 +202,8 @@ export async function dispatchAlerts(
     name: string;
     discord_webhook_url: string | null;
     slack_webhook_url: string | null;
+    telegram_bot_token: string | null;
+    telegram_chat_id: string | null;
     ownerEmail: string | null;
     ownerPlanAllowsChatWebhooks: boolean;
   },
@@ -220,6 +244,24 @@ export async function dispatchAlerts(
       if (recordDedup) await recordAlertEvents(supabase, project.id, items, "slack");
     } catch (err) {
       console.error("Échec envoi Slack", err);
+    }
+  }
+
+  if (
+    project.ownerPlanAllowsChatWebhooks &&
+    project.telegram_bot_token &&
+    project.telegram_chat_id
+  ) {
+    try {
+      await sendTelegramAlert(
+        project.telegram_bot_token,
+        project.telegram_chat_id,
+        project.name,
+        items,
+      );
+      if (recordDedup) await recordAlertEvents(supabase, project.id, items, "telegram");
+    } catch (err) {
+      console.error("Échec envoi Telegram", err);
     }
   }
 }

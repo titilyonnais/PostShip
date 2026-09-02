@@ -144,7 +144,7 @@ export async function runOneTarget(targetId: string) {
   const { data: target } = await supabase
     .from("check_targets")
     .select(
-      "*, projects(id, name, discord_webhook_url, slack_webhook_url, stripe_success_url, profiles(plan, email, email_alerts_enabled))",
+      "*, projects(id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, stripe_success_url, profiles(plan, email, email_alerts_enabled))",
     )
     .eq("id", targetId)
     .single();
@@ -158,6 +158,8 @@ export async function runOneTarget(targetId: string) {
     name: string;
     discord_webhook_url: string | null;
     slack_webhook_url: string | null;
+    telegram_bot_token: string | null;
+    telegram_chat_id: string | null;
     stripe_success_url: string | null;
     profiles: {
       plan: Plan;
@@ -224,6 +226,8 @@ export async function runOneTarget(targetId: string) {
         name: project.name,
         discord_webhook_url: project.discord_webhook_url,
         slack_webhook_url: project.slack_webhook_url,
+        telegram_bot_token: project.telegram_bot_token,
+        telegram_chat_id: project.telegram_chat_id,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
@@ -277,7 +281,7 @@ export async function runPreviewChecks(
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, name, discord_webhook_url, slack_webhook_url, profiles(plan, email, email_alerts_enabled)",
+      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, profiles(plan, email, email_alerts_enabled)",
     )
     .eq("id", projectId)
     .single();
@@ -374,6 +378,8 @@ export async function runPreviewChecks(
         name: `Preview — ${project.name}`,
         discord_webhook_url: project.discord_webhook_url,
         slack_webhook_url: project.slack_webhook_url,
+        telegram_bot_token: project.telegram_bot_token,
+        telegram_chat_id: project.telegram_chat_id,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
@@ -399,7 +405,7 @@ export async function runProjectChecks(
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, name, discord_webhook_url, slack_webhook_url, stripe_success_url, profiles(plan, email, email_alerts_enabled)",
+      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, stripe_success_url, profiles(plan, email, email_alerts_enabled)",
     )
     .eq("id", projectId)
     .single();
@@ -501,6 +507,8 @@ export async function runProjectChecks(
         name: project.name,
         discord_webhook_url: project.discord_webhook_url,
         slack_webhook_url: project.slack_webhook_url,
+        telegram_bot_token: project.telegram_bot_token,
+        telegram_chat_id: project.telegram_chat_id,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,

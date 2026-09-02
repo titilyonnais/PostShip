@@ -35,10 +35,12 @@ import {
 import {
   disableDiscordWebhook,
   disableSlackWebhook,
+  disableTelegram,
   setCloudflareHookSecret,
   setDiscordWebhook,
   setNetlifyHookSecret,
   setSlackWebhook,
+  setTelegramConfig,
   setVercelHookSecret,
 } from "../actions";
 import { rotateDomainToken, verifyProjectDomain } from "../domain-actions";
@@ -138,6 +140,67 @@ function ChatWebhookSection({
           type="url"
           placeholder={configured ? "•••••••• (déjà configuré)" : placeholder}
           className="flex-1"
+        />
+        <SubmitButton variant="outline" pendingText="Enregistrement...">
+          Enregistrer
+        </SubmitButton>
+      </ActionForm>
+      {configured && (
+        <ActionForm action={disableAction}>
+          <SubmitButton
+            variant="ghost"
+            size="sm"
+            className="self-start text-muted-foreground"
+            pendingText="..."
+          >
+            Désactiver
+          </SubmitButton>
+        </ActionForm>
+      )}
+    </div>
+  );
+}
+
+function TelegramSection({
+  action,
+  disableAction,
+  configured,
+}: {
+  action: (
+    prevState: ActionResult,
+    formData: FormData,
+  ) => Promise<ActionResult>;
+  disableAction: (prevState: ActionResult) => Promise<ActionResult>;
+  configured: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+      <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <MessageSquare className="size-3.5" aria-hidden="true" />
+        Telegram
+      </h2>
+      <p className="text-xs text-muted-foreground">
+        Créez un bot via @BotFather pour obtenir le token, puis récupérez le
+        chat ID (envoyez un message au bot et consultez
+        api.telegram.org/bot&lt;token&gt;/getUpdates). Laissez les champs
+        vides pour ne rien changer.
+      </p>
+      <ActionForm action={action} className="flex flex-col gap-2">
+        <label htmlFor="telegram_bot_token" className="sr-only">
+          Token du bot Telegram
+        </label>
+        <Input
+          id="telegram_bot_token"
+          name="telegram_bot_token"
+          placeholder={configured ? "•••••••• (déjà configuré)" : "123456:AbC-..."}
+        />
+        <label htmlFor="telegram_chat_id" className="sr-only">
+          Chat ID Telegram
+        </label>
+        <Input
+          id="telegram_chat_id"
+          name="telegram_chat_id"
+          placeholder={configured ? "•••• (déjà configuré)" : "-100123456789"}
         />
         <SubmitButton variant="outline" pendingText="Enregistrement...">
           Enregistrer
@@ -353,7 +416,7 @@ export default async function ProjectSettingsPage({
           Alertes chat
         </h2>
         {limits.chatWebhooks ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <ChatWebhookSection
               title="Discord"
               instructions="Collez l'URL d'un webhook Discord (Paramètres du salon → Intégrations → Webhooks). Laissez le champ vide pour ne rien changer."
@@ -371,6 +434,11 @@ export default async function ProjectSettingsPage({
               disableAction={disableSlackWebhook.bind(null, projectId)}
               inputName="slack_webhook_url"
               configured={!!project.slack_webhook_configured}
+            />
+            <TelegramSection
+              action={setTelegramConfig.bind(null, projectId)}
+              disableAction={disableTelegram.bind(null, projectId)}
+              configured={!!project.telegram_configured}
             />
           </div>
         ) : (

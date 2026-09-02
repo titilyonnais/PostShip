@@ -47,6 +47,16 @@ const slackWebhookSchema = z
     "URL de webhook Slack invalide.",
   );
 
+const telegramTokenSchema = z
+  .string()
+  .trim()
+  .regex(/^\d+:[A-Za-z0-9_-]+$/, "Token de bot Telegram invalide.");
+
+const telegramChatIdSchema = z
+  .string()
+  .trim()
+  .regex(/^-?\d+$/, "Chat ID Telegram invalide.");
+
 const TARGET_KINDS = ["http", "og", "sitemap", "ssl", "stripe_health"] as const;
 const RUN_NOW_COOLDOWN_MS = 30_000;
 const TARGET_COOLDOWN_MS = 10_000;
@@ -516,6 +526,89 @@ export async function setSlackWebhook(
     projectId,
     formData,
   );
+}
+
+export async function disableTelegram(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!(await assertOwnsProject(supabase, projectId))) {
+    return { error: "Projet introuvable." };
+  }
+
+  const { error } = await createServiceClient()
+    .from("projects")
+    .update({ telegram_bot_token: null, telegram_chat_id: null })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}`);
+  return { success: "Telegram désactivé." };
+}
+
+export async function setTelegramConfig(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const rawToken = formData.get("telegram_bot_token");
+  const rawChatId = formData.get("telegram_chat_id");
+
+  // Same "empty means untouched" convention as setChatWebhook — the token
+  // is never sent back to the browser, so an empty submit isn't "clear it".
+  if ((rawToken === "" || rawToken === null) && (rawChatId === "" || rawChatId === null)) {
+    return { success: "Aucun changement." };
+  }
+
+  const parsedToken = telegramTokenSchema.safeParse(rawToken);
+  if (!parsedToken.success) {
+    return { error: parsedToken.error.issues[0]?.message ?? "Token invalide." };
+  }
+  const parsedChatId = telegramChatIdSchema.safeParse(rawChatId);
+  if (!parsedChatId.success) {
+    return { error: parsedChatId.error.issues[0]?.message ?? "Chat ID invalide." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("user_id")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) {
+    return { error: "Projet introuvable." };
+  }
+
+  const { data: ownerProfile } = await createServiceClient()
+    .from("profiles")
+    .select("plan")
+    .eq("id", project.user_id)
+    .single();
+
+  if (!getPlanLimits((ownerProfile?.plan as Plan) ?? "free").chatWebhooks) {
+    return { error: "Telegram n'est disponible qu'avec un plan payant." };
+  }
+
+  const { error } = await createServiceClient()
+    .from("projects")
+    .update({
+      telegram_bot_token: parsedToken.data,
+      telegram_chat_id: parsedChatId.data,
+    })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}`);
+  return { success: "Telegram enregistré." };
 }
 
 export async function toggleTarget(

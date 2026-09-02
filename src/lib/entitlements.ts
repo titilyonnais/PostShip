@@ -11,7 +11,7 @@ export const PLAN_LIMITS: Record<
     projects: number;
     urls: number;
     intervalMinutes: number;
-    chatWebhooks: boolean;
+    chatWebhooks: boolean; // gates Discord, Slack, and Telegram alike
     deployHooks: boolean;
     stripeHealth: boolean;
     teamMembers: boolean;

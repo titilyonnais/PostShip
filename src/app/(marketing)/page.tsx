@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowRight,
   Check,
-  Globe,
-  Link2,
-  ShieldCheck,
+  Image as ImageIcon,
   Sparkles,
+  Webhook,
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
@@ -53,30 +53,30 @@ const STEPS = [
 
 const CHECKS = [
   {
-    icon: Link2,
-    title: "HTTP & redirections",
+    icon: Webhook,
+    title: "Le deploy ne part plus en silence",
     items: [
-      "Statut, TTFB, taille du corps",
-      "Boucle de redirection détectée",
-      "expect_contains / not_contains",
+      "Vérification immédiate dès le webhook (Vercel, Netlify, Cloudflare)",
+      "Résultat sur GitHub / webhook en moins d'une minute",
+      "Alerte Discord, Slack ou Telegram si ça casse",
     ],
   },
   {
-    icon: Globe,
-    title: "OG, sitemap & JSON-LD",
+    icon: AlertTriangle,
+    title: "Le 200 ne suffit plus",
     items: [
-      "og:image accessible (HEAD → 200)",
-      "sitemap.xml parsé, échantillonné",
-      "JSON-LD sans erreur de syntaxe",
+      "Un fichier JS ou CSS cassé après déploiement",
+      "Le prix a disparu de la page tarifs",
+      "Stripe.js absent de la page checkout",
     ],
   },
   {
-    icon: ShieldCheck,
-    title: "SSL & Stripe",
+    icon: ImageIcon,
+    title: "Ta carte sociale est encore montrable",
     items: [
-      "Certificat expiré, alertes à J-30 / J-7 / J-1",
-      "Page de succès Stripe cassée",
-      "Statut HTTP en temps réel, historique conservé",
+      "Image accessible, bon format, pas trop lourde",
+      "Titre et description toujours présents",
+      "Aperçu réel dans le tableau de bord",
     ],
   },
 ];
@@ -96,9 +96,9 @@ export default function MarketingHomePage() {
             PostShip vérifie votre site après chaque déploiement
           </h1>
           <p className="max-w-md text-sm text-muted-foreground">
-            Comme un utilisateur : statut HTTP, aperçu réseaux sociaux,
-            sitemap, SSL. Une alerte Discord et email si le checkout,
-            l&apos;OG ou le sitemap est cassé. Silence quand tout est vert.
+            Comme un utilisateur : statut HTTP, JS et prix toujours présents,
+            aperçu réseaux sociaux, sitemap, SSL. Une alerte Discord, Slack,
+            Telegram ou email si ça casse. Silence quand tout est vert.
           </p>
           <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             <Link
