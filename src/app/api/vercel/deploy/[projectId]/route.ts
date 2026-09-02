@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { describeAlertItem } from "@/lib/alert-copy";
 import { createServiceClient } from "@/lib/db/service";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { postGithubCheckRun } from "@/lib/github-check";
 import { runPreviewChecks, runProjectChecks } from "@/lib/runner";
 
 // Signature scheme confirmed via Vercel docs (context7, vercel.com/docs/headers/request-headers):
@@ -33,7 +35,9 @@ export async function POST(
   const supabase = createServiceClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("id, base_url, vercel_hook_secret, check_previews, profiles(plan)")
+    .select(
+      "id, base_url, vercel_hook_secret, check_previews, github_repo, github_token_enc, profiles(plan)",
+    )
     .eq("id", projectId)
     .single();
 
@@ -74,10 +78,16 @@ export async function POST(
   // Fields confirmed against Vercel's own webhook docs
   // (vercel.com/docs/webhooks/webhooks-api) — payload.target is
   // "production" | "staging" | null, payload.deployment.url is the
-  // deployment's own hostname (no protocol).
+  // deployment's own hostname (no protocol). meta.githubCommitSha is
+  // Vercel's documented git-integration metadata key (F7, features
+  // backlog) — absent for non-git deploys, handled as a plain no-op below,
+  // never a hard failure if Vercel ever renames/drops it.
   let event: {
     type?: string;
-    payload?: { target?: string | null; deployment?: { url?: string } };
+    payload?: {
+      target?: string | null;
+      deployment?: { url?: string; meta?: Record<string, string> };
+    };
   };
   try {
     event = JSON.parse(rawBody);
@@ -118,8 +128,9 @@ export async function POST(
     }
   }
 
+  let results: Awaited<ReturnType<typeof runProjectChecks>>;
   try {
-    await runProjectChecks(
+    results = await runProjectChecks(
       projectId,
       undefined,
       `deploy Vercel ${new Date().toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" })}`,
@@ -129,6 +140,39 @@ export async function POST(
       { error: err instanceof Error ? err.message : "Check failed" },
       { status: 500 },
     );
+  }
+
+  // Opt-in, and only when this specific webhook exposes a commit SHA — no
+  // GitHub App, a fine-grained PAT (checks:write) the user pastes once.
+  // Free doesn't get here at all (deployHooks gate above).
+  const sha = event.payload?.deployment?.meta?.githubCommitSha;
+  if (sha && project.github_repo && project.github_token_enc) {
+    const failedCount = results.filter((r) => r.outcome !== "pass").length;
+    const summary = results
+      .map((r) =>
+        r.outcome === "pass"
+          ? `✅ ${r.url}`
+          : describeAlertItem({
+              url: r.url,
+              kind: "fail",
+              outcome: r.outcome,
+              httpStatus: r.http_status,
+              missing: r.missing,
+            }),
+      )
+      .join("\n");
+
+    await postGithubCheckRun({
+      repo: project.github_repo,
+      token: project.github_token_enc,
+      sha,
+      conclusion: failedCount === 0 ? "success" : "failure",
+      title:
+        failedCount === 0
+          ? `${results.length}/${results.length} URLs OK`
+          : `${failedCount} URL(s) en échec`,
+      summary,
+    });
   }
 
   return NextResponse.json({ triggered: true });

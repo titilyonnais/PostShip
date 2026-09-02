@@ -410,6 +410,84 @@ async function setDeployHookSecret(
   return { success: `Secret ${providerLabel} enregistré.` };
 }
 
+const githubRepoSchema = z
+  .string()
+  .trim()
+  .regex(/^[\w.-]+\/[\w.-]+$/, "Format attendu : owner/repo.");
+
+export async function disableGithubCheck(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!(await assertOwnsProject(supabase, projectId))) {
+    return { error: "Projet introuvable." };
+  }
+
+  const { error } = await createServiceClient()
+    .from("projects")
+    .update({ github_repo: null, github_token_enc: null })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}`);
+  return { success: "Check GitHub désactivé." };
+}
+
+export async function setGithubCheck(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const rawRepo = formData.get("github_repo");
+  const rawToken = formData.get("github_token");
+
+  if ((rawRepo === "" || rawRepo === null) && (rawToken === "" || rawToken === null)) {
+    return { success: "Aucun changement." };
+  }
+
+  const parsedRepo = githubRepoSchema.safeParse(rawRepo);
+  if (!parsedRepo.success) {
+    return { error: parsedRepo.error.issues[0]?.message ?? "Dépôt invalide." };
+  }
+  const parsedToken = z.string().trim().min(1, "Token invalide.").safeParse(rawToken);
+  if (!parsedToken.success) {
+    return { error: "Token invalide." };
+  }
+
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("projects")
+    .select("user_id")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) {
+    return { error: "Projet introuvable." };
+  }
+
+  const { data: ownerProfile } = await createServiceClient()
+    .from("profiles")
+    .select("plan")
+    .eq("id", project.user_id)
+    .single();
+
+  if (!getPlanLimits((ownerProfile?.plan as Plan) ?? "free").deployHooks) {
+    return { error: "Le check GitHub n'est disponible qu'avec un plan payant." };
+  }
+
+  const { error } = await createServiceClient()
+    .from("projects")
+    .update({ github_repo: parsedRepo.data, github_token_enc: parsedToken.data })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}`);
+  return { success: "Check GitHub enregistré." };
+}
+
 export async function setVercelHookSecret(
   projectId: string,
   _prevState: ActionResult,

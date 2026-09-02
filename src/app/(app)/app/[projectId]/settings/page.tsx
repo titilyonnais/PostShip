@@ -34,10 +34,12 @@ import {
 } from "../../actions";
 import {
   disableDiscordWebhook,
+  disableGithubCheck,
   disableSlackWebhook,
   disableTelegram,
   setCloudflareHookSecret,
   setDiscordWebhook,
+  setGithubCheck,
   setNetlifyHookSecret,
   setSlackWebhook,
   setTelegramConfig,
@@ -534,6 +536,58 @@ export default async function ProjectSettingsPage({
                 </SubmitButton>
               </ActionForm>
             </div>
+          </div>
+        )}
+        {limits.deployHooks && (
+          <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4">
+            <p className="text-xs text-muted-foreground">
+              Check GitHub : après chaque déploiement Vercel, publie le
+              résultat directement sur le commit (PAT fine-grained, scope
+              &laquo; checks:write &raquo;, jamais réaffiché).
+            </p>
+            <ActionForm
+              action={setGithubCheck.bind(null, project.id)}
+              className="flex flex-col gap-2"
+            >
+              <label htmlFor="github_repo" className="sr-only">
+                Dépôt GitHub
+              </label>
+              <Input
+                id="github_repo"
+                name="github_repo"
+                placeholder={
+                  project.github_connected
+                    ? `${project.github_repo} (configuré)`
+                    : "owner/repo"
+                }
+              />
+              <label htmlFor="github_token" className="sr-only">
+                Token GitHub
+              </label>
+              <Input
+                id="github_token"
+                name="github_token"
+                type="password"
+                placeholder={
+                  project.github_connected ? "•••••••• (déjà configuré)" : "github_pat_..."
+                }
+              />
+              <SubmitButton variant="outline" pendingText="Enregistrement...">
+                Enregistrer
+              </SubmitButton>
+            </ActionForm>
+            {project.github_connected && (
+              <ActionForm action={disableGithubCheck.bind(null, project.id)}>
+                <SubmitButton
+                  variant="ghost"
+                  size="sm"
+                  className="self-start text-muted-foreground"
+                  pendingText="..."
+                >
+                  Désactiver
+                </SubmitButton>
+              </ActionForm>
+            )}
           </div>
         )}
         {!limits.deployHooks && (
