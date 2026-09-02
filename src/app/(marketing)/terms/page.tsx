@@ -68,10 +68,15 @@ export default function TermsPage() {
           <Link href="/pricing" className="text-foreground underline underline-offset-2">
             Tarifs
           </Link>
-          . Les prix sont indiqués TTC. Le paiement récurrent est géré par
-          Stripe. Vous pouvez changer de plan ou résilier à tout moment
-          depuis Paramètres → Abonnement, sans engagement ni préavis ; le
-          changement est proraté par Stripe.
+          . Le paiement récurrent est géré par Stripe. Vous pouvez changer de
+          plan ou résilier à tout moment depuis Paramètres → Abonnement, sans
+          engagement ni préavis ; le changement est proraté par Stripe. Les
+          conditions de vente détaillées (facturation, rétractation) sont
+          définies dans les{" "}
+          <Link href="/cgv" className="text-foreground underline underline-offset-2">
+            CGV
+          </Link>
+          .
         </p>
       </section>
 
@@ -80,8 +85,13 @@ export default function TermsPage() {
         <p>
           Le scan complet d&apos;un site consomme des tokens, achetés
           séparément par pack et indépendants de l&apos;abonnement. Les
-          tokens ne sont pas remboursables une fois consommés et
-          n&apos;expirent pas.
+          tokens n&apos;expirent pas. Les tokens déjà consommés ne sont pas
+          remboursables ; le solde non consommé peut l&apos;être dans les
+          conditions du droit de rétractation prévu par les{" "}
+          <Link href="/cgv" className="text-foreground underline underline-offset-2">
+            CGV
+          </Link>
+          .
         </p>
       </section>
 

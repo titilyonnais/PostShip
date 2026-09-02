@@ -3,10 +3,16 @@ import { Check } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
 import { TOKEN_PACKS } from "@/lib/stripe";
+import { LEGAL } from "@/lib/legal";
 
 export const metadata = {
   title: "Tarifs",
 };
+
+const TVA_ANSWER =
+  LEGAL.tvaMention === "FIXME_LEGAL"
+    ? "Mention TVA : en cours de mise à jour."
+    : LEGAL.tvaMention;
 
 const FAQ = [
   {
@@ -24,6 +30,10 @@ const FAQ = [
   {
     q: "Puis-je annuler à tout moment ?",
     a: "Oui, sans engagement, depuis le portail de facturation Stripe accessible dans votre compte.",
+  },
+  {
+    q: "Les prix incluent-ils la TVA ?",
+    a: TVA_ANSWER,
   },
 ];
 
@@ -75,6 +85,7 @@ export default function PricingPage() {
           </div>
         ))}
       </div>
+      <p className="text-center text-xs text-muted-foreground">{TVA_ANSWER}</p>
 
       <section
         id="tokens"

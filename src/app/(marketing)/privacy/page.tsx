@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LEGAL } from "@/lib/legal";
 
 export const metadata = {
   title: "Confidentialité",
@@ -6,6 +7,9 @@ export const metadata = {
 };
 
 export default function PrivacyPage() {
+  const contactEmail =
+    LEGAL.email === "FIXME_LEGAL" ? LEGAL.publicEmailFallback : LEGAL.email;
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-16 text-sm text-muted-foreground">
       <Link href="/" className="text-xs hover:text-foreground hover:underline">
@@ -26,10 +30,10 @@ export default function PrivacyPage() {
           Saint-Chamond, France. Pour toute question relative à vos données
           personnelles :{" "}
           <a
-            href="mailto:tmorretton@gmail.com"
+            href={`mailto:${contactEmail}`}
             className="text-foreground underline underline-offset-2"
           >
-            tmorretton@gmail.com
+            {contactEmail}
           </a>
           .
         </p>
@@ -104,8 +108,8 @@ export default function PrivacyPage() {
             supprimées intégralement et immédiatement lors de sa suppression
           </li>
           <li>
-            Factures : conservées par Stripe selon les obligations légales
-            comptables en vigueur
+            Factures : conservées conformément aux obligations comptables (10
+            ans côté prestataire de paiement le cas échéant)
           </li>
         </ul>
       </section>
@@ -123,6 +127,18 @@ export default function PrivacyPage() {
           <li>Google / GitHub — uniquement si vous utilisez la connexion via ces services</li>
         </ul>
         <p>Aucune donnée n&apos;est vendue à des tiers.</p>
+        <p>
+          Certains de ces sous-traitants (Stripe, Vercel, Resend, Google,
+          GitHub) peuvent être amenés à traiter des données aux États-Unis.
+          Ces transferts sont encadrés, lorsque le prestataire les propose,
+          par les clauses contractuelles types de la Commission européenne.
+        </p>
+        <p>
+          Le numéro de téléphone, lorsqu&apos;il est renseigné, est utilisé
+          pour vous contacter et pour la facturation ; sa collecte repose sur
+          l&apos;exécution du contrat et, le cas échéant, sur nos obligations
+          légales de facturation. Il reste optionnel.
+        </p>
       </section>
 
       <section className="flex flex-col gap-2">

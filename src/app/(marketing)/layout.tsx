@@ -58,6 +58,9 @@ export default function MarketingLayout({
             <Link href="/terms" className="hover:text-foreground">
               CGU
             </Link>
+            <Link href="/cgv" className="hover:text-foreground">
+              CGV
+            </Link>
           </nav>
         </div>
       </footer>

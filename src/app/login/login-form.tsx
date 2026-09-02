@@ -60,6 +60,15 @@ export function LoginForm({
             className="text-foreground underline underline-offset-2"
           >
             CGU
+          </a>
+          , les{" "}
+          <a
+            href="/cgv"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline underline-offset-2"
+          >
+            CGV
           </a>{" "}
           et la{" "}
           <a
@@ -171,6 +180,15 @@ export function LoginForm({
                       className="text-foreground underline underline-offset-2"
                     >
                       CGU
+                    </a>
+                    , les{" "}
+                    <a
+                      href="/cgv"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-foreground underline underline-offset-2"
+                    >
+                      CGV
                     </a>{" "}
                     et la{" "}
                     <a

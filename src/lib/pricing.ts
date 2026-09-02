@@ -14,12 +14,12 @@ export const PUBLIC_PLANS: {
 }[] = [
   {
     id: "free",
-    price: "0€ TTC / mois",
+    price: "0€ / mois",
     features: ["1 projet", "3 URLs", "Toutes les 30 min", "Alertes email"],
   },
   {
     id: "solo",
-    price: "12€ TTC / mois",
+    price: "12€ / mois",
     features: [
       "3 projets",
       "15 URLs",
@@ -30,7 +30,7 @@ export const PUBLIC_PLANS: {
   },
   {
     id: "team",
-    price: "29€ TTC / mois",
+    price: "29€ / mois",
     features: [
       "10 projets",
       "50 URLs",
