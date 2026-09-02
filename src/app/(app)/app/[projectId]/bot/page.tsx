@@ -91,8 +91,9 @@ export default async function BotPage({
           Commandes
         </h2>
         <p className="text-xs text-muted-foreground">
-          Dans le salon Telegram ou Discord déjà branché — pas un nouveau
-          canal à configurer.
+          Dans le salon Telegram déjà branché — pas un nouveau canal à
+          configurer. Discord reste notifications uniquement pour
+          l&apos;instant.
         </p>
         <ul className="flex flex-col gap-1.5 text-sm">
           {COMMANDS.map((c) => (
