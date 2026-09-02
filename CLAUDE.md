@@ -44,7 +44,7 @@ pnpm build
 - Named exports except `page.tsx` / `layout.tsx`.
 - No `any`. Parse with Zod.
 - Do not invent Stripe / Supabase / Vercel APIs.
-- Do not build public status pages, Lighthouse CI, APM, or invoicing.
+- Do not build public status pages, Lighthouse CI, APM, or invoicing. Exception, decided 2026-09-02: a per-project opt-in single-badge SVG endpoint (`/badge/[projectId]`, pass/fail only, no history, no URL list, no incident log, 404 unless the owner enables it) is allowed — it is not a status page (no dashboard, no uptime %, no multi-service view). Anything beyond that single badge still needs this rule revisited first.
 - UI French default via i18n keys; code and commits in English.
 - Dark operational UI. Mono URLs. Green / amber / red. No purple AI aesthetic.
 

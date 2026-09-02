@@ -199,6 +199,27 @@ export async function toggleCheckPreviews(
   };
 }
 
+export async function toggleBadgePublic(
+  projectId: string,
+  badgePublic: boolean,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ badge_public: !badgePublic })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/settings`);
+  return {
+    success: badgePublic
+      ? "Badge public désactivé."
+      : "Badge public activé — /badge/" + projectId + " est maintenant accessible.",
+  };
+}
+
 export async function deleteProject(projectId: string) {
   const supabase = await createClient();
   await supabase.from("projects").delete().eq("id", projectId);

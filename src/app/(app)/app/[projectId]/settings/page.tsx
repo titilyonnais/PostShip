@@ -26,6 +26,7 @@ import { getPlanLimits } from "@/lib/entitlements";
 import {
   deleteProject,
   renameProject,
+  toggleBadgePublic,
   toggleCheckPreviews,
   toggleProjectPause,
   updateProjectBaseUrl,
@@ -479,6 +480,41 @@ export default async function ProjectSettingsPage({
           </p>
         )}
       </div>
+
+      {isOwner && (
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <BadgeCheck className="size-3.5" aria-hidden="true" />
+            Badge public
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Un badge SVG minimal (&laquo; pass &raquo; / &laquo; fail &raquo;)
+            que vous pouvez intégrer dans votre README ou votre statut —
+            aucune URL ni détail de vos vérifications n&apos;y figure.
+            Désactivé par défaut.
+          </p>
+          {project.badge_public && (
+            <p className="rounded-sm bg-secondary px-2 py-1.5 font-mono text-xs break-all">
+              {process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr"}/badge/{project.id}
+            </p>
+          )}
+          <div>
+            <ActionForm
+              action={toggleBadgePublic.bind(
+                null,
+                project.id,
+                !!project.badge_public,
+              )}
+            >
+              <SubmitButton variant="outline" pendingText="...">
+                {project.badge_public
+                  ? "Désactiver le badge public"
+                  : "Activer le badge public"}
+              </SubmitButton>
+            </ActionForm>
+          </div>
+        </div>
+      )}
 
       {limits.stripeHealth && (
         <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
