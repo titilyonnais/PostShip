@@ -1,10 +1,14 @@
 import Link from "next/link";
 import {
+  Bot,
   Clock,
   Globe,
+  HeartPulse,
   Link2,
   MessageSquare,
+  Rocket,
   ShieldCheck,
+  Siren,
   Webhook,
 } from "lucide-react";
 
@@ -189,6 +193,54 @@ export default function DocsPage() {
           restez seul à pouvoir inviter, retirer un collaborateur ou
           supprimer le projet.
         </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <Bot className="size-3.5" aria-hidden="true" />
+          Bot Telegram (plans Solo et Team)
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Une fois le bot Telegram configuré (Paramètres du projet →
+          Telegram), activez les commandes depuis l&apos;onglet Bot du
+          projet : PostShip appelle l&apos;API{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">
+            setWebhook
+          </code>{" "}
+          de Telegram avec un secret dédié. Le bot ne répond qu&apos;au
+          salon configuré — un message venu d&apos;ailleurs est ignoré.
+          Commandes disponibles :{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">/status</code>,{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">/check</code>,{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">/uptime</code>,{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">/ssl</code>{" "}
+          et{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">/help</code>.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Incidents, déplois, santé
+        </h2>
+        <div className="flex flex-col gap-3">
+          <p className="flex items-start gap-2 text-sm text-muted-foreground">
+            <Siren className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            Incidents liste ce qui est en échec en ce moment et le journal
+            des alertes envoyées.
+          </p>
+          <p className="flex items-start gap-2 text-sm text-muted-foreground">
+            <Rocket className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            Déplois garde l&apos;historique de chaque déclenchement Vercel,
+            Netlify ou Cloudflare Pages, avec le résultat des checks.
+          </p>
+          <p className="flex items-start gap-2 text-sm text-muted-foreground">
+            <HeartPulse className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            Santé regroupe le certificat SSL, les enregistrements DNS,
+            l&apos;expiration du domaine et l&apos;indexation de la page
+            d&apos;accueil.
+          </p>
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">

@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   AlertTriangle,
+  Bot,
   Coins,
   ExternalLink,
   Rocket,
   ScanSearch,
   ShieldAlert,
+  Siren,
 } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +57,7 @@ export default async function ProjectOverviewPage({
     uptime,
     { count: urlCount },
     { data: latestScan },
+    { data: lastDeploy },
   ] = await Promise.all([
     getAuthUser(),
     supabase
@@ -79,6 +82,13 @@ export default async function ProjectOverviewPage({
       .select("id, status, pages_scanned, total_pages, created_at")
       .eq("project_id", projectId)
       .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("deploy_events")
+      .select("provider, kind, outcome, started_at")
+      .eq("project_id", projectId)
+      .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
   ]);
@@ -110,9 +120,42 @@ export default async function ProjectOverviewPage({
 
   const backTo = `/app/${projectId}`;
 
+  const openIncidentCount = (targets ?? []).filter(
+    (t) => t.last_outcome === "fail" || t.last_outcome === "error",
+  ).length;
+  const botConnected = project.telegram_configured || project.discord_webhook_configured;
+
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="flex flex-col gap-6 lg:col-span-2">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/app/${projectId}/incidents`}
+            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+          >
+            <Siren className="size-3.5" aria-hidden="true" />
+            {openIncidentCount > 0
+              ? `${openIncidentCount} incident(s) ouvert(s)`
+              : "Aucun incident ouvert"}
+          </Link>
+          <Link
+            href={`/app/${projectId}/deploys`}
+            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+          >
+            <Rocket className="size-3.5" aria-hidden="true" />
+            {lastDeploy
+              ? `Dernier deploy : ${lastDeploy.outcome === "fail" ? "échec" : "OK"}`
+              : "Aucun deploy suivi"}
+          </Link>
+          <Link
+            href={`/app/${projectId}/bot`}
+            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+          >
+            <Bot className="size-3.5" aria-hidden="true" />
+            {botConnected ? "Bot connecté" : "Bot non connecté"}
+          </Link>
+        </div>
+
         {expiringSslTargets.length > 0 && (
           <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-600 dark:text-amber-400">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
