@@ -10,7 +10,16 @@ function isValidSignature(rawBody: string, secret: string, header: string | null
   if (!header) return false;
   const expected = crypto.createHmac("sha1", secret).update(rawBody).digest("hex");
   if (header.length !== expected.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(header), Buffer.from(expected));
+  // Belt and suspenders around the length check above: timingSafeEqual
+  // throws (rather than returning false) on any input it considers
+  // malformed, and a thrown error here must never surface as a 500 — an
+  // attacker sending a garbled header shouldn't get anything but the same
+  // 401 a wrong signature gets.
+  try {
+    return crypto.timingSafeEqual(Buffer.from(header), Buffer.from(expected));
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(

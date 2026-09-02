@@ -4,43 +4,43 @@ import type { createServiceClient } from "@/lib/db/service";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
-// A minimal in-memory fake standing in for the two tables
-// creditTokenPurchase touches — enough to exercise the real idempotency
-// branch (insert conflict -> no credit) without a real Postgres unique
-// constraint.
+// Simulates the credit_tokens() RPC (migration 0028): insert +
+// balance-update in one call, idempotent on stripe_checkout_session_id —
+// close enough to the real Postgres unique constraint to exercise the
+// idempotency branch without a real database.
 function createFakeSupabase() {
   const insertedSessions = new Set<string>();
   const profiles = new Map<string, { token_balance: number }>();
 
   const client = {
-    from(table: string) {
-      if (table === "token_purchases") {
-        return {
-          insert(row: { stripe_checkout_session_id: string }) {
-            if (insertedSessions.has(row.stripe_checkout_session_id)) {
-              return Promise.resolve({
-                error: {
-                  message:
-                    'duplicate key value violates unique constraint "token_purchases_stripe_checkout_session_id_key"',
-                },
-              });
-            }
-            insertedSessions.add(row.stripe_checkout_session_id);
-            return Promise.resolve({ error: null });
-          },
-        };
-      }
-
-      throw new Error(`unexpected table in fake client: ${table}`);
-    },
-    rpc(fn: string, args: { p_user_id: string; p_amount: number }) {
-      if (fn !== "increment_token_balance") {
+    rpc(
+      fn: string,
+      args: {
+        p_user_id: string;
+        p_session_id: string;
+        p_tokens: number;
+        p_amount_cents: number;
+      },
+    ) {
+      if (fn !== "credit_tokens") {
         throw new Error(`unexpected rpc in fake client: ${fn}`);
       }
+
+      if (!args.p_tokens || args.p_tokens <= 0 || !args.p_user_id || !args.p_session_id) {
+        return Promise.resolve({ data: "invalid", error: null });
+      }
+
+      if (insertedSessions.has(args.p_session_id)) {
+        return Promise.resolve({ data: "duplicate", error: null });
+      }
+      insertedSessions.add(args.p_session_id);
+
       const current = profiles.get(args.p_user_id) ?? { token_balance: 0 };
-      const next = { token_balance: current.token_balance + args.p_amount };
-      profiles.set(args.p_user_id, next);
-      return Promise.resolve({ data: next.token_balance, error: null });
+      profiles.set(args.p_user_id, {
+        token_balance: current.token_balance + args.p_tokens,
+      });
+
+      return Promise.resolve({ data: "credited", error: null });
     },
   };
 

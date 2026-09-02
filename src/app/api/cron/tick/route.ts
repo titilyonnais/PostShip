@@ -24,9 +24,11 @@ type DueProjectRow = {
   profiles: { plan: Plan } | null;
 };
 
+type AcquireLockResult = "acquired" | "held" | "error";
+
 async function acquireLock(
   supabase: ReturnType<typeof createServiceClient>,
-): Promise<boolean> {
+): Promise<AcquireLockResult> {
   const now = new Date();
   const { data, error } = await supabase
     .from("cron_lock")
@@ -36,14 +38,16 @@ async function acquireLock(
     .select("id");
 
   if (error) {
-    // Fail open rather than silently never ticking again if the lock table
-    // itself is unreachable — a rare double-run beats a permanently stuck
-    // cron.
+    // Fail closed, deliberately reversing this route's earlier behavior:
+    // proceeding without a working lock risks concurrent double-processing
+    // (duplicate alerts, duplicate checks) across overlapping invocations,
+    // which is worse than sitting out one tick — the next cron call a few
+    // minutes later catches up.
     console.error("Impossible d'acquérir le verrou cron", error);
-    return true;
+    return "error";
   }
 
-  return (data?.length ?? 0) > 0;
+  return (data?.length ?? 0) > 0 ? "acquired" : "held";
 }
 
 async function releaseLock(supabase: ReturnType<typeof createServiceClient>) {
@@ -57,7 +61,11 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient();
 
-  if (!(await acquireLock(supabase))) {
+  const lockResult = await acquireLock(supabase);
+  if (lockResult === "error") {
+    return NextResponse.json({ skipped: "lock_unavailable" }, { status: 503 });
+  }
+  if (lockResult === "held") {
     return NextResponse.json({ skipped: "tick already in progress" });
   }
 

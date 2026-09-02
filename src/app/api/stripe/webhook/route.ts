@@ -89,18 +89,44 @@ export async function POST(request: Request) {
           ? session.subscription
           : session.subscription?.id;
 
-      if (userId && customerId) {
-        const plan = await planFromSubscriptionId(subscriptionId);
+      if (!userId || !customerId) {
+        console.error(
+          "checkout.session.completed sans userId/customerId — no-op",
+          { eventId: event.id, sessionId: session.id },
+        );
+        break;
+      }
+
+      const plan = await planFromSubscriptionId(subscriptionId);
+
+      if (!plan) {
+        // Never guess a plan for a price ID we don't recognize — silently
+        // granting/downgrading the wrong tier is worse than leaving the
+        // existing value untouched while this gets investigated.
+        console.error(
+          "checkout.session.completed: price ID non reconnu, plan inchangé",
+          { eventId: event.id, subscriptionId },
+        );
         await supabase
           .from("profiles")
           .update({
             stripe_customer_id: customerId,
             stripe_subscription_id: subscriptionId ?? null,
             stripe_subscription_status: "active",
-            plan: plan ?? "solo",
           })
           .eq("id", userId);
+        break;
       }
+
+      await supabase
+        .from("profiles")
+        .update({
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId ?? null,
+          stripe_subscription_status: "active",
+          plan,
+        })
+        .eq("id", userId);
       break;
     }
 
