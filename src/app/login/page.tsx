@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/logo";
+import { LogoMark } from "@/components/logo";
 import { LoginForm } from "./login-form";
 
 const PLAN_LABEL: Record<string, string> = {
@@ -35,7 +35,7 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
       <Link href="/" className="motion-safe:animate-in motion-safe:fade-in">
-        <Logo className="h-8" />
+        <LogoMark className="size-14" />
       </Link>
       <div className="flex w-full max-w-sm flex-col gap-6 rounded-lg border border-border bg-card p-6 shadow-[0_8px_40px_rgba(0,0,0,0.25)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
         <div className="flex flex-col items-center gap-1 text-center">

@@ -1,7 +1,9 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="public/logo-wordmark.svg">
-  <img src="public/logo-wordmark-black.svg" alt="PostShip" height="48">
+  <source media="(prefers-color-scheme: dark)" srcset="public/logo-icon.svg">
+  <img src="public/logo-icon-black.svg" alt="PostShip" height="72">
 </picture>
+
+# PostShip
 
 Surveillance post-déploiement pour sites et SaaS indie.
 

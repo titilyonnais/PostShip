@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/logo";
+import { LogoMark } from "@/components/logo";
 import { NavAuth } from "./nav-auth";
 
 export default function MarketingLayout({
@@ -18,7 +18,7 @@ export default function MarketingLayout({
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 sm:px-10">
           <Link href="/">
-            <Logo />
+            <LogoMark className="size-9" />
           </Link>
           <nav aria-label="Principale" className="flex items-center gap-6">
             <Link

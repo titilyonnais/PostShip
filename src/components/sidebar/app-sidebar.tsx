@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { ChevronDown, Menu, Plus, X } from "lucide-react";
-import { Logo, LogoMark } from "@/components/logo";
+import { LogoMark } from "@/components/logo";
 import { statusDotClass } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
@@ -63,7 +63,7 @@ function SidebarContent({
         onClick={onNavigate}
         className="flex shrink-0 items-center px-4 py-4"
       >
-        <Logo className="h-5" />
+        <LogoMark className="size-8" />
       </Link>
 
       <nav className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-hidden overflow-y-auto px-3 pb-4">
@@ -306,7 +306,7 @@ export function AppSidebar({
 
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:hidden">
         <Link href="/app" className="flex items-center">
-          <LogoMark className="size-6" />
+          <LogoMark className="size-7" />
         </Link>
         <button
           type="button"
