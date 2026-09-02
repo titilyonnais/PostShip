@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, History } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
 import { FailureDetails, type CheckRunDetails } from "@/components/failure-details";
+import { OgCardPreview } from "@/components/og-card-preview";
 import { createClient } from "@/lib/db/server";
 
 export default async function TargetPage({
@@ -30,6 +31,8 @@ export default async function TargetPage({
 
   if (!target) notFound();
 
+  const latestDetails = (runs?.[0]?.details ?? null) as CheckRunDetails | null;
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       <div className="flex flex-col gap-1">
@@ -42,6 +45,21 @@ export default async function TargetPage({
         </Link>
         <h1 className="font-mono text-lg">{target.url}</h1>
       </div>
+
+      {target.kind === "og" && latestDetails && (
+        <OgCardPreview
+          title={latestDetails.ogTitle ?? null}
+          description={latestDetails.ogDescription ?? null}
+          image={latestDetails.ogImage ?? null}
+          domain={(() => {
+            try {
+              return new URL(target.url).hostname;
+            } catch {
+              return target.url;
+            }
+          })()}
+        />
+      )}
 
       {runs && runs.length > 0 ? (
         <ul className="flex flex-col gap-2">

@@ -69,7 +69,7 @@ export async function runOgCheck(
 
     const missing: string[] = [];
     if (!ogTitle) missing.push("og:title");
-    else if (ogTitle.length > TITLE_MAX_LENGTH) missing.push("og:title trop long (>70)");
+    else if (ogTitle.length > TITLE_MAX_LENGTH) missing.push("og:title_too_long");
     if (!ogDescription) missing.push("og:description");
     if (!ogImage) missing.push("og:image");
     if (!twitterCard) missing.push("twitter:card");
@@ -91,12 +91,12 @@ export async function runOgCheck(
 
         const contentType = imageResult.response.headers.get("content-type");
         if (contentType && !ALLOWED_IMAGE_TYPES.includes(contentType.split(";")[0].trim())) {
-          missing.push("og:image type");
+          missing.push("og:image_type");
         }
 
         const contentLength = imageResult.response.headers.get("content-length");
         if (contentLength && Number(contentLength) > IMAGE_MAX_BYTES) {
-          missing.push("og:image trop lourde (>8 Mo)");
+          missing.push("og:image_too_heavy");
         }
       }
     }

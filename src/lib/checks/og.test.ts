@@ -75,7 +75,7 @@ describe("runOgCheck", () => {
 
     const result = await runOgCheck({ url: "https://example.com" });
     expect(result.outcome).toBe("fail");
-    expect(result.details.missing).toContain("og:title trop long (>70)");
+    expect(result.details.missing).toContain("og:title_too_long");
   });
 
   it("fails when og:description is missing", async () => {
@@ -112,7 +112,7 @@ describe("runOgCheck", () => {
 
     const result = await runOgCheck({ url: "https://example.com" });
     expect(result.outcome).toBe("fail");
-    expect(result.details.missing).toContain("og:image type");
+    expect(result.details.missing).toContain("og:image_type");
   });
 
   it("fails when the image exceeds 8MB per Content-Length", async () => {
@@ -134,6 +134,6 @@ describe("runOgCheck", () => {
 
     const result = await runOgCheck({ url: "https://example.com" });
     expect(result.outcome).toBe("fail");
-    expect(result.details.missing).toContain("og:image trop lourde (>8 Mo)");
+    expect(result.details.missing).toContain("og:image_too_heavy");
   });
 });
