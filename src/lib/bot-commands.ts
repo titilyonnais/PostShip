@@ -84,15 +84,46 @@ async function sslCommand(ctx: BotCommandContext): Promise<string> {
     : "pas de check SSL";
 }
 
+// N5 (nav-pro backlog): same effect as the "Couper 1h/4h/24h" bar on the
+// Incidents page — writes the same alerts_silenced_until column. `off`
+// (or any argument that isn't a bare "<n>h") resumes alerts immediately
+// rather than erroring, since a silenced channel shouldn't need to parse
+// a usage message correctly to unmute itself.
+async function silenceCommand(ctx: BotCommandContext, rawText: string): Promise<string> {
+  const arg = rawText.trim().split(/\s+/)[1]?.toLowerCase();
+  const match = arg?.match(/^(\d+)h$/);
+  const hours = match ? parseInt(match[1], 10) : 0;
+
+  const alertsSilencedUntil =
+    hours > 0 ? new Date(Date.now() + hours * 60 * 60 * 1000).toISOString() : null;
+
+  await ctx.supabase
+    .from("projects")
+    .update({ alerts_silenced_until: alertsSilencedUntil })
+    .eq("id", ctx.projectId);
+
+  return alertsSilencedUntil
+    ? `Alertes coupées pour ${hours}h.`
+    : "Alertes reprises.";
+}
+
 export const HELP_TEXT = [
   "/status — état actuel",
   "/check — relance une vérification",
   "/uptime — taux de réussite 24h/7j",
   "/ssl — jours restants du certificat",
+  "/silence 1h|4h|24h|off — coupe ou reprend les alertes",
   "/help — cette liste",
 ].join("\n");
 
-const COMMAND_NAMES = ["/status", "/check", "/uptime", "/ssl", "/help"] as const;
+const COMMAND_NAMES = [
+  "/status",
+  "/check",
+  "/uptime",
+  "/ssl",
+  "/silence",
+  "/help",
+] as const;
 export type BotCommand = (typeof COMMAND_NAMES)[number];
 
 export function parseBotCommand(text: string): BotCommand {
@@ -150,6 +181,7 @@ export async function sendBotMessage(
 export async function runBotCommand(
   command: BotCommand,
   ctx: BotCommandContext,
+  rawText: string = command,
 ): Promise<string> {
   switch (command) {
     case "/status":
@@ -160,6 +192,8 @@ export async function runBotCommand(
       return uptimeCommand(ctx);
     case "/ssl":
       return sslCommand(ctx);
+    case "/silence":
+      return silenceCommand(ctx, rawText);
     case "/help":
     default:
       return HELP_TEXT;

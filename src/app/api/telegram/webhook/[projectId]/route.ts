@@ -65,7 +65,7 @@ export async function POST(
   // can take a few seconds (it runs the project's checks synchronously).
   after(async () => {
     const command = parseBotCommand(text);
-    const reply = await runBotCommand(command, { supabase, projectId });
+    const reply = await runBotCommand(command, { supabase, projectId }, text);
     await sendBotMessage(
       {
         discord_webhook_url: null,

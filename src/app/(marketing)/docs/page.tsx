@@ -213,7 +213,10 @@ export default function DocsPage() {
           <code className="rounded bg-muted px-1 py-0.5 text-xs">/status</code>,{" "}
           <code className="rounded bg-muted px-1 py-0.5 text-xs">/check</code>,{" "}
           <code className="rounded bg-muted px-1 py-0.5 text-xs">/uptime</code>,{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">/ssl</code>{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">/ssl</code>,{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">
+            /silence 1h|4h|24h|off
+          </code>{" "}
           et{" "}
           <code className="rounded bg-muted px-1 py-0.5 text-xs">/help</code>.
         </p>

@@ -206,11 +206,22 @@ export async function dispatchAlerts(
     telegram_chat_id: string | null;
     ownerEmail: string | null;
     ownerPlanAllowsChatWebhooks: boolean;
+    alerts_silenced_until?: string | null;
   },
   items: AlertItem[],
   options?: { recordDedup?: boolean },
 ) {
   if (items.length === 0) return;
+
+  // N5 (nav-pro backlog): a deploy at 23:00 shouldn't page anyone 6
+  // times. check_runs is always written regardless (see runner.ts) — this
+  // only suppresses the outbound email/Discord/Slack/Telegram calls.
+  if (
+    project.alerts_silenced_until &&
+    new Date(project.alerts_silenced_until).getTime() > Date.now()
+  ) {
+    return;
+  }
 
   // Preview-deployment alerts (runner.ts's runPreviewChecks) pass
   // recordDedup: false — their fingerprint doesn't encode the preview URL

@@ -758,3 +758,30 @@ export async function deleteTarget(
   revalidatePath("/app");
   return { success: "URL supprimée." };
 }
+
+// N5 (nav-pro backlog): hours <= 0 resumes alerts immediately. Owner-or-
+// member, enforced by RLS's "update own or member projects" policy
+// (migration 0022) — no separate ownership check needed here.
+export async function silenceAlerts(
+  projectId: string,
+  hours: number,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const alertsSilencedUntil =
+    hours > 0 ? new Date(Date.now() + hours * 60 * 60 * 1000).toISOString() : null;
+
+  const { error } = await supabase
+    .from("projects")
+    .update({ alerts_silenced_until: alertsSilencedUntil })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/incidents`);
+  return {
+    success: alertsSilencedUntil
+      ? `Alertes coupées pour ${hours}h.`
+      : "Alertes reprises.",
+  };
+}

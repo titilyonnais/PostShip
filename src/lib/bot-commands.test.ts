@@ -5,7 +5,7 @@ vi.mock("./runner", () => ({
   runProjectChecks: vi.fn().mockResolvedValue([]),
 }));
 
-function fakeSupabase(overrides: Record<string, unknown> = {}) {
+function fakeSupabase(overrides: Record<string, unknown> = {}, updates: unknown[] = []) {
   const defaults: Record<string, unknown> = {
     check_targets: [
       { url: "https://example.com/", last_outcome: "pass" },
@@ -25,6 +25,10 @@ function fakeSupabase(overrides: Record<string, unknown> = {}) {
         in: () => builder,
         order: () => builder,
         limit: () => builder,
+        update: (data: unknown) => {
+          updates.push(data);
+          return builder;
+        },
         maybeSingle: async () => ({ data: Array.isArray(rows) ? rows[0] : rows }),
         single: async () => ({ data: Array.isArray(rows) ? rows[0] : rows }),
         then: (resolve: (v: { data: unknown }) => unknown) =>
@@ -42,6 +46,7 @@ describe("parseBotCommand", () => {
     expect(parseBotCommand("/check")).toBe("/check");
     expect(parseBotCommand("/uptime")).toBe("/uptime");
     expect(parseBotCommand("/ssl")).toBe("/ssl");
+    expect(parseBotCommand("/silence")).toBe("/silence");
     expect(parseBotCommand("/help")).toBe("/help");
   });
 
@@ -79,5 +84,33 @@ describe("runBotCommand", () => {
     const supabase = fakeSupabase({ check_targets: [] });
     const text = await runBotCommand("/ssl", { supabase, projectId: "p1" });
     expect(text).toBe("pas de check SSL");
+  });
+
+  it("/silence 1h sets alerts_silenced_until in the future", async () => {
+    const updates: unknown[] = [];
+    const supabase = fakeSupabase({}, updates);
+    const before = Date.now();
+    const text = await runBotCommand(
+      "/silence",
+      { supabase, projectId: "p1" },
+      "/silence 1h",
+    );
+    expect(text).toBe("Alertes coupées pour 1h.");
+    expect(updates).toHaveLength(1);
+    const until = new Date((updates[0] as { alerts_silenced_until: string }).alerts_silenced_until);
+    expect(until.getTime()).toBeGreaterThan(before);
+    expect(until.getTime()).toBeLessThanOrEqual(before + 61 * 60 * 1000);
+  });
+
+  it("/silence off resumes alerts (clears the column)", async () => {
+    const updates: unknown[] = [];
+    const supabase = fakeSupabase({}, updates);
+    const text = await runBotCommand(
+      "/silence",
+      { supabase, projectId: "p1" },
+      "/silence off",
+    );
+    expect(text).toBe("Alertes reprises.");
+    expect(updates).toEqual([{ alerts_silenced_until: null }]);
   });
 });

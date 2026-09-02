@@ -6,6 +6,7 @@ import { formatRelativeTime } from "@/lib/format-relative-time";
 import { createClient } from "@/lib/db/server";
 import { getProject } from "@/lib/db/loaders";
 import { getIncidentLog, getOpenIncidents } from "@/lib/incidents";
+import { SilenceBar } from "./silence-bar";
 
 export const metadata = {
   title: "Incidents",
@@ -50,6 +51,8 @@ export default async function IncidentsPage({
 
   return (
     <div className="flex flex-col gap-8">
+      <SilenceBar projectId={projectId} silencedUntil={project.alerts_silenced_until} />
+
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Ouverts maintenant

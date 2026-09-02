@@ -97,7 +97,11 @@ describe("POST /api/telegram/webhook/[projectId]", () => {
     const response = await POST(request, { params: Promise.resolve({ projectId: "proj-1" }) });
 
     expect(response.status).toBe(200);
-    expect(runBotCommandMock).toHaveBeenCalledWith("/status", expect.objectContaining({ projectId: "proj-1" }));
+    expect(runBotCommandMock).toHaveBeenCalledWith(
+      "/status",
+      expect.objectContaining({ projectId: "proj-1" }),
+      "/status",
+    );
     expect(sendBotMessageMock).toHaveBeenCalled();
   });
 

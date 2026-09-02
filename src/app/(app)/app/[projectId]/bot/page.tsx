@@ -17,6 +17,7 @@ const COMMANDS: { command: string; description: string }[] = [
   { command: "/check", description: "Relance une vérification (même délai que « Lancer maintenant »)" },
   { command: "/uptime", description: "Taux de réussite 24h et 7j" },
   { command: "/ssl", description: "Jours restants avant expiration du certificat SSL" },
+  { command: "/silence 1h|4h|24h|off", description: "Coupe ou reprend les alertes (utile avant un déploiement planifié)" },
   { command: "/help", description: "Liste des commandes" },
 ];
 
