@@ -12,6 +12,7 @@ import {
   signUpWithPassword,
   type MagicLinkState,
 } from "./actions";
+import { GENERIC_AUTH_MESSAGE } from "./messages";
 
 const initialState: MagicLinkState = { error: null, sent: false };
 
@@ -34,9 +35,45 @@ export function LoginForm({
   const [passwordMode, setPasswordMode] = useState<"signin" | "signup">(
     mode === "signup" ? "signup" : "signin",
   );
+  // Shared across magic link + OAuth (both can create an account on first
+  // use, same as password signup) — a single visible checkbox gates all
+  // three, threaded into each <form> as a hidden field since a plain
+  // checkbox can only belong to one form at a time.
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   return (
     <div className="flex w-full max-w-sm flex-col gap-5">
+      <label className="flex items-start gap-2 text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          required
+          checked={consentAccepted}
+          onChange={(e) => setConsentAccepted(e.target.checked)}
+          className="mt-0.5 size-3.5 rounded border-input accent-foreground"
+        />
+        <span>
+          J&apos;accepte les{" "}
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline underline-offset-2"
+          >
+            CGU
+          </a>{" "}
+          et la{" "}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline underline-offset-2"
+          >
+            politique de confidentialité
+          </a>
+          .
+        </span>
+      </label>
+
       <Tabs defaultValue={mode === "signup" || mode === "password" ? "password" : "magic"}>
         <TabsList variant="line" className="w-full">
           <TabsTrigger value="magic" className="flex-1">
@@ -50,10 +87,11 @@ export function LoginForm({
         <TabsContent value="magic" className="pt-4">
           {state.sent ? (
             <p className="text-sm text-muted-foreground">
-              Lien envoyé. Vérifiez votre boîte mail.
+              {GENERIC_AUTH_MESSAGE}
             </p>
           ) : (
             <form action={formAction} className="flex flex-col gap-3">
+              <input type="hidden" name="terms_accepted" value={consentAccepted ? "on" : ""} />
               <label htmlFor="email" className="sr-only">
                 Adresse email
               </label>
@@ -64,7 +102,7 @@ export function LoginForm({
                 placeholder="vous@exemple.com"
                 required
               />
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" disabled={pending || !consentAccepted}>
                 {pending ? "Envoi..." : "Recevoir un lien magique"}
               </Button>
               {state.error && (
@@ -77,8 +115,7 @@ export function LoginForm({
         <TabsContent value="password" className="pt-4">
           {confirm ? (
             <p className="text-sm text-muted-foreground">
-              Compte créé — vérifiez votre email pour le confirmer avant de
-              vous connecter.
+              {GENERIC_AUTH_MESSAGE}
             </p>
           ) : (
             <form
@@ -176,28 +213,28 @@ export function LoginForm({
 
       <div className="grid grid-cols-2 gap-2">
         <form action={signInWithGoogle.bind(null, plan)}>
-          <Button type="submit" variant="outline" className="w-full">
+          <input type="hidden" name="terms_accepted" value={consentAccepted ? "on" : ""} />
+          <Button
+            type="submit"
+            variant="outline"
+            className="w-full"
+            disabled={!consentAccepted}
+          >
             Google
           </Button>
         </form>
         <form action={signInWithGithub.bind(null, plan)}>
-          <Button type="submit" variant="outline" className="w-full">
+          <input type="hidden" name="terms_accepted" value={consentAccepted ? "on" : ""} />
+          <Button
+            type="submit"
+            variant="outline"
+            className="w-full"
+            disabled={!consentAccepted}
+          >
             GitHub
           </Button>
         </form>
       </div>
-
-      <p className="text-center text-[0.7rem] text-muted-foreground">
-        En continuant, vous acceptez nos{" "}
-        <a href="/terms" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
-          CGU
-        </a>{" "}
-        et notre{" "}
-        <a href="/privacy" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
-          politique de confidentialité
-        </a>
-        .
-      </p>
     </div>
   );
 }

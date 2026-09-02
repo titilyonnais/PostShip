@@ -33,6 +33,20 @@ export async function GET(request: Request) {
         );
       }
 
+      // OAuth / magic-link accounts never go through signUpWithPassword's
+      // explicit consent write — the middleware also catches this for
+      // /app and /onboarding, but redirecting straight there avoids the
+      // extra hop for the common case.
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("terms_accepted_at")
+        .eq("id", data.user.id)
+        .single();
+
+      if (!profile?.terms_accepted_at) {
+        return NextResponse.redirect(`${origin}/accept-terms`);
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

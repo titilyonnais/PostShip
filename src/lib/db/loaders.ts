@@ -56,11 +56,22 @@ export const getProjectOwnerPlan = cache(async (ownerId: string): Promise<Plan> 
   return (data?.plan as Plan) ?? "free";
 });
 
+// The five webhook-secret columns (vercel_hook_secret, discord_webhook_url,
+// slack_webhook_url, netlify_hook_secret, cloudflare_hook_secret) are
+// service-role-only for SELECT too (see migration 0026) — `authenticated`
+// only has column-level SELECT on this exact list, and a plain
+// `select("*")` fails outright (Postgres rejects the whole query if the
+// role lacks privilege on any expanded column, it doesn't silently drop
+// the ones it can't see). Settings UI reads the generated
+// `*_configured` booleans instead of the secrets themselves.
+const PROJECT_COLUMNS =
+  "id, user_id, name, base_url, locale, last_checked_at, last_status, created_at, paused, vercel_hook_configured, discord_webhook_configured, slack_webhook_configured, netlify_hook_configured, cloudflare_hook_configured";
+
 export const getProject = cache(async (projectId: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_COLUMNS)
     .eq("id", projectId)
     .single();
   return data;

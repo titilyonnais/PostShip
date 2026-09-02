@@ -51,7 +51,7 @@ function DeployHookSection({
   instructions,
   action,
   inputName,
-  currentSecret,
+  configured,
 }: {
   title: string;
   routePath: string;
@@ -61,7 +61,7 @@ function DeployHookSection({
     formData: FormData,
   ) => Promise<ActionResult>;
   inputName: string;
-  currentSecret: string | null;
+  configured: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
@@ -82,9 +82,7 @@ function DeployHookSection({
           id={inputName}
           name={inputName}
           type="password"
-          placeholder={
-            currentSecret ? "•••••••• (déjà configuré)" : "Secret"
-          }
+          placeholder={configured ? "•••••••• (déjà configuré)" : "Secret"}
           className="flex-1"
         />
         <SubmitButton variant="outline" pendingText="Enregistrement...">
@@ -102,7 +100,7 @@ function ChatWebhookSection({
   action,
   disableAction,
   inputName,
-  currentUrl,
+  configured,
 }: {
   title: string;
   instructions: React.ReactNode;
@@ -113,7 +111,7 @@ function ChatWebhookSection({
   ) => Promise<ActionResult>;
   disableAction: (prevState: ActionResult) => Promise<ActionResult>;
   inputName: string;
-  currentUrl: string | null;
+  configured: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
@@ -130,14 +128,14 @@ function ChatWebhookSection({
           id={inputName}
           name={inputName}
           type="url"
-          placeholder={currentUrl ? "•••••••• (déjà configuré)" : placeholder}
+          placeholder={configured ? "•••••••• (déjà configuré)" : placeholder}
           className="flex-1"
         />
         <SubmitButton variant="outline" pendingText="Enregistrement...">
           Enregistrer
         </SubmitButton>
       </ActionForm>
-      {currentUrl && (
+      {configured && (
         <ActionForm action={disableAction}>
           <SubmitButton
             variant="ghost"
@@ -263,7 +261,7 @@ export default async function ProjectSettingsPage({
               action={setDiscordWebhook.bind(null, projectId)}
               disableAction={disableDiscordWebhook.bind(null, projectId)}
               inputName="discord_webhook_url"
-              currentUrl={project.discord_webhook_url}
+              configured={!!project.discord_webhook_configured}
             />
             <ChatWebhookSection
               title="Slack"
@@ -272,7 +270,7 @@ export default async function ProjectSettingsPage({
               action={setSlackWebhook.bind(null, projectId)}
               disableAction={disableSlackWebhook.bind(null, projectId)}
               inputName="slack_webhook_url"
-              currentUrl={project.slack_webhook_url}
+              configured={!!project.slack_webhook_configured}
             />
           </div>
         ) : (
@@ -310,7 +308,7 @@ export default async function ProjectSettingsPage({
               }
               action={setVercelHookSecret.bind(null, projectId)}
               inputName="vercel_hook_secret"
-              currentSecret={project.vercel_hook_secret}
+              configured={!!project.vercel_hook_configured}
             />
             <DeployHookSection
               title="Netlify"
@@ -327,7 +325,7 @@ export default async function ProjectSettingsPage({
               }
               action={setNetlifyHookSecret.bind(null, projectId)}
               inputName="netlify_hook_secret"
-              currentSecret={project.netlify_hook_secret}
+              configured={!!project.netlify_hook_configured}
             />
             <DeployHookSection
               title="Cloudflare Pages"
@@ -342,7 +340,7 @@ export default async function ProjectSettingsPage({
               }
               action={setCloudflareHookSecret.bind(null, projectId)}
               inputName="cloudflare_hook_secret"
-              currentSecret={project.cloudflare_hook_secret}
+              configured={!!project.cloudflare_hook_configured}
             />
           </div>
         ) : (

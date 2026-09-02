@@ -5,16 +5,19 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/db/server";
 import { createSiteScan } from "@/lib/scan";
 import type { ActionResult } from "@/lib/use-toast-action";
-import { httpsUrlSchema } from "@/lib/validation";
+import { assertRegisterableHttpsUrl } from "@/lib/validation";
 
 export async function startSiteScan(
   projectId: string,
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const parsed = httpsUrlSchema.safeParse(formData.get("seed_url"));
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "URL invalide." };
+  const raw = formData.get("seed_url");
+  const urlCheck = await assertRegisterableHttpsUrl(
+    typeof raw === "string" ? raw : "",
+  );
+  if (!urlCheck.ok) {
+    return { error: urlCheck.reason };
   }
 
   const supabase = await createClient();
@@ -26,7 +29,7 @@ export async function startSiteScan(
   const result = await createSiteScan({
     userId: user.id,
     projectId,
-    seedUrl: parsed.data,
+    seedUrl: urlCheck.url,
   });
 
   if ("error" in result) return { error: result.error };

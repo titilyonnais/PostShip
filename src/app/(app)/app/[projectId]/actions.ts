@@ -7,9 +7,8 @@ import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runOneTarget, runProjectChecks } from "@/lib/runner";
 import { createServiceClient } from "@/lib/db/service";
-import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import type { ActionResult } from "@/lib/use-toast-action";
-import { httpsUrlSchema } from "@/lib/validation";
+import { assertRegisterableHttpsUrl } from "@/lib/validation";
 
 // discord_webhook_url, slack_webhook_url, and the deploy-hook secret
 // columns are service-role-only (see migrations 0017 and 0021) — the "own
@@ -52,7 +51,6 @@ const RUN_NOW_COOLDOWN_MS = 30_000;
 const TARGET_COOLDOWN_MS = 10_000;
 
 const addTargetSchema = z.object({
-  url: httpsUrlSchema,
   kind: z.enum(TARGET_KINDS).default("http"),
   // Only meaningful for kind "http" — the runner ignores these for every
   // other check type (see src/lib/checks/http.ts).
@@ -81,7 +79,6 @@ export async function addTarget(
   formData: FormData,
 ): Promise<TargetFormState> {
   const parsed = addTargetSchema.safeParse({
-    url: formData.get("url"),
     kind: formData.get("kind") || undefined,
     expect_status: formData.get("expect_status") || undefined,
     expect_contains: formData.get("expect_contains") ?? undefined,
@@ -90,8 +87,16 @@ export async function addTarget(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "URL invalide.",
+      error: parsed.error.issues[0]?.message ?? "Formulaire invalide.",
     };
+  }
+
+  const rawUrl = formData.get("url");
+  const urlCheck = await assertRegisterableHttpsUrl(
+    typeof rawUrl === "string" ? rawUrl : "",
+  );
+  if (!urlCheck.ok) {
+    return { error: urlCheck.reason };
   }
 
   const supabase = await createClient();
@@ -141,14 +146,9 @@ export async function addTarget(
     };
   }
 
-  const guard = await assertPublicHttpsUrl(parsed.data.url);
-  if (!guard.ok) {
-    return { error: guard.reason };
-  }
-
   const { error } = await supabase.from("check_targets").insert({
     project_id: projectId,
-    url: parsed.data.url,
+    url: urlCheck.url,
     kind: parsed.data.kind,
     expect_status: parsed.data.expect_status,
     expect_contains: parsed.data.expect_contains,

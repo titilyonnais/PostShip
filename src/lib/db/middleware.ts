@@ -53,6 +53,30 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  const underGatedPath =
+    isUnderPath(request.nextUrl.pathname, "/app") ||
+    isUnderPath(request.nextUrl.pathname, "/onboarding");
+
+  // Checked before the /app-only full_name/MFA gates below: an account that
+  // hasn't consented (or hasn't re-consented after a wording change — see
+  // src/lib/legal.ts) shouldn't reach onboarding or the app at all. Not in
+  // the middleware matcher, so /accept-terms itself is never re-evaluated
+  // here — no loop to guard against.
+  if (user && underGatedPath) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("terms_accepted_at")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.terms_accepted_at) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/accept-terms";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (user && isUnderPath(request.nextUrl.pathname, "/app")) {
     const { data: profile } = await supabase
       .from("profiles")

@@ -2,9 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { findAccountProvidersByEmail } from "@/lib/auth-admin";
+import { AUTH_RATE_LIMIT_MESSAGE, checkAuthRateLimit } from "@/lib/auth-rate-limit";
 import { createClient } from "@/lib/db/server";
 import { createServiceClient } from "@/lib/db/service";
+import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "@/lib/legal";
+import { CONSENT_ERROR } from "./messages";
 
 const emailSchema = z.string().email();
 const passwordSchema = z.string().min(8, "8 caractères minimum.");
@@ -35,6 +37,17 @@ export async function signInWithMagicLink(
     return { error: "Adresse email invalide.", sent: false };
   }
 
+  // Magic link can create an account (Supabase auto-signup on first OTP),
+  // so it needs the same consent gate as password signup — never trust the
+  // browser's `required` attribute alone, a direct POST bypasses it.
+  if (formData.get("terms_accepted") !== "on") {
+    return { error: CONSENT_ERROR, sent: false };
+  }
+
+  if (!(await checkAuthRateLimit())) {
+    return { error: AUTH_RATE_LIMIT_MESSAGE, sent: false };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data,
@@ -44,7 +57,9 @@ export async function signInWithMagicLink(
   });
 
   if (error) {
-    return { error: error.message, sent: false };
+    // Logged server-side for debugging; the client never sees Supabase's
+    // actual error text here — same enumeration reasoning as signup below.
+    console.error("Échec envoi lien magique", error);
   }
 
   return { error: null, sent: true };
@@ -58,6 +73,10 @@ export async function signInWithPassword(plan: string | null, formData: FormData
     loginErrorRedirect(plan, "password", "Email ou mot de passe invalide.");
   }
 
+  if (!(await checkAuthRateLimit())) {
+    loginErrorRedirect(plan, "password", AUTH_RATE_LIMIT_MESSAGE);
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: email.data,
@@ -65,6 +84,9 @@ export async function signInWithPassword(plan: string | null, formData: FormData
   });
 
   if (error) {
+    // Supabase's own "Invalid login credentials" already doesn't
+    // distinguish a wrong password from no account at that email — kept
+    // as-is, no further masking needed here.
     loginErrorRedirect(
       plan,
       "password",
@@ -93,20 +115,11 @@ export async function signUpWithPassword(plan: string | null, formData: FormData
     );
   }
   if (!termsAccepted) {
-    loginErrorRedirect(
-      plan,
-      "signup",
-      "Vous devez accepter les CGU et la politique de confidentialité pour créer un compte.",
-    );
+    loginErrorRedirect(plan, "signup", CONSENT_ERROR);
   }
 
-  const existingProviders = await findAccountProvidersByEmail(email.data);
-  if (existingProviders) {
-    loginErrorRedirect(
-      plan,
-      "signup",
-      `Cet email est déjà utilisé par un autre compte (connexion via ${existingProviders.join(" ou ")}). Connectez-vous plutôt.`,
-    );
+  if (!(await checkAuthRateLimit())) {
+    loginErrorRedirect(plan, "signup", AUTH_RATE_LIMIT_MESSAGE);
   }
 
   const supabase = await createClient();
@@ -119,13 +132,11 @@ export async function signUpWithPassword(plan: string | null, formData: FormData
   });
 
   if (error) {
-    loginErrorRedirect(
-      plan,
-      "signup",
-      error.message === "User already registered"
-        ? "Un compte existe déjà avec cet email — connectez-vous plutôt."
-        : error.message,
-    );
+    // No longer distinguishes "already registered" from any other
+    // signup failure in what's shown to the client (logged server-side
+    // instead) — see GENERIC_AUTH_MESSAGE above. Falls through to the
+    // same confirm screen as a genuine new signup.
+    console.error("Échec signUp", error);
   }
 
   // Traceable record of consent — written via the service client because at
@@ -138,10 +149,14 @@ export async function signUpWithPassword(plan: string | null, formData: FormData
         id: data.user.id,
         email: email.data,
         terms_accepted_at: new Date().toISOString(),
+        terms_version: CURRENT_TERMS_VERSION,
+        privacy_version: CURRENT_PRIVACY_VERSION,
       });
   }
 
-  // Email confirmation is on: no session yet, just a pending confirmation.
+  // Always the same outcome screen, whether this was a genuine new
+  // account, a retry against an already-registered email, or a Supabase
+  // error — see GENERIC_AUTH_MESSAGE.
   if (!data.session) {
     const params = new URLSearchParams({ mode: "signup", confirm: "1" });
     if (plan) params.set("plan", plan);
@@ -151,7 +166,15 @@ export async function signUpWithPassword(plan: string | null, formData: FormData
   redirect(nextPathFor(plan));
 }
 
-export async function signInWithGithub(plan: string | null) {
+export async function signInWithGithub(plan: string | null, formData: FormData) {
+  // OAuth can create an account on first login, same consent gate as
+  // magic link / password signup — the checkbox's `required` attribute is
+  // a UX nicety, not a security boundary; a direct POST to this action
+  // bypasses it entirely.
+  if (formData.get("terms_accepted") !== "on") {
+    redirect(`/login?error=${encodeURIComponent(CONSENT_ERROR)}`);
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "github",
@@ -167,7 +190,11 @@ export async function signInWithGithub(plan: string | null) {
   redirect(data.url);
 }
 
-export async function signInWithGoogle(plan: string | null) {
+export async function signInWithGoogle(plan: string | null, formData: FormData) {
+  if (formData.get("terms_accepted") !== "on") {
+    redirect(`/login?error=${encodeURIComponent(CONSENT_ERROR)}`);
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",

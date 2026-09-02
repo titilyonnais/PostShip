@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { runHttpCheck } from "@/lib/checks/http";
 import { createServiceClient } from "@/lib/db/service";
-import { httpsUrlSchema } from "@/lib/validation";
+import { assertRegisterableHttpsUrl } from "@/lib/validation";
 
 const RATE_LIMIT = 5;
 const WINDOW_MS = 60 * 60 * 1000;
 
-const bodySchema = z.object({ url: httpsUrlSchema });
+const bodySchema = z.object({ url: z.string() });
 
 export async function POST(request: Request) {
   // x-real-ip is set by Vercel's edge to a single, unambiguous client IP.
@@ -46,10 +46,15 @@ export async function POST(request: Request) {
     );
   }
 
+  const urlCheck = await assertRegisterableHttpsUrl(parsed.data.url);
+  if (!urlCheck.ok) {
+    return NextResponse.json({ error: urlCheck.reason }, { status: 400 });
+  }
+
   // Never used as an open proxy: the response only reveals pass/fail
   // metadata, not the fetched page's body (see docs/ARCHITECTURE.md).
   const result = await runHttpCheck({
-    url: parsed.data.url,
+    url: urlCheck.url,
     expect_status: 200,
     expect_contains: null,
     expect_not_contains: null,

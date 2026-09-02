@@ -6,12 +6,13 @@ import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import type { ActionResult } from "@/lib/use-toast-action";
-import { httpsUrlSchema } from "@/lib/validation";
+import { assertRegisterableHttpsUrl } from "@/lib/validation";
 
-const createProjectSchema = z.object({
-  name: z.string().trim().min(1, "Le nom est requis.").max(120),
-  base_url: httpsUrlSchema,
-});
+const createProjectNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Le nom est requis.")
+  .max(120);
 
 export type ProjectFormState = { error: string | null };
 
@@ -19,15 +20,19 @@ export async function createProject(
   _prevState: ProjectFormState,
   formData: FormData,
 ): Promise<ProjectFormState> {
-  const parsed = createProjectSchema.safeParse({
-    name: formData.get("name"),
-    base_url: formData.get("base_url"),
-  });
-
-  if (!parsed.success) {
+  const nameParsed = createProjectNameSchema.safeParse(formData.get("name"));
+  if (!nameParsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "Formulaire invalide.",
+      error: nameParsed.error.issues[0]?.message ?? "Formulaire invalide.",
     };
+  }
+
+  const rawBaseUrl = formData.get("base_url");
+  const urlCheck = await assertRegisterableHttpsUrl(
+    typeof rawBaseUrl === "string" ? rawBaseUrl : "",
+  );
+  if (!urlCheck.ok) {
+    return { error: urlCheck.reason };
   }
 
   const supabase = await createClient();
@@ -57,8 +62,8 @@ export async function createProject(
 
   const { error } = await supabase.from("projects").insert({
     user_id: user.id,
-    name: parsed.data.name,
-    base_url: parsed.data.base_url,
+    name: nameParsed.data,
+    base_url: urlCheck.url,
   });
 
   if (error) {
@@ -96,16 +101,19 @@ export async function updateProjectBaseUrl(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const parsed = httpsUrlSchema.safeParse(formData.get("base_url"));
+  const raw = formData.get("base_url");
+  const urlCheck = await assertRegisterableHttpsUrl(
+    typeof raw === "string" ? raw : "",
+  );
 
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "URL invalide." };
+  if (!urlCheck.ok) {
+    return { error: urlCheck.reason };
   }
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("projects")
-    .update({ base_url: parsed.data })
+    .update({ base_url: urlCheck.url })
     .eq("id", projectId);
 
   if (error) return { error: error.message };
