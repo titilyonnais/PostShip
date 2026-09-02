@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
+import { TOKEN_PACKS } from "@/lib/stripe";
 
 export const metadata = {
   title: "Tarifs",
@@ -74,6 +75,43 @@ export default function PricingPage() {
           </div>
         ))}
       </div>
+
+      <section
+        id="tokens"
+        aria-labelledby="tokens-heading"
+        className="flex flex-col gap-6 scroll-mt-16"
+      >
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h2
+            id="tokens-heading"
+            className="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+          >
+            Tokens — scan de site à la demande
+          </h2>
+          <p className="max-w-md text-sm text-muted-foreground">
+            En plus de la surveillance continue, scannez tout votre site en
+            un clic (sitemap + liens de la home, jusqu&apos;à 500 pages).
+            Achat unique, indépendant de l&apos;abonnement — pas
+            d&apos;expiration, pas de remboursement une fois consommé.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {Object.values(TOKEN_PACKS).map((pack) => (
+            <div
+              key={pack.tokens}
+              className="flex flex-col gap-2 rounded-md border border-border bg-card p-6"
+            >
+              <p className="font-mono text-2xl">{pack.priceLabel}</p>
+              <p className="text-sm font-medium">{pack.tokens} tokens</p>
+              <p className="text-sm text-muted-foreground">{pack.blurb}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-center text-xs text-muted-foreground">
+          1 token = 1 page scannée. Achetables depuis votre compte, une fois
+          connecté.
+        </p>
+      </section>
 
       <section aria-labelledby="faq-heading" className="flex flex-col gap-6">
         <h2

@@ -74,9 +74,9 @@ const CHECKS = [
     icon: ShieldCheck,
     title: "SSL & Stripe",
     items: [
-      "Certificat qui expire sous 14 jours",
+      "Certificat expiré, alertes à J-30 / J-7 / J-1",
       "Page de succès Stripe cassée",
-      "Jamais de rejeu d'événement Stripe",
+      "Statut HTTP en temps réel, historique conservé",
     ],
   },
 ];

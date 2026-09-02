@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ChevronRight, Rocket } from "lucide-react";
+import { LastChecked } from "@/components/last-checked";
 import { StatusDot } from "@/components/status-dot";
-import { getUserProjects } from "@/lib/db/loaders";
+import { getAuthUser, getProfile, getUserProjects } from "@/lib/db/loaders";
+import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { CreateProjectForm } from "./create-project-form";
 
 export default async function AppHomePage({
@@ -11,7 +13,10 @@ export default async function AppHomePage({
 }) {
   const { error, success } = await searchParams;
 
-  const projects = await getUserProjects();
+  const [projects, user] = await Promise.all([getUserProjects(), getAuthUser()]);
+  const profile = user ? await getProfile(user.id) : null;
+  const intervalMinutes = getPlanLimits((profile?.plan as Plan) ?? "free")
+    .intervalMinutes;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
@@ -47,6 +52,11 @@ export default async function AppHomePage({
                   <p className="font-mono text-xs text-muted-foreground">
                     {project.base_url}
                   </p>
+                  <LastChecked
+                    lastCheckedAt={project.last_checked_at}
+                    paused={project.paused}
+                    intervalMinutes={intervalMinutes}
+                  />
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusDot status={project.last_status} />

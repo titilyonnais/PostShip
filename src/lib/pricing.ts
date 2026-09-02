@@ -29,6 +29,7 @@ export const PUBLIC_PLANS: {
     features: [
       "10 projets",
       "50 URLs",
+      "Discord + Vercel",
       "Vérification Stripe",
       "Rétention 30 jours",
     ],

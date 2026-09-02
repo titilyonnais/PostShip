@@ -2,8 +2,10 @@ import { notFound } from "next/navigation";
 import { PauseCircle, Play } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { Badge } from "@/components/ui/badge";
+import { LastChecked } from "@/components/last-checked";
 import { SubmitButton } from "@/components/submit-button";
-import { getProject } from "@/lib/db/loaders";
+import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
+import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runProjectNow } from "./actions";
 
 export default async function ProjectLayout({
@@ -15,9 +17,13 @@ export default async function ProjectLayout({
 }) {
   const { projectId } = await params;
 
-  const project = await getProject(projectId);
+  const [project, user] = await Promise.all([getProject(projectId), getAuthUser()]);
 
   if (!project) notFound();
+
+  const profile = user ? await getProfile(user.id) : null;
+  const intervalMinutes = getPlanLimits((profile?.plan as Plan) ?? "free")
+    .intervalMinutes;
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
@@ -35,6 +41,11 @@ export default async function ProjectLayout({
           <p className="font-mono text-sm text-muted-foreground">
             {project.base_url}
           </p>
+          <LastChecked
+            lastCheckedAt={project.last_checked_at}
+            paused={project.paused}
+            intervalMinutes={intervalMinutes}
+          />
         </div>
         <div className="shrink-0">
           <ActionForm action={runProjectNow.bind(null, project.id)}>

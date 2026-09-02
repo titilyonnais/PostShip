@@ -4,7 +4,14 @@ import { computeFingerprint, TIMEOUT_MS, type CheckResult } from "@/lib/checks/s
 
 export type SslCheckTarget = { url: string };
 
-const WARNING_DAYS = 14;
+// Ordered descending: the first threshold the remaining days fall under
+// wins. Each tier is its own `missing` code (not just "expiring soon"), so
+// the check_runs fingerprint changes when a cert crosses a threshold —
+// alert dedup (shouldSendFailAlert, 10-minute window) is keyed on that
+// fingerprint, and without distinct tiers a cert sitting at "< 14 days"
+// for two weeks straight would re-alert on every single cron tick instead
+// of once per threshold crossing.
+const WARNING_THRESHOLDS_DAYS = [30, 7, 1] as const;
 
 function getPeerCertificateExpiry(
   hostname: string,
@@ -73,8 +80,12 @@ export async function runSslCheck(target: SslCheckTarget): Promise<CheckResult> 
     );
 
     const missing: string[] = [];
-    if (daysRemaining < 0) missing.push("ssl_expired");
-    else if (daysRemaining < WARNING_DAYS) missing.push("ssl_expiring_soon");
+    if (daysRemaining < 0) {
+      missing.push("ssl_expired");
+    } else {
+      const tier = WARNING_THRESHOLDS_DAYS.find((days) => daysRemaining < days);
+      if (tier) missing.push(`ssl_expiring_${tier}d`);
+    }
 
     const outcome: "pass" | "fail" = missing.length === 0 ? "pass" : "fail";
     const details = { url: target.url, validTo, daysRemaining, missing };

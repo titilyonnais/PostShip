@@ -40,6 +40,9 @@ yarn-error.log*
 # supabase CLI cache
 supabase/.temp
 
+# playwright MCP verification snapshots
+.playwright-mcp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

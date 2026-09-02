@@ -45,6 +45,23 @@ const TARGET_COOLDOWN_MS = 10_000;
 const addTargetSchema = z.object({
   url: httpsUrlSchema,
   kind: z.enum(TARGET_KINDS).default("http"),
+  // Only meaningful for kind "http" — the runner ignores these for every
+  // other check type (see src/lib/checks/http.ts).
+  expect_status: z.coerce.number().int().min(100).max(599).default(200),
+  expect_contains: z
+    .string()
+    .trim()
+    .max(200)
+    .transform((v) => (v === "" ? null : v))
+    .nullable()
+    .default(null),
+  expect_not_contains: z
+    .string()
+    .trim()
+    .max(200)
+    .transform((v) => (v === "" ? null : v))
+    .nullable()
+    .default(null),
 });
 
 export type TargetFormState = { error: string | null };
@@ -57,6 +74,9 @@ export async function addTarget(
   const parsed = addTargetSchema.safeParse({
     url: formData.get("url"),
     kind: formData.get("kind") || undefined,
+    expect_status: formData.get("expect_status") || undefined,
+    expect_contains: formData.get("expect_contains") ?? undefined,
+    expect_not_contains: formData.get("expect_not_contains") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -116,6 +136,9 @@ export async function addTarget(
     project_id: projectId,
     url: parsed.data.url,
     kind: parsed.data.kind,
+    expect_status: parsed.data.expect_status,
+    expect_contains: parsed.data.expect_contains,
+    expect_not_contains: parsed.data.expect_not_contains,
   });
 
   if (error) {

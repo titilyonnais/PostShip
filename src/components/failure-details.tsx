@@ -3,7 +3,9 @@ const MISSING_LABELS: Record<string, string> = {
   expect_not_contains: "Un contenu interdit est présent dans la réponse.",
   json_ld_syntax_error: "Le JSON-LD contient une erreur de syntaxe.",
   html_unparsable: "Le HTML retourné est illisible.",
-  ssl_expiring_soon: "Le certificat SSL expire bientôt.",
+  ssl_expiring_30d: "Le certificat SSL expire dans moins de 30 jours.",
+  ssl_expiring_7d: "Le certificat SSL expire dans moins de 7 jours.",
+  ssl_expiring_1d: "Le certificat SSL expire dans moins de 24h.",
   ssl_expired: "Le certificat SSL a expiré.",
 };
 

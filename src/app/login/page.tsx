@@ -43,7 +43,7 @@ export default async function LoginPage({
           <p className="text-xs text-muted-foreground">
             {normalizedPlan
               ? `Plan sélectionné : ${PLAN_LABEL[normalizedPlan]}`
-              : "Surveillez votre site en moins de 2 minutes."}
+              : "Configurez la surveillance de votre site en moins de 2 minutes."}
           </p>
         </div>
         {errorMessage && (
