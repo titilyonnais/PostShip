@@ -9,14 +9,24 @@ const SECURITY_HEADERS = [
     value: "camera=(), microphone=(), geolocation=(), payment=()",
   },
   {
-    // No inline-script allowance needed — the app has no inline <script>
-    // (Next.js's own bootstrap scripts are hashed/nonced by the framework
-    // and exempted from `script-src` by default). frame-ancestors mirrors
-    // X-Frame-Options for browsers that only honor CSP.
+    // 'unsafe-inline' on script-src is a real tradeoff, not an oversight:
+    // Next.js's App Router streams the RSC payload as inline <script> tags
+    // on every page, which CSP blocks outright without either
+    // 'unsafe-inline' or a per-request nonce. A nonce would have to be
+    // minted and injected by middleware on every request, which is exactly
+    // the cost the marketing pages' static-caching fix (see nav-auth.tsx)
+    // was written to avoid paying. The other directives (script origin
+    // restricted to self, no plugins/objects via default-src, no framing)
+    // still meaningfully narrow what an XSS payload could do — and this is
+    // a plain React app with no dangerouslySetInnerHTML rendering user
+    // input (the one use, in the marketing page's JSON-LD, is a hardcoded
+    // static object), so the actual XSS surface CSP is defending here is
+    // already small. frame-ancestors
+    // mirrors X-Frame-Options for browsers that only honor CSP.
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self'",
       "img-src 'self' data: https:",
