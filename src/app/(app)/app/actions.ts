@@ -145,6 +145,60 @@ export async function toggleProjectPause(
   };
 }
 
+export async function updateStripeSuccessUrl(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const raw = formData.get("stripe_success_url");
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+
+  // Empty clears the override — stripe_health targets then fall back to
+  // their own configured URL (see runner.ts).
+  let value: string | null = null;
+  if (trimmed) {
+    const urlCheck = await assertRegisterableHttpsUrl(trimmed);
+    if (!urlCheck.ok) return { error: urlCheck.reason };
+    value = urlCheck.url;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ stripe_success_url: value })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/settings`);
+  return {
+    success: value
+      ? "URL de succès Stripe mise à jour."
+      : "URL de succès Stripe retirée — les checks Stripe utiliseront l'URL de leur propre cible.",
+  };
+}
+
+export async function toggleCheckPreviews(
+  projectId: string,
+  checkPreviews: boolean,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ check_previews: !checkPreviews })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/settings`);
+  return {
+    success: checkPreviews
+      ? "Vérification des previews désactivée."
+      : "Vérification des previews activée — un déploiement de preview Vercel déclenchera aussi des checks.",
+  };
+}
+
 export async function deleteProject(projectId: string) {
   const supabase = await createClient();
   await supabase.from("projects").delete().eq("id", projectId);

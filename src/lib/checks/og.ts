@@ -11,6 +11,13 @@ import {
 
 export type OgCheckTarget = { url: string };
 
+// Plus tard : rendu visuel de la social card (screenshot) — trop lourd
+// pour ce check, qui reste un lint de balises + accessibilité de l'image.
+const TITLE_MAX_LENGTH = 70;
+// The usual practical ceiling social crawlers apply to a preview image.
+const IMAGE_MAX_BYTES = 8_000_000;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 function metaContent(root: ReturnType<typeof parseHtml>, property: string) {
   return (
     root
@@ -56,11 +63,14 @@ export async function runOgCheck(
     const root = parseHtml(bodyText);
 
     const ogTitle = metaContent(root, "og:title");
+    const ogDescription = metaContent(root, "og:description");
     const ogImage = metaContent(root, "og:image");
     const twitterCard = metaContent(root, "twitter:card");
 
     const missing: string[] = [];
     if (!ogTitle) missing.push("og:title");
+    else if (ogTitle.length > TITLE_MAX_LENGTH) missing.push("og:title trop long (>70)");
+    if (!ogDescription) missing.push("og:description");
     if (!ogImage) missing.push("og:image");
     if (!twitterCard) missing.push("twitter:card");
 
@@ -78,6 +88,16 @@ export async function runOgCheck(
       } else {
         ogImageStatus = imageResult.response.status;
         if (ogImageStatus !== 200) missing.push("og:image reachable");
+
+        const contentType = imageResult.response.headers.get("content-type");
+        if (contentType && !ALLOWED_IMAGE_TYPES.includes(contentType.split(";")[0].trim())) {
+          missing.push("og:image type");
+        }
+
+        const contentLength = imageResult.response.headers.get("content-length");
+        if (contentLength && Number(contentLength) > IMAGE_MAX_BYTES) {
+          missing.push("og:image trop lourde (>8 Mo)");
+        }
       }
     }
 
@@ -85,6 +105,7 @@ export async function runOgCheck(
     const details = {
       url: finalUrl,
       ogTitle,
+      ogDescription,
       ogImage,
       ogImageStatus,
       twitterCard,

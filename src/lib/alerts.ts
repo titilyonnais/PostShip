@@ -195,13 +195,22 @@ export async function dispatchAlerts(
     ownerPlanAllowsChatWebhooks: boolean;
   },
   items: AlertItem[],
+  options?: { recordDedup?: boolean },
 ) {
   if (items.length === 0) return;
+
+  // Preview-deployment alerts (runner.ts's runPreviewChecks) pass
+  // recordDedup: false — their fingerprint doesn't encode the preview URL
+  // (computeFingerprint is URL-agnostic), so recording them here would
+  // make shouldSendFailAlert wrongly dedup a genuine production failure on
+  // the same target that happens to produce the same fingerprint shortly
+  // after.
+  const recordDedup = options?.recordDedup ?? true;
 
   if (project.ownerEmail) {
     try {
       await sendFailEmail(project.ownerEmail, project.name, items);
-      await recordAlertEvents(supabase, project.id, items, "email");
+      if (recordDedup) await recordAlertEvents(supabase, project.id, items, "email");
     } catch (err) {
       console.error("Échec envoi email d'alerte", err);
     }
@@ -210,7 +219,7 @@ export async function dispatchAlerts(
   if (project.ownerPlanAllowsChatWebhooks && project.discord_webhook_url) {
     try {
       await sendDiscordAlert(project.discord_webhook_url, project.name, items);
-      await recordAlertEvents(supabase, project.id, items, "discord");
+      if (recordDedup) await recordAlertEvents(supabase, project.id, items, "discord");
     } catch (err) {
       console.error("Échec envoi Discord", err);
     }
@@ -219,7 +228,7 @@ export async function dispatchAlerts(
   if (project.ownerPlanAllowsChatWebhooks && project.slack_webhook_url) {
     try {
       await sendSlackAlert(project.slack_webhook_url, project.name, items);
-      await recordAlertEvents(supabase, project.id, items, "slack");
+      if (recordDedup) await recordAlertEvents(supabase, project.id, items, "slack");
     } catch (err) {
       console.error("Échec envoi Slack", err);
     }

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
-import { runProjectChecks } from "@/lib/runner";
+import { runPreviewChecks, runProjectChecks } from "@/lib/runner";
 
 // Signature scheme confirmed via Vercel docs (context7, vercel.com/docs/headers/request-headers):
 // HMAC-SHA1 of the raw body, hex-encoded, in the `x-vercel-signature` header.
@@ -33,7 +33,7 @@ export async function POST(
   const supabase = createServiceClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("id, base_url, vercel_hook_secret, profiles(plan)")
+    .select("id, base_url, vercel_hook_secret, check_previews, profiles(plan)")
     .eq("id", projectId)
     .single();
 
@@ -71,7 +71,14 @@ export async function POST(
     return NextResponse.json({ skipped: "domain_not_verified" });
   }
 
-  let event: { type?: string };
+  // Fields confirmed against Vercel's own webhook docs
+  // (vercel.com/docs/webhooks/webhooks-api) — payload.target is
+  // "production" | "staging" | null, payload.deployment.url is the
+  // deployment's own hostname (no protocol).
+  let event: {
+    type?: string;
+    payload?: { target?: string | null; deployment?: { url?: string } };
+  };
   try {
     event = JSON.parse(rawBody);
   } catch {
@@ -82,6 +89,33 @@ export async function POST(
   // deployment.created / deployment.error / anything else.
   if (event.type !== "deployment.ready") {
     return NextResponse.json({ skipped: true });
+  }
+
+  const isProduction = event.payload?.target === "production";
+
+  if (!isProduction) {
+    if (!project.check_previews) {
+      return NextResponse.json({ skipped: "preview_checks_disabled" });
+    }
+
+    const deploymentUrl = event.payload?.deployment?.url;
+    // Every Vercel deployment (preview or production) is reachable at its
+    // own *.vercel.app hostname regardless of any custom domain attached —
+    // restricting to that suffix keeps this pointed at a real Vercel
+    // deployment even though the request is already HMAC-verified above.
+    if (!deploymentUrl || !/^[a-z0-9-]+(\.[a-z0-9-]+)*\.vercel\.app$/i.test(deploymentUrl)) {
+      return NextResponse.json({ skipped: "invalid_preview_url" });
+    }
+
+    try {
+      const result = await runPreviewChecks(projectId, deploymentUrl);
+      return NextResponse.json({ triggered: true, preview: true, ...result });
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Check failed" },
+        { status: 500 },
+      );
+    }
   }
 
   try {

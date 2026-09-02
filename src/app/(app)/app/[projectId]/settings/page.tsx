@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   AlertTriangle,
   BadgeCheck,
+  CreditCard,
   MessageSquare,
   PauseCircle,
   PlayCircle,
@@ -25,8 +26,10 @@ import { getPlanLimits } from "@/lib/entitlements";
 import {
   deleteProject,
   renameProject,
+  toggleCheckPreviews,
   toggleProjectPause,
   updateProjectBaseUrl,
+  updateStripeSuccessUrl,
 } from "../../actions";
 import {
   disableDiscordWebhook,
@@ -439,7 +442,32 @@ export default async function ProjectSettingsPage({
               configured={!!project.cloudflare_hook_configured}
             />
           </div>
-        ) : (
+        ) : null}
+        {limits.deployHooks && (
+          <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4">
+            <p className="text-xs text-muted-foreground">
+              Vérifier aussi les previews Vercel : lance les checks contre
+              l&apos;URL de preview (pas la prod) à chaque déploiement de
+              preview, avec des alertes préfixées &laquo; Preview &raquo;.
+            </p>
+            <div>
+              <ActionForm
+                action={toggleCheckPreviews.bind(
+                  null,
+                  project.id,
+                  !!project.check_previews,
+                )}
+              >
+                <SubmitButton variant="outline" pendingText="...">
+                  {project.check_previews
+                    ? "Désactiver la vérification des previews"
+                    : "Activer la vérification des previews"}
+                </SubmitButton>
+              </ActionForm>
+            </div>
+          </div>
+        )}
+        {!limits.deployHooks && (
           <p className="text-xs text-muted-foreground">
             Disponible à partir du plan Solo.{" "}
             <Link
@@ -451,6 +479,44 @@ export default async function ProjectSettingsPage({
           </p>
         )}
       </div>
+
+      {limits.stripeHealth && (
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <CreditCard className="size-3.5" aria-hidden="true" />
+            Stripe — URL de succès
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Utilisée par vos cibles &laquo; Stripe health &raquo; à la place de
+            leur propre URL — pratique si la page de succès change sans
+            toucher chaque cible. Laissez vide pour que chaque cible utilise
+            sa propre URL.
+          </p>
+          <ActionForm
+            action={updateStripeSuccessUrl.bind(null, project.id)}
+            className="flex items-end gap-2"
+          >
+            <div className="flex flex-1 flex-col gap-1">
+              <label
+                htmlFor="stripe-success-url"
+                className="text-xs text-muted-foreground"
+              >
+                URL de succès
+              </label>
+              <Input
+                id="stripe-success-url"
+                name="stripe_success_url"
+                type="url"
+                placeholder="https://exemple.com/merci"
+                defaultValue={project.stripe_success_url ?? ""}
+              />
+            </div>
+            <SubmitButton variant="outline" pendingText="...">
+              Enregistrer
+            </SubmitButton>
+          </ActionForm>
+        </div>
+      )}
 
       {isOwner && (
         <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
