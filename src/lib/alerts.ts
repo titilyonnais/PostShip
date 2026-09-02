@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import { buildAlertCopy, describeAlertItem } from "@/lib/alert-copy";
 import { isInQuietHours } from "@/lib/quiet-hours";
+import { sendOutboundWebhook } from "@/lib/outbound-webhook";
 
 const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
@@ -215,6 +216,8 @@ export async function dispatchAlerts(
     quiet_hours_start?: number | null;
     quiet_hours_end?: number | null;
     quiet_hours_tz?: string | null;
+    outbound_webhook_url?: string | null;
+    outbound_webhook_secret?: string | null;
   },
   items: AlertItem[],
   options?: { recordDedup?: boolean },
@@ -303,6 +306,38 @@ export async function dispatchAlerts(
       if (recordDedup) await recordAlertEvents(supabase, project.id, items, "telegram");
     } catch (err) {
       console.error("Échec envoi Telegram", err);
+    }
+  }
+
+  // D8 (drill-nav backlog): sent after every other channel, from the same
+  // already-filtered `items` — inherits project silence, quiet hours,
+  // confirm-after-N-fails, and per-URL silence for free. The payload has
+  // one event per delivery, so a batch mixing fails and recoveries (a
+  // project-wide run where one target broke while another recovered)
+  // becomes two deliveries, one per kind.
+  if (
+    project.ownerPlanAllowsChatWebhooks &&
+    project.outbound_webhook_url &&
+    project.outbound_webhook_secret
+  ) {
+    const byKind = new Map<AlertItem["kind"], AlertItem[]>();
+    for (const item of items) {
+      const bucket = byKind.get(item.kind) ?? [];
+      bucket.push(item);
+      byKind.set(item.kind, bucket);
+    }
+
+    for (const [kind, kindItems] of byKind) {
+      await sendOutboundWebhook(project.outbound_webhook_url, project.outbound_webhook_secret, {
+        event: kind,
+        projectId: project.id,
+        projectName: project.name,
+        items: kindItems.map((item) => ({
+          url: item.url,
+          httpStatus: item.httpStatus,
+          missing: item.missing ?? null,
+        })),
+      });
     }
   }
 }

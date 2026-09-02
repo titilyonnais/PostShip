@@ -171,7 +171,7 @@ export async function runOneTarget(targetId: string) {
   const { data: target } = await supabase
     .from("check_targets")
     .select(
-      "*, projects(id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, profiles(plan, email, email_alerts_enabled))",
+      "*, projects(id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_url, outbound_webhook_secret, profiles(plan, email, email_alerts_enabled))",
     )
     .eq("id", targetId)
     .single();
@@ -193,6 +193,8 @@ export async function runOneTarget(targetId: string) {
     quiet_hours_start: number | null;
     quiet_hours_end: number | null;
     quiet_hours_tz: string;
+    outbound_webhook_url: string | null;
+    outbound_webhook_secret: string | null;
     profiles: {
       plan: Plan;
       email: string | null;
@@ -268,6 +270,8 @@ export async function runOneTarget(targetId: string) {
         quiet_hours_start: project.quiet_hours_start,
         quiet_hours_end: project.quiet_hours_end,
         quiet_hours_tz: project.quiet_hours_tz,
+        outbound_webhook_url: project.outbound_webhook_url,
+        outbound_webhook_secret: project.outbound_webhook_secret,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
@@ -325,7 +329,7 @@ export async function runPreviewChecks(
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, quiet_hours_start, quiet_hours_end, quiet_hours_tz, profiles(plan, email, email_alerts_enabled)",
+      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_url, outbound_webhook_secret, profiles(plan, email, email_alerts_enabled)",
     )
     .eq("id", projectId)
     .single();
@@ -431,6 +435,8 @@ export async function runPreviewChecks(
         quiet_hours_start: project.quiet_hours_start,
         quiet_hours_end: project.quiet_hours_end,
         quiet_hours_tz: project.quiet_hours_tz,
+        outbound_webhook_url: project.outbound_webhook_url,
+        outbound_webhook_secret: project.outbound_webhook_secret,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
@@ -456,7 +462,7 @@ export async function runProjectChecks(
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, profiles(plan, email, email_alerts_enabled)",
+      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_url, outbound_webhook_secret, profiles(plan, email, email_alerts_enabled)",
     )
     .eq("id", projectId)
     .single();
@@ -574,6 +580,8 @@ export async function runProjectChecks(
         quiet_hours_start: project.quiet_hours_start,
         quiet_hours_end: project.quiet_hours_end,
         quiet_hours_tz: project.quiet_hours_tz,
+        outbound_webhook_url: project.outbound_webhook_url,
+        outbound_webhook_secret: project.outbound_webhook_secret,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,

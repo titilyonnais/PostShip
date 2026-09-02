@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -8,6 +9,8 @@ import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { applyMoneyPath } from "@/lib/money-path";
 import { runOneTarget, runProjectChecks } from "@/lib/runner";
 import { createServiceClient } from "@/lib/db/service";
+import { sendOutboundWebhook } from "@/lib/outbound-webhook";
+import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import type { ActionResult } from "@/lib/use-toast-action";
 import { assertRegisterableHttpsUrl } from "@/lib/validation";
 
@@ -912,4 +915,143 @@ export async function silenceTarget(
   return {
     success: silencedUntil ? `URL coupée pour ${hours}h.` : "URL reprise.",
   };
+}
+
+// D8 (drill-nav backlog): signed outbound webhook — same Solo+ gate and
+// Discord-style service-role write as the columns' own lockdown
+// (migration 0047). The URL itself isn't a secret (unlike Discord/Slack
+// webhook URLs, which embed a token), so it's shown back in the input
+// directly rather than masked — only the HMAC secret gets the "shown
+// once" treatment.
+async function assertOutboundWebhookAllowed(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string,
+): Promise<{ error: string } | { userId: string }> {
+  const { data: project } = await supabase
+    .from("projects")
+    .select("user_id")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) return { error: "Projet introuvable." };
+
+  const { data: ownerProfile } = await createServiceClient()
+    .from("profiles")
+    .select("plan")
+    .eq("id", project.user_id)
+    .single();
+
+  if (!getPlanLimits((ownerProfile?.plan as Plan) ?? "free").chatWebhooks) {
+    return { error: "Le webhook sortant n'est disponible qu'avec un plan payant." };
+  }
+
+  return { userId: project.user_id };
+}
+
+export async function setOutboundWebhookUrl(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const raw = formData.get("outbound_webhook_url");
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+
+  // The input never carries the existing URL back to the browser (masked
+  // placeholder instead, same convention as setChatWebhook above) — an
+  // empty submit means "left untouched." disableOutboundWebhook below is
+  // the explicit way to clear it.
+  if (!trimmed) return { success: "Aucun changement." };
+
+  const guard = await assertPublicHttpsUrl(trimmed);
+  if (!guard.ok) return { error: guard.reason };
+
+  const supabase = await createClient();
+  const gate = await assertOutboundWebhookAllowed(supabase, projectId);
+  if ("error" in gate) return gate;
+
+  const { error } = await createServiceClient()
+    .from("projects")
+    .update({ outbound_webhook_url: trimmed })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/integrations`);
+  return { success: "URL du webhook enregistrée." };
+}
+
+export async function disableOutboundWebhook(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!(await assertOwnsProject(supabase, projectId))) {
+    return { error: "Projet introuvable." };
+  }
+
+  const { error } = await createServiceClient()
+    .from("projects")
+    .update({ outbound_webhook_url: null, outbound_webhook_secret: null })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/integrations`);
+  return { success: "Webhook sortant désactivé." };
+}
+
+export type RegenerateSecretResult = ActionResult & { secret?: string };
+
+export async function regenerateOutboundWebhookSecret(
+  projectId: string,
+  _prevState: RegenerateSecretResult,
+): Promise<RegenerateSecretResult> {
+  const supabase = await createClient();
+  const gate = await assertOutboundWebhookAllowed(supabase, projectId);
+  if ("error" in gate) return gate;
+
+  const secret = randomBytes(32).toString("hex");
+
+  const { error } = await createServiceClient()
+    .from("projects")
+    .update({ outbound_webhook_secret: secret })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/integrations`);
+  return {
+    success: "Secret régénéré — copiez-le maintenant, il ne sera plus jamais affiché.",
+    secret,
+  };
+}
+
+export async function sendOutboundWebhookTest(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const gate = await assertOutboundWebhookAllowed(supabase, projectId);
+  if ("error" in gate) return gate;
+
+  const service = createServiceClient();
+  const { data: project } = await service
+    .from("projects")
+    .select("name, outbound_webhook_url, outbound_webhook_secret")
+    .eq("id", projectId)
+    .single();
+
+  if (!project?.outbound_webhook_url || !project?.outbound_webhook_secret) {
+    return { error: "Configurez d'abord l'URL et générez un secret." };
+  }
+
+  await sendOutboundWebhook(project.outbound_webhook_url, project.outbound_webhook_secret, {
+    event: "fail",
+    projectId,
+    projectName: project.name,
+    items: [{ url: "https://example.com", httpStatus: 500, missing: null }],
+    test: true,
+  });
+
+  return { success: "Test envoyé." };
 }

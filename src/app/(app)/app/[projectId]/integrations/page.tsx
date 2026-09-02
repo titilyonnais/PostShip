@@ -9,6 +9,7 @@ import { updateStripeSuccessUrl } from "../../actions";
 import { ChatWebhooksCard } from "../chat-webhooks-card";
 import { DeployHooksCard } from "../deploy-hooks-card";
 import { GithubCheckCard } from "../github-check-card";
+import { OutboundWebhookCard } from "../outbound-webhook-card";
 
 export const metadata = {
   title: "Intégrations",
@@ -48,6 +49,13 @@ export default async function IntegrationsPage({
         projectId={projectId}
         project={project}
         allowed={limits.deployHooks}
+        backTo={backTo}
+      />
+
+      <OutboundWebhookCard
+        projectId={projectId}
+        configured={!!project.outbound_webhook_configured}
+        allowed={limits.chatWebhooks}
         backTo={backTo}
       />
 
