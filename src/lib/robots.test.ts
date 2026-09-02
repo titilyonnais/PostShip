@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDisallowed, parseRobotsDisallow } from "./scan";
+import { isDisallowed, parseRobotsDisallow } from "./robots";
 
 describe("parseRobotsDisallow", () => {
   it("returns the wildcard group's rules when no specific UA group exists", () => {

@@ -1,3 +1,4 @@
+import type { FetchBudget } from "@/lib/budgets";
 import {
   computeFingerprint,
   guardedFetch,
@@ -13,6 +14,7 @@ export type StripeHealthCheckTarget = { url: string };
 // only; the webhook-route half needs a schema change to implement.
 export async function runStripeHealthCheck(
   target: StripeHealthCheckTarget,
+  budget?: FetchBudget,
 ): Promise<CheckResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -21,6 +23,7 @@ export async function runStripeHealthCheck(
   try {
     const result = await guardedFetch(target.url, {
       signal: controller.signal,
+      budget,
     });
 
     // Permanent implementation caveat (see the module comment above), not a

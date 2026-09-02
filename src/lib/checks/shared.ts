@@ -1,4 +1,9 @@
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
+import {
+  BUDGET_EXHAUSTED_MESSAGE,
+  tryConsumeBudget,
+  type FetchBudget,
+} from "@/lib/budgets";
 
 export type CheckResult = {
   outcome: "pass" | "fail" | "error";
@@ -42,12 +47,25 @@ export type GuardedFetchResult =
 // internal address and bypass the initial check entirely.
 export async function guardedFetch(
   initialUrl: string,
-  options: { signal: AbortSignal; method?: string },
+  options: { signal: AbortSignal; method?: string; budget?: FetchBudget },
 ): Promise<GuardedFetchResult> {
   let currentUrl = initialUrl;
   let redirects = 0;
 
   while (true) {
+    // Checked on every hop, not just the first — a redirect chain is
+    // several requests, not one, and each one counts against the tick's
+    // shared budget (see src/lib/budgets.ts). No budget (manual runs)
+    // means unbounded.
+    if (!tryConsumeBudget(options.budget)) {
+      return {
+        ok: false,
+        reason: BUDGET_EXHAUSTED_MESSAGE,
+        redirects,
+        httpStatus: null,
+      };
+    }
+
     const guard = await assertPublicHttpsUrl(currentUrl);
     if (!guard.ok) {
       return { ok: false, reason: guard.reason, redirects, httpStatus: null };

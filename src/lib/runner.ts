@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { FetchBudget } from "@/lib/budgets";
 import { createServiceClient } from "@/lib/db/service";
 import { runHttpCheck } from "@/lib/checks/http";
 import { runOgCheck } from "@/lib/checks/og";
@@ -35,24 +36,28 @@ async function runSingleTarget(
   projectId: string,
   target: CheckTargetRow,
   ownerPlan: Plan,
+  budget?: FetchBudget,
 ): Promise<SingleTargetResult> {
   const startedAt = new Date().toISOString();
 
   let result: CheckResult;
   switch (target.kind) {
     case "http":
-      result = await runHttpCheck({
-        url: target.url,
-        expect_status: target.expect_status,
-        expect_contains: target.expect_contains,
-        expect_not_contains: target.expect_not_contains,
-      });
+      result = await runHttpCheck(
+        {
+          url: target.url,
+          expect_status: target.expect_status,
+          expect_contains: target.expect_contains,
+          expect_not_contains: target.expect_not_contains,
+        },
+        budget,
+      );
       break;
     case "og":
-      result = await runOgCheck({ url: target.url });
+      result = await runOgCheck({ url: target.url }, budget);
       break;
     case "sitemap":
-      result = await runSitemapCheck({ url: target.url });
+      result = await runSitemapCheck({ url: target.url }, budget);
       break;
     case "ssl":
       result = await runSslCheck({ url: target.url });
@@ -69,7 +74,7 @@ async function runSingleTarget(
         };
         break;
       }
-      result = await runStripeHealthCheck({ url: target.url });
+      result = await runStripeHealthCheck({ url: target.url }, budget);
       break;
     }
     default: {
@@ -233,7 +238,7 @@ export async function runOneTarget(targetId: string) {
   return result;
 }
 
-export async function runProjectChecks(projectId: string) {
+export async function runProjectChecks(projectId: string, budget?: FetchBudget) {
   const supabase = createServiceClient();
 
   const { data: project } = await supabase
@@ -284,7 +289,7 @@ export async function runProjectChecks(projectId: string) {
   const results = await runWithConcurrencyLimit(
     (targets ?? []) as CheckTargetRow[],
     MAX_CONCURRENCY_PER_PROJECT,
-    (target) => runSingleTarget(supabase, projectId, target, ownerPlan),
+    (target) => runSingleTarget(supabase, projectId, target, ownerPlan, budget),
   );
 
   const alertItems: AlertItem[] = [];

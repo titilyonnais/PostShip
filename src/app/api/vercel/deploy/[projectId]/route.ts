@@ -33,7 +33,7 @@ export async function POST(
   const supabase = createServiceClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("id, vercel_hook_secret, profiles(plan)")
+    .select("id, base_url, vercel_hook_secret, profiles(plan)")
     .eq("id", projectId)
     .single();
 
@@ -48,6 +48,27 @@ export async function POST(
   const owner = project.profiles as unknown as { plan: Plan } | null;
   if (!getPlanLimits(owner?.plan ?? "free").deployHooks) {
     return NextResponse.json({ error: "Plan does not include this" }, { status: 403 });
+  }
+
+  // Same domain-ownership gate as the cron tick — a valid deploy-webhook
+  // signature only proves the caller knows the secret, not that the
+  // project's base_url actually belongs to them.
+  let host: string;
+  try {
+    host = new URL(project.base_url).hostname;
+  } catch {
+    return NextResponse.json({ error: "Invalid project base_url" }, { status: 500 });
+  }
+
+  const { data: verification } = await supabase
+    .from("domain_verifications")
+    .select("verified_at")
+    .eq("project_id", projectId)
+    .eq("host", host)
+    .maybeSingle();
+
+  if (!verification?.verified_at) {
+    return NextResponse.json({ skipped: "domain_not_verified" });
   }
 
   let event: { type?: string };

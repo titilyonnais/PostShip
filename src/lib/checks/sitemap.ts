@@ -1,3 +1,4 @@
+import type { FetchBudget } from "@/lib/budgets";
 import {
   computeFingerprint,
   guardedFetch,
@@ -23,6 +24,7 @@ function isSitemapIndex(xml: string): boolean {
 
 export async function runSitemapCheck(
   target: SitemapCheckTarget,
+  budget?: FetchBudget,
 ): Promise<CheckResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -31,6 +33,7 @@ export async function runSitemapCheck(
   try {
     const sitemapResult = await guardedFetch(target.url, {
       signal: controller.signal,
+      budget,
     });
 
     if (!sitemapResult.ok) {
@@ -72,6 +75,7 @@ export async function runSitemapCheck(
       for (const childUrl of childSitemapUrls) {
         const childResult = await guardedFetch(childUrl, {
           signal: controller.signal,
+          budget,
         });
         if (!childResult.ok) continue;
         const { text: childXml } = await readBodyCapped(
@@ -97,6 +101,7 @@ export async function runSitemapCheck(
       const urlResult = await guardedFetch(url, {
         signal: controller.signal,
         method: "HEAD",
+        budget,
       });
       if (!urlResult.ok || urlResult.response.status >= 400) {
         unreachable.push(url);

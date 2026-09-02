@@ -1,4 +1,5 @@
 import { parse as parseHtml } from "node-html-parser";
+import type { FetchBudget } from "@/lib/budgets";
 import {
   computeFingerprint,
   guardedFetch,
@@ -20,7 +21,10 @@ function metaContent(root: ReturnType<typeof parseHtml>, property: string) {
   );
 }
 
-export async function runOgCheck(target: OgCheckTarget): Promise<CheckResult> {
+export async function runOgCheck(
+  target: OgCheckTarget,
+  budget?: FetchBudget,
+): Promise<CheckResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const started = Date.now();
@@ -28,6 +32,7 @@ export async function runOgCheck(target: OgCheckTarget): Promise<CheckResult> {
   try {
     const pageResult = await guardedFetch(target.url, {
       signal: controller.signal,
+      budget,
     });
 
     if (!pageResult.ok) {
@@ -65,6 +70,7 @@ export async function runOgCheck(target: OgCheckTarget): Promise<CheckResult> {
       const imageResult = await guardedFetch(imageUrl, {
         signal: controller.signal,
         method: "HEAD",
+        budget,
       });
 
       if (!imageResult.ok) {

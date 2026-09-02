@@ -1,4 +1,5 @@
 import { parse as parseHtml } from "node-html-parser";
+import type { FetchBudget } from "@/lib/budgets";
 import {
   computeFingerprint,
   guardedFetch,
@@ -70,6 +71,7 @@ function extractHtmlMeta(html: string) {
 
 export async function runHttpCheck(
   target: HttpCheckTarget,
+  budget?: FetchBudget,
 ): Promise<CheckResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -78,6 +80,7 @@ export async function runHttpCheck(
   try {
     const fetchResult = await guardedFetch(target.url, {
       signal: controller.signal,
+      budget,
     });
 
     if (!fetchResult.ok) {
@@ -126,10 +129,15 @@ export async function runHttpCheck(
     const statusOk = response.status === target.expect_status;
     const outcome: "pass" | "fail" =
       statusOk && missing.length === 0 ? "pass" : "fail";
+    // No page-body excerpt persisted (see privacy §2 and migration
+    // POSTSHIP-CLAUDE-CODE-CHANGEMENTS.md C3) — a secret rendered on a
+    // page under monitoring (e.g. a login page config error) would
+    // otherwise sit in the database for the account's whole retention
+    // window. expect_contains/expect_not_contains are still evaluated
+    // above against bodyText in memory, just never written out.
     const details = {
       url: finalUrl,
       redirects,
-      bodyExcerpt: bodyText.slice(0, 500),
       bodyTruncated: truncated,
       missing,
       meta: htmlMeta?.meta ?? null,

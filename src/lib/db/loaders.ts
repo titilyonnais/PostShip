@@ -86,3 +86,16 @@ export const getProjectMembers = cache(async (projectId: string) => {
     .order("created_at");
   return data ?? [];
 });
+
+export const getDomainVerification = cache(
+  async (projectId: string, host: string) => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("domain_verifications")
+      .select("host, token, verified_at, method")
+      .eq("project_id", projectId)
+      .eq("host", host)
+      .maybeSingle();
+    return data;
+  },
+);

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BUDGET_EXHAUSTED_MESSAGE, createFetchBudget } from "@/lib/budgets";
 import { createServiceClient } from "@/lib/db/service";
 import { runWithConcurrencyLimit } from "@/lib/concurrency";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
@@ -19,6 +20,7 @@ const INTER_PROJECT_CONCURRENCY = 5;
 
 type DueProjectRow = {
   id: string;
+  base_url: string;
   last_checked_at: string | null;
   paused: boolean;
   profiles: { plan: Plan } | null;
@@ -69,34 +71,84 @@ export async function GET(request: Request) {
     return NextResponse.json({ skipped: "tick already in progress" });
   }
 
+  // One budget shared across every project this tick touches (see
+  // src/lib/budgets.ts) — a pathological due-project count, or a slow
+  // site-scan, must not turn a single invocation into an unbounded number
+  // of outbound requests. Manual, user-triggered runs never receive one.
+  const budget = createFetchBudget();
+
   try {
     const now = Date.now();
 
     const { data: projects, error } = await supabase
       .from("projects")
-      .select("id, last_checked_at, paused, profiles(plan)");
+      .select("id, base_url, last_checked_at, paused, profiles(plan)");
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const dueProjectIds = ((projects ?? []) as unknown as DueProjectRow[])
+    const dueProjects = ((projects ?? []) as unknown as DueProjectRow[])
       .filter((project) => !project.paused)
       .filter((project) => {
         const plan = project.profiles?.plan ?? "free";
         const intervalMs = getPlanLimits(plan).intervalMinutes * 60_000;
         if (!project.last_checked_at) return true;
         return now - new Date(project.last_checked_at).getTime() >= intervalMs;
-      })
-      .map((project) => project.id);
+      });
 
-    if (dueProjectIds.length === 0) {
+    if (dueProjects.length === 0) {
       try {
-        await advanceSiteScans();
+        await advanceSiteScans(budget);
       } catch (err) {
         console.error("Échec avancement scan de site", err);
       }
-      return NextResponse.json({ checked: 0, failed: 0 });
+      return NextResponse.json({ checked: 0, failed: 0, skippedUnverified: 0 });
+    }
+
+    // Cron only runs projects whose base_url host has proven ownership
+    // (see src/lib/domain-verify.ts) — anyone could otherwise point a
+    // project at a domain they don't control and use PostShip's
+    // infrastructure as a free, scheduled HTTP client against it. Manual
+    // "Lancer maintenant" runs are exempt (the user is authenticated and
+    // already rate-limited by its own cooldown).
+    const { data: verifications } = await supabase
+      .from("domain_verifications")
+      .select("project_id, host")
+      .in(
+        "project_id",
+        dueProjects.map((p) => p.id),
+      )
+      .not("verified_at", "is", null);
+
+    const verifiedProjectIds = new Set(
+      dueProjects
+        .filter((project) => {
+          let host: string;
+          try {
+            host = new URL(project.base_url).hostname;
+          } catch {
+            return false;
+          }
+          return (verifications ?? []).some(
+            (v) => v.project_id === project.id && v.host === host,
+          );
+        })
+        .map((p) => p.id),
+    );
+
+    const skippedUnverified = dueProjects.length - verifiedProjectIds.size;
+    const dueProjectIds = dueProjects
+      .filter((p) => verifiedProjectIds.has(p.id))
+      .map((p) => p.id);
+
+    if (dueProjectIds.length === 0) {
+      try {
+        await advanceSiteScans(budget);
+      } catch (err) {
+        console.error("Échec avancement scan de site", err);
+      }
+      return NextResponse.json({ checked: 0, failed: 0, skippedUnverified });
     }
 
     const { data: jobs, error: jobsError } = await supabase
@@ -123,13 +175,32 @@ export async function GET(request: Request) {
     // covering 20 projects at up to a few seconds each was easily blowing
     // past maxDuration run one at a time.
     await runWithConcurrencyLimit(jobs, INTER_PROJECT_CONCURRENCY, async (job) => {
+      // Checked before even starting the job, not just inside the fetches
+      // themselves — once the tick's shared budget is gone, remaining jobs
+      // are marked done-with-error immediately rather than each one
+      // starting, immediately hitting the exhausted budget on its first
+      // fetch, and still paying for the job bookkeeping round-trips.
+      if (budget.remaining <= 0) {
+        failed += 1;
+        await supabase
+          .from("check_jobs")
+          .update({
+            status: "error",
+            started_at: new Date().toISOString(),
+            finished_at: new Date().toISOString(),
+            error: BUDGET_EXHAUSTED_MESSAGE,
+          })
+          .eq("id", job.id);
+        return;
+      }
+
       await supabase
         .from("check_jobs")
         .update({ status: "running", started_at: new Date().toISOString() })
         .eq("id", job.id);
 
       try {
-        await runProjectChecks(job.project_id);
+        await runProjectChecks(job.project_id, budget);
         await supabase
           .from("check_jobs")
           .update({ status: "done", finished_at: new Date().toISOString() })
@@ -148,12 +219,12 @@ export async function GET(request: Request) {
     });
 
     try {
-      await advanceSiteScans();
+      await advanceSiteScans(budget);
     } catch (err) {
       console.error("Échec avancement scan de site", err);
     }
 
-    return NextResponse.json({ checked: jobs.length, failed });
+    return NextResponse.json({ checked: jobs.length, failed, skippedUnverified });
   } finally {
     await releaseLock(supabase);
   }

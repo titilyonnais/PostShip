@@ -1,4 +1,5 @@
 import { parse as parseHtml } from "node-html-parser";
+import type { FetchBudget } from "@/lib/budgets";
 import { createServiceClient } from "@/lib/db/service";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import {
@@ -8,6 +9,7 @@ import {
   TIMEOUT_MS,
 } from "@/lib/checks/shared";
 import { runWithConcurrencyLimit } from "@/lib/concurrency";
+import { fetchRobotsDisallowRules, isDisallowed } from "@/lib/robots";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -27,7 +29,6 @@ const CONCURRENCY = 3;
 // scan itself.
 const MAX_DISCOVERY_FETCHES = 50;
 const MAX_CHILD_SITEMAPS = 3;
-const ROBOTS_USER_AGENT = "postshipbot";
 
 function extractLocUrls(xml: string): string[] {
   const matches = xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi);
@@ -42,54 +43,11 @@ function sameOrigin(a: URL, b: URL): boolean {
   return a.hostname === b.hostname;
 }
 
-// Deliberately simplified: groups by exact User-agent token match (our own
-// "PostShipBot" first, falling back to "*"), Disallow as a plain path
-// prefix. No Allow-rule precedence, no wildcard/$ patterns — covers the
-// overwhelming majority of real-world robots.txt files without pulling in
-// a parser dependency for a courtesy check, not a strict-compliance one.
-export function parseRobotsDisallow(text: string, userAgent: string): string[] {
-  type Group = { agents: string[]; disallow: string[] };
-  const groups: Group[] = [];
-  let current: Group | null = null;
-  let sawDirectiveSinceLastAgent = false;
-
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.split("#")[0].trim();
-    const idx = line.indexOf(":");
-    if (idx === -1) continue;
-    const key = line.slice(0, idx).trim().toLowerCase();
-    const value = line.slice(idx + 1).trim();
-
-    if (key === "user-agent") {
-      if (!current || sawDirectiveSinceLastAgent) {
-        current = { agents: [], disallow: [] };
-        groups.push(current);
-        sawDirectiveSinceLastAgent = false;
-      }
-      current.agents.push(value.toLowerCase());
-    } else if (key === "disallow" && current) {
-      sawDirectiveSinceLastAgent = true;
-      if (value) current.disallow.push(value);
-    } else if (current) {
-      sawDirectiveSinceLastAgent = true;
-    }
-  }
-
-  const uaLower = userAgent.toLowerCase();
-  const specific = groups.find((g) => g.agents.includes(uaLower));
-  const wildcard = groups.find((g) => g.agents.includes("*"));
-  return (specific ?? wildcard)?.disallow ?? [];
-}
-
-export function isDisallowed(pathname: string, disallowRules: string[]): boolean {
-  return disallowRules.some((rule) => rule !== "" && pathname.startsWith(rule));
-}
-
-async function fetchText(url: string): Promise<string | null> {
+async function fetchText(url: string, budget?: FetchBudget): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await guardedFetch(url, { signal: controller.signal });
+    const res = await guardedFetch(url, { signal: controller.signal, budget });
     if (!res.ok) return null;
     const { text } = await readBodyCapped(res.response, MAX_BODY_BYTES);
     return text;
@@ -98,15 +56,6 @@ async function fetchText(url: string): Promise<string | null> {
   } finally {
     clearTimeout(timeout);
   }
-}
-
-async function fetchRobotsDisallowRules(origin: string): Promise<string[]> {
-  const robotsUrl = `${origin}/robots.txt`;
-  const guard = await assertPublicHttpsUrl(robotsUrl);
-  if (!guard.ok) return [];
-  const text = await fetchText(robotsUrl);
-  if (!text) return [];
-  return parseRobotsDisallow(text, ROBOTS_USER_AGENT);
 }
 
 function extractPageLinks(html: string, base: URL): string[] {
@@ -126,12 +75,12 @@ function extractPageLinks(html: string, base: URL): string[] {
   return links;
 }
 
-async function collectSitemapUrls(seed: URL): Promise<string[]> {
+async function collectSitemapUrls(seed: URL, budget?: FetchBudget): Promise<string[]> {
   const sitemapUrl = `${seed.origin}/sitemap.xml`;
   const guard = await assertPublicHttpsUrl(sitemapUrl);
   if (!guard.ok) return [];
 
-  const xml = await fetchText(sitemapUrl);
+  const xml = await fetchText(sitemapUrl, budget);
   if (!xml) return [];
 
   let locs = extractLocUrls(xml);
@@ -145,7 +94,7 @@ async function collectSitemapUrls(seed: URL): Promise<string[]> {
     for (const childUrl of locs.slice(0, MAX_CHILD_SITEMAPS)) {
       const childGuard = await assertPublicHttpsUrl(childUrl);
       if (!childGuard.ok) continue;
-      const childXml = await fetchText(childUrl);
+      const childXml = await fetchText(childUrl, budget);
       if (childXml) pageUrls.push(...extractLocUrls(childXml));
     }
     locs = pageUrls;
@@ -161,17 +110,21 @@ async function collectSitemapUrls(seed: URL): Promise<string[]> {
 // links — bounded by MAX_DISCOVERY_FETCHES regardless of `cap` so a large
 // site can't turn discovery into unbounded free crawling. Pages disallowed
 // for our own user-agent in robots.txt are never fetched or added.
-async function discoverUrls(seedUrl: string, cap: number): Promise<string[]> {
+async function discoverUrls(
+  seedUrl: string,
+  cap: number,
+  budget?: FetchBudget,
+): Promise<string[]> {
   const seed = new URL(seedUrl);
   const discovered = new Set<string>([seed.toString()]);
 
-  const disallowRules = await fetchRobotsDisallowRules(seed.origin);
+  const disallowRules = await fetchRobotsDisallowRules(seed.origin, budget);
   const isAllowed = (u: URL) =>
     sameOrigin(u, seed) &&
     u.protocol === "https:" &&
     !isDisallowed(u.pathname, disallowRules);
 
-  for (const loc of await collectSitemapUrls(seed)) {
+  for (const loc of await collectSitemapUrls(seed, budget)) {
     if (discovered.size >= cap) break;
     try {
       const u = new URL(loc);
@@ -192,7 +145,7 @@ async function discoverUrls(seedUrl: string, cap: number): Promise<string[]> {
       if (isDisallowed(pageUrlObj.pathname, disallowRules)) continue;
 
       fetches += 1;
-      const html = await fetchText(pageUrl);
+      const html = await fetchText(pageUrl, budget);
       if (!html) continue;
 
       discovered.add(pageUrl);
@@ -263,6 +216,7 @@ export async function createSiteScan(params: {
 async function discoverScan(
   supabase: ServiceClient,
   scan: { id: string; user_id: string; seed_url: string },
+  budget?: FetchBudget,
 ) {
   const { data: profile } = await supabase
     .from("profiles")
@@ -287,7 +241,7 @@ async function discoverScan(
     return;
   }
 
-  const urls = await discoverUrls(scan.seed_url, cap);
+  const urls = await discoverUrls(scan.seed_url, cap, budget);
 
   if (urls.length === 0) {
     await supabase
@@ -314,6 +268,7 @@ async function discoverScan(
 async function processBatch(
   supabase: ServiceClient,
   scan: { id: string; user_id: string },
+  budget?: FetchBudget,
 ) {
   const { data: pending } = await supabase
     .from("site_scan_pages")
@@ -330,6 +285,20 @@ async function processBatch(
     return;
   }
 
+  // Discovery already filters robots.txt-disallowed URLs before adding them
+  // (see discoverUrls), but a scan can span many cron ticks over a long
+  // time — re-checking here catches a robots.txt that changed after
+  // discovery, at the cost of one extra fetch per distinct host in this
+  // batch (cached per call, not across batches).
+  const robotsCache = new Map<string, string[]>();
+  async function disallowRulesFor(origin: string): Promise<string[]> {
+    const cached = robotsCache.get(origin);
+    if (cached) return cached;
+    const rules = await fetchRobotsDisallowRules(origin, budget);
+    robotsCache.set(origin, rules);
+    return rules;
+  }
+
   const results = await runWithConcurrencyLimit(
     pending,
     CONCURRENCY,
@@ -338,7 +307,31 @@ async function processBatch(
       const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
       const started = Date.now();
       try {
-        const res = await guardedFetch(page.url, { signal: controller.signal });
+        let pageUrl: URL;
+        try {
+          pageUrl = new URL(page.url);
+        } catch {
+          return {
+            id: page.id,
+            outcome: "error" as const,
+            http_status: null,
+            ttfb_ms: null,
+            error: "URL invalide.",
+          };
+        }
+
+        const disallowRules = await disallowRulesFor(pageUrl.origin);
+        if (isDisallowed(pageUrl.pathname, disallowRules)) {
+          return {
+            id: page.id,
+            outcome: "error" as const,
+            http_status: null,
+            ttfb_ms: null,
+            error: "robots_disallow",
+          };
+        }
+
+        const res = await guardedFetch(page.url, { signal: controller.signal, budget });
         if (!res.ok) {
           return {
             id: page.id,
@@ -438,7 +431,7 @@ const MAX_BATCHES_PER_TICK = 4;
 // in the same invocation — waiting a full external-cron cycle just to start
 // checking pages was the main source of "why is this stuck" complaints for
 // small scans.
-export async function advanceSiteScans(): Promise<void> {
+export async function advanceSiteScans(budget?: FetchBudget): Promise<void> {
   const supabase = createServiceClient();
 
   const { data: queued } = await supabase
@@ -450,7 +443,7 @@ export async function advanceSiteScans(): Promise<void> {
     .maybeSingle();
 
   if (queued) {
-    await discoverScan(supabase, queued);
+    await discoverScan(supabase, queued, budget);
   }
 
   const { data: running } = await supabase
@@ -472,6 +465,6 @@ export async function advanceSiteScans(): Promise<void> {
 
     if (!pending) break;
 
-    await processBatch(supabase, running);
+    await processBatch(supabase, running, budget);
   }
 }

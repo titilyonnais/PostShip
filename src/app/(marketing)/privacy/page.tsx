@@ -55,7 +55,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             Résultats de vérification : statut HTTP, temps de réponse,
-            extrait de la réponse (512 Ko maximum), horodatage
+            métadonnées HTML (titre, canonical, présence de JSON-LD),
+            horodatage — aucun corps de page n&apos;est conservé
           </li>
           <li>
             Techniques : adresse IP au moment de la connexion, cookie de
