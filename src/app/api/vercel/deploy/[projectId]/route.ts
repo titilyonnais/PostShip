@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { describeAlertItem } from "@/lib/alert-copy";
 import { createServiceClient } from "@/lib/db/service";
+import { recordDeployEvent } from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { postGithubCheckRun } from "@/lib/github-check";
 import { runPreviewChecks, runProjectChecks } from "@/lib/runner";
@@ -119,6 +120,16 @@ export async function POST(
 
     try {
       const result = await runPreviewChecks(projectId, deploymentUrl);
+      await recordDeployEvent(supabase, {
+        projectId,
+        provider: "vercel",
+        kind: "preview",
+        sha: event.payload?.deployment?.meta?.githubCommitSha ?? null,
+        deploymentUrl: `https://${deploymentUrl}`,
+        outcome:
+          result.ranTargets === 0 ? null : result.failedTargets === 0 ? "pass" : "fail",
+        failCount: result.failedTargets,
+      });
       return NextResponse.json({ triggered: true, preview: true, ...result });
     } catch (err) {
       return NextResponse.json(
@@ -141,6 +152,23 @@ export async function POST(
       { status: 500 },
     );
   }
+
+  await recordDeployEvent(supabase, {
+    projectId,
+    provider: "vercel",
+    kind: "production",
+    sha: event.payload?.deployment?.meta?.githubCommitSha ?? null,
+    deploymentUrl: event.payload?.deployment?.url
+      ? `https://${event.payload.deployment.url}`
+      : null,
+    outcome:
+      results.length === 0
+        ? null
+        : results.every((r) => r.outcome === "pass")
+          ? "pass"
+          : "fail",
+    failCount: results.filter((r) => r.outcome !== "pass").length,
+  });
 
   // Opt-in, and only when this specific webhook exposes a commit SHA — no
   // GitHub App, a fine-grained PAT (checks:write) the user pastes once.

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
+import { recordDeployEvent } from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runProjectChecks } from "@/lib/runner";
 
@@ -48,8 +49,9 @@ export async function POST(
   // scoped to "Pages Deployment Success" specifically at setup time on
   // Cloudflare's side, so an authenticated delivery here already IS that
   // event.
+  let results: Awaited<ReturnType<typeof runProjectChecks>>;
   try {
-    await runProjectChecks(
+    results = await runProjectChecks(
       projectId,
       undefined,
       `deploy Cloudflare Pages ${new Date().toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" })}`,
@@ -60,6 +62,21 @@ export async function POST(
       { status: 500 },
     );
   }
+
+  await recordDeployEvent(supabase, {
+    projectId,
+    provider: "cloudflare",
+    kind: "production",
+    sha: null,
+    deploymentUrl: null,
+    outcome:
+      results.length === 0
+        ? null
+        : results.every((r) => r.outcome === "pass")
+          ? "pass"
+          : "fail",
+    failCount: results.filter((r) => r.outcome !== "pass").length,
+  });
 
   return NextResponse.json({ triggered: true });
 }

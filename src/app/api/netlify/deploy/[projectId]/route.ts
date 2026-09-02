@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
+import { recordDeployEvent } from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { isValidNetlifySignature } from "@/lib/netlify-webhook";
 import { runProjectChecks } from "@/lib/runner";
@@ -36,8 +37,9 @@ export async function POST(
   // by event.type below there), Netlify's notification is created against
   // one specific trigger event ("Deploy succeeded") at setup time — a
   // validly-signed request here already IS that event by construction.
+  let results: Awaited<ReturnType<typeof runProjectChecks>>;
   try {
-    await runProjectChecks(
+    results = await runProjectChecks(
       projectId,
       undefined,
       `deploy Netlify ${new Date().toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" })}`,
@@ -48,6 +50,21 @@ export async function POST(
       { status: 500 },
     );
   }
+
+  await recordDeployEvent(supabase, {
+    projectId,
+    provider: "netlify",
+    kind: "production",
+    sha: null,
+    deploymentUrl: null,
+    outcome:
+      results.length === 0
+        ? null
+        : results.every((r) => r.outcome === "pass")
+          ? "pass"
+          : "fail",
+    failCount: results.filter((r) => r.outcome !== "pass").length,
+  });
 
   return NextResponse.json({ triggered: true });
 }
