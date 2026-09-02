@@ -96,7 +96,9 @@ const COMMAND_NAMES = ["/status", "/check", "/uptime", "/ssl", "/help"] as const
 export type BotCommand = (typeof COMMAND_NAMES)[number];
 
 export function parseBotCommand(text: string): BotCommand {
-  const trimmed = text.trim().split(/\s/)[0]?.toLowerCase();
+  // Telegram appends "@BotName" to commands in group chats
+  // ("/status@MyBot") — strip it before matching.
+  const trimmed = text.trim().split(/\s/)[0]?.split("@")[0]?.toLowerCase();
   return (COMMAND_NAMES as readonly string[]).includes(trimmed)
     ? (trimmed as BotCommand)
     : "/help";

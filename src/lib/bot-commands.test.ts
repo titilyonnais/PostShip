@@ -50,6 +50,11 @@ describe("parseBotCommand", () => {
     expect(parseBotCommand("/unknown")).toBe("/help");
     expect(parseBotCommand("")).toBe("/help");
   });
+
+  it("strips the @BotName suffix Telegram appends in group chats", () => {
+    expect(parseBotCommand("/status@MonBot")).toBe("/status");
+    expect(parseBotCommand("/check@MonBot arg")).toBe("/check");
+  });
 });
 
 describe("runBotCommand", () => {

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { ChevronDown, Menu, Plus, X } from "lucide-react";
+import { ChevronDown, Menu, Plus, X, type LucideIcon } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { statusDotClass } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/app/(app)/actions";
-import { ACCOUNT_NAV, PROJECT_NAV, RESERVED_APP_SEGMENTS } from "./nav-config";
+import {
+  ACCOUNT_DANGER_ITEM,
+  ACCOUNT_NAV_GROUPS,
+  PROJECT_NAV_GROUPS,
+  RESERVED_APP_SEGMENTS,
+  type AccountNavItem,
+  type NavItem,
+} from "./nav-config";
 
 type Project = {
   id: string;
@@ -45,6 +52,52 @@ function useActiveProject(projects: Project[]) {
   }, [pathname, projects]);
 }
 
+function NavLink({
+  href,
+  label,
+  Icon,
+  isActive,
+  badge,
+  onNavigate,
+}: {
+  href: string;
+  label: string;
+  Icon: LucideIcon;
+  isActive: boolean;
+  badge?: number;
+  onNavigate?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+        isActive
+          ? "bg-secondary font-medium text-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {!!badge && (
+        <span className="shrink-0 rounded-full bg-destructive px-1.5 py-0.5 text-[0.65rem] font-medium leading-none text-white">
+          {badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function NavGroupLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-2.5 text-[0.65rem] font-medium tracking-wide text-muted-foreground/70 uppercase">
+      {children}
+    </p>
+  );
+}
+
 function SidebarContent({
   projects,
   profile,
@@ -70,46 +123,39 @@ function SidebarContent({
 
       <nav className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-hidden overflow-y-auto px-3 pb-4">
         {activeProject ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-5">
             <ProjectSwitcher
               projects={projects}
               activeProject={activeProject}
               onNavigate={onNavigate}
             />
-            <div className="flex flex-col gap-0.5">
-              {PROJECT_NAV.map((item) => {
-                const isActive = item.segment
-                  ? subSegment === item.segment
-                  : !subSegment;
-                const Icon = item.icon;
-                const incidentCount =
-                  item.segment === "incidents"
-                    ? (openIncidentCounts[activeProject.id] ?? 0)
-                    : 0;
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href(activeProject.id)}
-                    onClick={onNavigate}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
-                      isActive
-                        ? "bg-secondary font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    {incidentCount > 0 && (
-                      <span className="shrink-0 rounded-full bg-destructive px-1.5 py-0.5 text-[0.65rem] font-medium leading-none text-white">
-                        {incidentCount}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
+            {PROJECT_NAV_GROUPS.map((group) => (
+              <div key={group.label} className="flex flex-col gap-1">
+                <NavGroupLabel>{group.label}</NavGroupLabel>
+                <div className="flex flex-col gap-0.5">
+                  {group.items.map((item: NavItem) => {
+                    const isActive = item.segment
+                      ? subSegment === item.segment
+                      : !subSegment;
+                    const incidentCount =
+                      item.segment === "incidents"
+                        ? (openIncidentCounts[activeProject.id] ?? 0)
+                        : 0;
+                    return (
+                      <NavLink
+                        key={item.label}
+                        href={item.href(activeProject.id)}
+                        label={item.label}
+                        Icon={item.icon}
+                        isActive={isActive}
+                        badge={incidentCount}
+                        onNavigate={onNavigate}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -151,36 +197,36 @@ function SidebarContent({
           </div>
         )}
 
-        <div className="flex flex-col gap-2">
-          <p className="px-2.5 text-[0.65rem] font-medium tracking-wide text-muted-foreground/70 uppercase">
-            Compte
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {ACCOUNT_NAV.map((item) => {
-              const isActive =
-                item.href === "/app/account"
-                  ? pathname === "/app/account"
-                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
-              const Icon = item.icon;
-              return (
-                <Link
+        {ACCOUNT_NAV_GROUPS.map((group) => (
+          <div key={group.label} className="flex flex-col gap-1">
+            <NavGroupLabel>{group.label}</NavGroupLabel>
+            <div className="flex flex-col gap-0.5">
+              {group.items.map((item: AccountNavItem) => (
+                <NavLink
                   key={item.href}
                   href={item.href}
-                  onClick={onNavigate}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(
-                    "flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
-                    isActive
-                      ? "bg-secondary font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  <Icon className="size-4 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
+                  label={item.label}
+                  Icon={item.icon}
+                  isActive={
+                    item.href === "/app/account"
+                      ? pathname === "/app/account"
+                      : pathname === item.href || pathname.startsWith(`${item.href}/`)
+                  }
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
           </div>
+        ))}
+
+        <div className="flex flex-col gap-0.5">
+          <NavLink
+            href={ACCOUNT_DANGER_ITEM.href}
+            label={ACCOUNT_DANGER_ITEM.label}
+            Icon={ACCOUNT_DANGER_ITEM.icon}
+            isActive={pathname === ACCOUNT_DANGER_ITEM.href}
+            onNavigate={onNavigate}
+          />
         </div>
       </nav>
 
