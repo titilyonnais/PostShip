@@ -48,10 +48,12 @@ function useActiveProject(projects: Project[]) {
 function SidebarContent({
   projects,
   profile,
+  openIncidentCounts,
   onNavigate,
 }: {
   projects: Project[];
   profile: Profile;
+  openIncidentCounts: Record<string, number>;
   onNavigate?: () => void;
 }) {
   const { project: activeProject, subSegment, pathname } = useActiveProject(projects);
@@ -80,6 +82,10 @@ function SidebarContent({
                   ? subSegment === item.segment
                   : !subSegment;
                 const Icon = item.icon;
+                const incidentCount =
+                  item.segment === "incidents"
+                    ? (openIncidentCounts[activeProject.id] ?? 0)
+                    : 0;
                 return (
                   <Link
                     key={item.label}
@@ -94,7 +100,12 @@ function SidebarContent({
                     )}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{item.label}</span>
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    {incidentCount > 0 && (
+                      <span className="shrink-0 rounded-full bg-destructive px-1.5 py-0.5 text-[0.65rem] font-medium leading-none text-white">
+                        {incidentCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -292,16 +303,22 @@ function ProjectSwitcher({
 export function AppSidebar({
   projects,
   profile,
+  openIncidentCounts = {},
 }: {
   projects: Project[];
   profile: Profile;
+  openIncidentCounts?: Record<string, number>;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 overflow-hidden border-r border-border bg-card md:flex">
-        <SidebarContent projects={projects} profile={profile} />
+        <SidebarContent
+          projects={projects}
+          profile={profile}
+          openIncidentCounts={openIncidentCounts}
+        />
       </aside>
 
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:hidden">
@@ -339,6 +356,7 @@ export function AppSidebar({
               <SidebarContent
                 projects={projects}
                 profile={profile}
+                openIncidentCounts={openIncidentCounts}
                 onNavigate={() => setMobileOpen(false)}
               />
             </div>

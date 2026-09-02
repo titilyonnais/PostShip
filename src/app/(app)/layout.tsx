@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { avatarUrl } from "@/lib/avatar";
-import { getAuthUser, getProfile, getUserProjects } from "@/lib/db/loaders";
+import {
+  getAuthUser,
+  getOpenIncidentCounts,
+  getProfile,
+  getUserProjects,
+} from "@/lib/db/loaders";
 
 export default async function AppLayout({
   children,
@@ -11,9 +16,10 @@ export default async function AppLayout({
   const user = await getAuthUser();
   if (!user) redirect("/login");
 
-  const [profile, projects] = await Promise.all([
+  const [profile, projects, openIncidentCounts] = await Promise.all([
     getProfile(user.id),
     getUserProjects(),
+    getOpenIncidentCounts(),
   ]);
 
   return (
@@ -27,6 +33,7 @@ export default async function AppLayout({
 
       <AppSidebar
         projects={projects}
+        openIncidentCounts={openIncidentCounts}
         profile={{
           displayName:
             profile?.username || profile?.display_name || user.email || "Compte",

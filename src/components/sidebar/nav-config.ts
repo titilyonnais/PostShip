@@ -2,13 +2,17 @@ import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   Bell,
+  Bot,
   CreditCard,
   Gauge,
+  HeartPulse,
   LayoutDashboard,
   Receipt,
+  Rocket,
   ScanSearch,
   Settings,
   ShieldCheck,
+  Siren,
   Coins,
   User,
 } from "lucide-react";
@@ -27,6 +31,30 @@ export const PROJECT_NAV: NavItem[] = [
     label: "Aperçu",
     href: (id) => `/app/${id}`,
     icon: LayoutDashboard,
+  },
+  {
+    label: "Incidents",
+    href: (id) => `/app/${id}/incidents`,
+    icon: Siren,
+    segment: "incidents",
+  },
+  {
+    label: "Déplois",
+    href: (id) => `/app/${id}/deploys`,
+    icon: Rocket,
+    segment: "deploys",
+  },
+  {
+    label: "Bot",
+    href: (id) => `/app/${id}/bot`,
+    icon: Bot,
+    segment: "bot",
+  },
+  {
+    label: "Santé",
+    href: (id) => `/app/${id}/health`,
+    icon: HeartPulse,
+    segment: "health",
   },
   {
     label: "Scans",

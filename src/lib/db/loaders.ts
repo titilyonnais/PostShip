@@ -38,6 +38,25 @@ export const getUserProjects = cache(async () => {
   return data ?? [];
 });
 
+// Sidebar "Incidents" nav badge (M1, menu backlog) — one row per open
+// target across every project the user can see, grouped client-side
+// since PostgREST doesn't do group-by counts. Cheap: at most a handful of
+// projects/targets per user at this product's scale.
+export const getOpenIncidentCounts = cache(async () => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("check_targets")
+    .select("project_id, last_outcome")
+    .eq("enabled", true)
+    .in("last_outcome", ["fail", "error"]);
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    counts[row.project_id] = (counts[row.project_id] ?? 0) + 1;
+  }
+  return counts;
+});
+
 // A project's plan-gated features (interval, Discord/Slack, deploy hooks,
 // collaborators) are governed by its OWNER's plan, not whoever happens to
 // be viewing it — a Team-plan owner's collaborator can be on the Free
