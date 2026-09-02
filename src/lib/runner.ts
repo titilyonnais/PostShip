@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FetchBudget } from "@/lib/budgets";
 import { createServiceClient } from "@/lib/db/service";
-import { runHttpCheck } from "@/lib/checks/http";
+import { runHttpCheck, type MoneyPathAssertions } from "@/lib/checks/http";
 import { runOgCheck } from "@/lib/checks/og";
 import { runSitemapCheck } from "@/lib/checks/sitemap";
 import { runSslCheck } from "@/lib/checks/ssl";
@@ -20,6 +20,7 @@ type CheckTargetRow = {
   expect_status: number;
   expect_contains: string | null;
   expect_not_contains: string | null;
+  assertions?: MoneyPathAssertions | null;
   last_outcome?: "pass" | "fail" | "error" | null;
 };
 
@@ -51,8 +52,10 @@ async function runSingleTarget(
           expect_status: target.expect_status,
           expect_contains: target.expect_contains,
           expect_not_contains: target.expect_not_contains,
+          assertions: target.assertions,
         },
         budget,
+        true,
       );
       break;
     case "og":
@@ -310,12 +313,17 @@ export async function runPreviewChecks(
     let result: CheckResult;
     switch (target.kind) {
       case "http":
-        result = await runHttpCheck({
-          url: previewUrl,
-          expect_status: target.expect_status,
-          expect_contains: target.expect_contains,
-          expect_not_contains: target.expect_not_contains,
-        });
+        result = await runHttpCheck(
+          {
+            url: previewUrl,
+            expect_status: target.expect_status,
+            expect_contains: target.expect_contains,
+            expect_not_contains: target.expect_not_contains,
+            assertions: target.assertions,
+          },
+          undefined,
+          true,
+        );
         break;
       case "og":
         result = await runOgCheck({ url: previewUrl });

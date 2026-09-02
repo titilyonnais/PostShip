@@ -1,5 +1,6 @@
 import { parse as parseHtml } from "node-html-parser";
 import type { FetchBudget } from "@/lib/budgets";
+import { checkAssets, type BrokenAsset } from "@/lib/checks/assets";
 import {
   computeFingerprint,
   guardedFetch,
@@ -9,12 +10,64 @@ import {
   type CheckResult,
 } from "@/lib/checks/shared";
 
+export type MoneyPathAssertions = {
+  requireStripeJs?: boolean;
+  requireEmailOrPasswordInput?: boolean;
+  requirePriceToken?: string;
+};
+
 export type HttpCheckTarget = {
   url: string;
   expect_status: number;
   expect_contains: string | null;
   expect_not_contains: string | null;
+  assertions?: MoneyPathAssertions | null;
 };
+
+const AUTH_LINK_PATTERN = /google|github|connexion|se connecter|log in|sign in/i;
+
+// "Money path" structural assertions (F2, features backlog) — not a new
+// check kind, just optional extra assertions on an ordinary http target
+// (pricing/login/checkout pages), stored as JSON on check_targets.
+function evaluateMoneyPathAssertions(
+  bodyText: string,
+  assertions: MoneyPathAssertions,
+): string[] {
+  const missing: string[] = [];
+
+  if (assertions.requireStripeJs && !bodyText.includes("js.stripe.com")) {
+    missing.push("stripe_js");
+  }
+
+  if (assertions.requireEmailOrPasswordInput) {
+    let root: ReturnType<typeof parseHtml> | null = null;
+    try {
+      root = parseHtml(bodyText);
+    } catch {
+      root = null;
+    }
+
+    const hasAuthInput =
+      root?.querySelector('input[type="email" i], input[type="password" i]') !=
+      null;
+    const hasAuthLink =
+      root != null &&
+      [...root.querySelectorAll("a"), ...root.querySelectorAll("button")].some(
+        (el) => AUTH_LINK_PATTERN.test(el.text ?? ""),
+      );
+
+    if (!hasAuthInput && !hasAuthLink) missing.push("login_form");
+  }
+
+  if (
+    assertions.requirePriceToken &&
+    !bodyText.includes(assertions.requirePriceToken)
+  ) {
+    missing.push("price_token");
+  }
+
+  return missing;
+}
 
 // title/description/canonical are informational only — plenty of
 // legitimate pages skip them, so their absence alone must not flip the
@@ -72,6 +125,10 @@ function extractHtmlMeta(html: string) {
 export async function runHttpCheck(
   target: HttpCheckTarget,
   budget?: FetchBudget,
+  // Only the authenticated runner (runner.ts) passes true — the public
+  // demo check must never trigger up to 15 extra outbound requests per
+  // call (see src/lib/checks/assets.ts).
+  checkPageAssets = false,
 ): Promise<CheckResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -124,6 +181,17 @@ export async function runHttpCheck(
     if (contentType.includes("text/html")) {
       htmlMeta = extractHtmlMeta(bodyText);
       missing.push(...htmlMeta.failing);
+
+      if (target.assertions) {
+        missing.push(...evaluateMoneyPathAssertions(bodyText, target.assertions));
+      }
+    }
+
+    let brokenAssets: BrokenAsset[] = [];
+    if (checkPageAssets && contentType.includes("text/html")) {
+      const assetResult = await checkAssets(bodyText, finalUrl, controller.signal, budget);
+      missing.push(...assetResult.missing);
+      brokenAssets = assetResult.brokenAssets;
     }
 
     const statusOk = response.status === target.expect_status;
@@ -141,6 +209,7 @@ export async function runHttpCheck(
       bodyTruncated: truncated,
       missing,
       meta: htmlMeta?.meta ?? null,
+      brokenAssets,
     };
 
     return {

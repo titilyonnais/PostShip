@@ -9,6 +9,12 @@ const MISSING_LABELS: Record<string, string> = {
   ssl_expired: "Le certificat SSL a expiré.",
 };
 
+export type BrokenAsset = {
+  url: string;
+  status: number | null;
+  contentType: string | null;
+};
+
 export type CheckRunDetails = {
   missing?: string[];
   error?: string;
@@ -17,7 +23,19 @@ export type CheckRunDetails = {
   redirects?: number;
   daysRemaining?: number;
   ogImageStatus?: number | null;
+  brokenAssets?: BrokenAsset[];
 };
+
+// asset:{status}:{path} codes carry a variable path, so they can't be a
+// plain MISSING_LABELS lookup like the fixed codes above.
+function describeMissingCode(code: string): string {
+  if (code.startsWith("asset:")) {
+    const [, status, ...pathParts] = code.split(":");
+    const path = pathParts.join(":");
+    return `Fichier statique introuvable (${status}) : ${path}`;
+  }
+  return MISSING_LABELS[code] ?? code;
+}
 
 export function FailureDetails({
   details,
@@ -56,7 +74,7 @@ export function FailureDetails({
       )}
       {details.missing?.map((code) => (
         <p key={code} className="text-destructive">
-          {MISSING_LABELS[code] ?? code}
+          {describeMissingCode(code)}
         </p>
       ))}
       {details.error && <p className="text-destructive">{details.error}</p>}

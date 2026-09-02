@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { applyMoneyPath } from "@/lib/money-path";
 import { runOneTarget, runProjectChecks } from "@/lib/runner";
 import { createServiceClient } from "@/lib/db/service";
 import type { ActionResult } from "@/lib/use-toast-action";
@@ -161,6 +162,53 @@ export async function addTarget(
 
   revalidatePath(`/app/${projectId}`);
   return { error: null };
+}
+
+export async function addMoneyPathPreset(
+  projectId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("base_url")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) return { error: "Projet introuvable." };
+
+  const priceToken = formData.get("price_token");
+
+  const result = await applyMoneyPath(supabase, projectId, project.base_url, {
+    includePricing: formData.get("pricing") === "on",
+    includeLogin: formData.get("login") === "on",
+    includeCheckout: formData.get("checkout") === "on",
+    priceToken: typeof priceToken === "string" && priceToken.trim() ? priceToken.trim() : "€",
+  });
+
+  revalidatePath(`/app/${projectId}`);
+
+  if (result.attempted === 0) {
+    return { error: "Aucune URL à ajouter (déjà présentes ou aucune option cochée)." };
+  }
+
+  if (result.created === 0) {
+    return { error: "Pack argent : quota atteint, passez Solo pour tout couvrir." };
+  }
+
+  if (result.quotaLimited) {
+    return {
+      success: `Pack partiel : ${result.created}/${result.attempted} URL(s) ajoutée(s) — quota atteint, passez Solo pour tout couvrir.`,
+    };
+  }
+
+  return { success: `${result.created} URL(s) du pack argent ajoutée(s).` };
 }
 
 export async function runProjectNow(

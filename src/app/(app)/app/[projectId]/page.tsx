@@ -17,6 +17,7 @@ import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { getUptimeStats } from "@/lib/uptime";
 import { AddTargetForm } from "./add-target-form";
+import { MoneyPathDialog } from "./money-path-dialog";
 import { ScanLaunchForm } from "./scan-launch-form";
 import { TargetActionsMenu } from "./target-actions-menu";
 
@@ -228,7 +229,10 @@ export default async function ProjectOverviewPage({
             </div>
           )}
 
-          <AddTargetForm projectId={projectId} />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <AddTargetForm projectId={projectId} />
+            <MoneyPathDialog projectId={projectId} baseUrl={project.base_url} />
+          </div>
         </div>
       </div>
 
