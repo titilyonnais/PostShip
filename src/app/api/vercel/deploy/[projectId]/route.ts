@@ -129,6 +129,7 @@ export async function POST(
         outcome:
           result.ranTargets === 0 ? null : result.failedTargets === 0 ? "pass" : "fail",
         failCount: result.failedTargets,
+        snapshot: result.snapshot,
       });
       return NextResponse.json({ triggered: true, preview: true, ...result });
     } catch (err) {
@@ -168,6 +169,11 @@ export async function POST(
           ? "pass"
           : "fail",
     failCount: results.filter((r) => r.outcome !== "pass").length,
+    snapshot: results.map((r) => ({
+      targetId: r.targetId,
+      url: r.url,
+      outcome: r.outcome,
+    })),
   });
 
   // Opt-in, and only when this specific webhook exposes a commit SHA — no

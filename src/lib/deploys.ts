@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SnapshotItem } from "@/lib/deploy-diff";
 
 export type DeployProvider = "vercel" | "netlify" | "cloudflare";
 export type DeployKind = "production" | "preview";
@@ -12,6 +13,7 @@ export type DeployEventRow = {
   started_at: string;
   outcome: "pass" | "fail" | "error" | null;
   fail_count: number;
+  snapshot: SnapshotItem[];
 };
 
 // Called from the 3 deploy webhook routes, after runProjectChecks /
@@ -27,6 +29,7 @@ export async function recordDeployEvent(
     deploymentUrl: string | null;
     outcome: "pass" | "fail" | "error" | null;
     failCount: number;
+    snapshot: SnapshotItem[];
   },
 ): Promise<void> {
   try {
@@ -38,6 +41,7 @@ export async function recordDeployEvent(
       deployment_url: params.deploymentUrl,
       outcome: params.outcome,
       fail_count: params.failCount,
+      snapshot: params.snapshot,
     });
     if (error) console.error("Échec enregistrement deploy_events", error);
   } catch (err) {
@@ -51,7 +55,9 @@ export async function getRecentDeployEvents(
 ): Promise<DeployEventRow[]> {
   const { data } = await supabase
     .from("deploy_events")
-    .select("id, provider, kind, sha, deployment_url, started_at, outcome, fail_count")
+    .select(
+      "id, provider, kind, sha, deployment_url, started_at, outcome, fail_count, snapshot",
+    )
     .eq("project_id", projectId)
     .order("started_at", { ascending: false })
     .limit(30);

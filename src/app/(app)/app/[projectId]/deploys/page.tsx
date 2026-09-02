@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Rocket } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
 import { getProject } from "@/lib/db/loaders";
 import { getRecentDeployEvents, type DeployProvider } from "@/lib/deploys";
+import { diffDeploySnapshots } from "@/lib/deploy-diff";
 
 export const metadata = {
   title: "Déplois",
@@ -42,60 +44,114 @@ export default async function DeploysPage({
 
   return (
     <ul className="flex flex-col gap-2">
-      {events.map((event) => {
+      {events.map((event, index) => {
         const shortSha = event.sha ? event.sha.slice(0, 7) : null;
         const commitUrl =
           project.github_repo && event.sha
             ? `https://github.com/${project.github_repo}/commit/${event.sha}`
             : null;
 
+        // events is newest-first — the "previous deploy" for a diff is the
+        // next-older row in this same list, regardless of provider.
+        const previousEvent = events[index + 1] ?? null;
+        const diff =
+          previousEvent && event.snapshot.length > 0
+            ? diffDeploySnapshots(previousEvent.snapshot, event.snapshot)
+            : null;
+
         return (
           <li
             key={event.id}
-            className="flex flex-col gap-1 rounded-md border border-border bg-card px-4 py-3"
+            className="rounded-md border border-border bg-card"
           >
-            <div className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2 text-sm">
-                <StatusDot status={event.outcome ?? "pending"} />
-                <span className="font-medium">
-                  {PROVIDER_LABEL[event.provider]}
-                </span>
-                {event.kind === "preview" && (
-                  <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-                    Preview
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2 text-sm">
+                  <StatusDot status={event.outcome ?? "pending"} />
+                  <span className="font-medium">
+                    {PROVIDER_LABEL[event.provider]}
                   </span>
-                )}
-              </span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {new Date(event.started_at).toLocaleString("fr-FR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              {shortSha &&
-                (commitUrl ? (
+                  {event.kind === "preview" && (
+                    <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+                      Preview
+                    </span>
+                  )}
+                  {shortSha && (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {shortSha}
+                    </span>
+                  )}
+                  {event.fail_count > 0 && (
+                    <span className="text-xs text-destructive">
+                      {event.fail_count} URL(s) en échec
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {new Date(event.started_at).toLocaleString("fr-FR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </summary>
+
+              <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
+                {commitUrl && (
                   <a
                     href={commitUrl}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="font-mono underline underline-offset-2 hover:text-foreground"
+                    className="self-start font-mono text-xs underline underline-offset-2 hover:text-foreground"
                   >
-                    {shortSha}
+                    Voir le commit {shortSha}
                   </a>
+                )}
+
+                {diff && diff.addedFails.length > 0 && (
+                  <p className="text-xs text-destructive">
+                    Cassé depuis : {diff.addedFails.map((i) => i.url).join(", ")}
+                  </p>
+                )}
+                {diff && diff.recovered.length > 0 && (
+                  <p className="text-xs text-emerald-500">
+                    Rétabli depuis : {diff.recovered.map((i) => i.url).join(", ")}
+                  </p>
+                )}
+
+                {event.fail_count > 0 && (
+                  <Link
+                    href={`/app/${projectId}/incidents`}
+                    className="self-start text-xs text-destructive underline underline-offset-2"
+                  >
+                    Voir les incidents →
+                  </Link>
+                )}
+
+                {event.snapshot.length > 0 ? (
+                  <ul className="flex flex-col gap-1">
+                    {event.snapshot.map((item) => (
+                      <li
+                        key={item.targetId}
+                        className="flex items-center gap-2 text-xs"
+                      >
+                        <StatusDot status={item.outcome} />
+                        <span className="min-w-0 truncate font-mono">
+                          {item.url}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
-                  <span className="font-mono">{shortSha}</span>
-                ))}
-              {event.fail_count > 0 && (
-                <span className="text-destructive">
-                  {event.fail_count} URL(s) en échec
-                </span>
-              )}
-            </div>
+                  <p className="text-xs text-muted-foreground">
+                    Détail par URL indisponible pour ce déploiement (antérieur
+                    à cette fonctionnalité).
+                  </p>
+                )}
+              </div>
+            </details>
           </li>
         );
       })}

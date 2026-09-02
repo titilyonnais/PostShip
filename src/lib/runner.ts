@@ -15,6 +15,7 @@ import {
   shouldAlertFail,
   shouldAlertRecovered,
 } from "@/lib/alert-confirm";
+import type { SnapshotItem } from "@/lib/deploy-diff";
 
 const MAX_CONCURRENCY_PER_PROJECT = 3;
 
@@ -314,7 +315,11 @@ export async function runOneTarget(targetId: string) {
 export async function runPreviewChecks(
   projectId: string,
   previewHost: string,
-): Promise<{ ranTargets: number; failedTargets: number }> {
+): Promise<{
+  ranTargets: number;
+  failedTargets: number;
+  snapshot: SnapshotItem[];
+}> {
   const supabase = createServiceClient();
 
   const { data: project } = await supabase
@@ -343,6 +348,7 @@ export async function runPreviewChecks(
     .eq("enabled", true);
 
   const alertItems: AlertItem[] = [];
+  const snapshot: SnapshotItem[] = [];
   let ranTargets = 0;
 
   for (const target of (targets ?? []) as CheckTargetRow[]) {
@@ -392,6 +398,7 @@ export async function runPreviewChecks(
     }
 
     ranTargets += 1;
+    snapshot.push({ targetId: target.id, url: previewUrl, outcome: result.outcome });
 
     if (result.outcome === "fail" || result.outcome === "error") {
       alertItems.push({
@@ -433,7 +440,7 @@ export async function runPreviewChecks(
     );
   }
 
-  return { ranTargets, failedTargets: alertItems.length };
+  return { ranTargets, failedTargets: alertItems.length, snapshot };
 }
 
 export async function runProjectChecks(

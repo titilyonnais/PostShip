@@ -76,6 +76,11 @@ export async function POST(
           ? "pass"
           : "fail",
     failCount: results.filter((r) => r.outcome !== "pass").length,
+    snapshot: results.map((r) => ({
+      targetId: r.targetId,
+      url: r.url,
+      outcome: r.outcome,
+    })),
   });
 
   return NextResponse.json({ triggered: true });
