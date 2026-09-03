@@ -30,7 +30,14 @@ export function CheckoutReturnToast() {
     } else if (error) {
       toast.error(error);
     }
-    router.replace(pathname);
+    // Strip checkout/error but keep everything else (e.g. ?tab=tokens on
+    // the account hub) — a bare router.replace(pathname) would otherwise
+    // bounce the user back to the first tab right after their purchase.
+    const rest = new URLSearchParams(searchParams);
+    rest.delete("checkout");
+    rest.delete("error");
+    const query = rest.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
   }, [pathname, router, searchParams]);
 
   return null;

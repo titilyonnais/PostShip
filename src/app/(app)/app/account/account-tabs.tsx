@@ -1,41 +1,70 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ACCOUNT_TABS } from "@/components/sidebar/nav-config";
+import { ACCOUNT_TABS, type AccountTabSlug } from "@/components/sidebar/nav-config";
 
-// V1 (ia-moderne backlog): Compte/Facturation/Zone dangereuse moved out of
-// the project sidebar into the footer user dropdown — this replaces the
-// old drill-down pane as the way to reach the account section's own
-// sub-pages (Profil, Sécurité, ...), same pill style as the Paramètres
-// hub (settings/settings-tabs.tsx), but route-based since these are real
-// distinct pages, not a single page keyed off ?tab=.
-export function AccountTabs() {
-  const pathname = usePathname();
+// Feedback fix: account settings used to be real routes per tab
+// (/app/account/profile, .../security, ...) — every switch paid for a
+// full RSC round-trip. Same instant pattern as the project Paramètres
+// hub now: all panels fetched and rendered once (account/page.tsx),
+// switching between them is pure client state, URL kept in sync via
+// history.replaceState (not router.replace, which would re-trigger the
+// exact round-trip this avoids).
+export function AccountTabsHub({
+  initialTab,
+  panels,
+}: {
+  initialTab: AccountTabSlug;
+  panels: Record<AccountTabSlug, React.ReactNode>;
+}) {
+  const [tab, setTab] = useState<AccountTabSlug>(initialTab);
+
+  function selectTab(value: AccountTabSlug) {
+    if (value === tab) return;
+    setTab(value);
+    const url = value === "overview" ? "/app/account" : `/app/account?tab=${value}`;
+    window.history.replaceState(null, "", url);
+  }
 
   return (
-    <div className="flex w-fit flex-wrap items-center gap-1 rounded-full bg-muted p-1">
-      {ACCOUNT_TABS.map((tab) => {
-        const isActive =
-          tab.href === "/app/account"
-            ? pathname === "/app/account"
-            : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-        return (
-          <Link
-            key={tab.href}
-            href={tab.href}
+    <div className="flex flex-col gap-6">
+      {/* Feedback fix: this used to wrap onto a second, near-full-width row
+          on narrow screens — a horizontally scrollable single row instead,
+          same idea as the docs sidebar's mobile treatment. */}
+      <div className="flex w-full items-center gap-1 overflow-x-auto rounded-full bg-muted p-1 sm:w-fit">
+        {ACCOUNT_TABS.map((t) => (
+          <button
+            key={t.tab}
+            type="button"
+            onClick={() => selectTab(t.tab)}
+            aria-current={tab === t.tab ? "true" : undefined}
             className={cn(
-              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-              isActive
+              "shrink-0 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors",
+              tab === t.tab
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {tab.label}
-          </Link>
-        );
-      })}
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {(Object.keys(panels) as AccountTabSlug[]).map((value) => (
+        <div
+          key={value}
+          hidden={tab !== value}
+          inert={tab !== value}
+          className={
+            tab === value
+              ? "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
+              : undefined
+          }
+        >
+          {panels[value]}
+        </div>
+      ))}
     </div>
   );
 }

@@ -1,79 +1,95 @@
-import { Coins, Download } from "lucide-react";
-import { resolveAvatarUrl } from "@/lib/avatar";
+import { createClient } from "@/lib/db/server";
 import { getAuthUser, getProfile } from "@/lib/db/loaders";
-import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { type Plan } from "@/lib/entitlements";
+import { AccountTabsHub } from "./account-tabs";
+import { BillingAddressTab } from "./billing-address-tab";
+import { DangerTab } from "./danger-tab";
+import { NotificationsTab } from "./notifications-tab";
+import { OverviewTab } from "./overview-tab";
+import { ProfileTab } from "./profile-tab";
+import { SecurityTab } from "./security-tab";
+import { TokensTab } from "./tokens-tab";
+import type { AccountTabSlug } from "@/components/sidebar/nav-config";
 
-const PLAN_LABEL: Record<Plan, string> = {
-  free: "Free",
-  solo: "Solo",
-  team: "Team",
+export const metadata = {
+  title: "Compte",
 };
 
-export default async function AccountOverviewPage() {
-  const user = await getAuthUser();
+const VALID_TABS: AccountTabSlug[] = [
+  "overview",
+  "profile",
+  "security",
+  "notifications",
+  "tokens",
+  "billing",
+  "danger",
+];
+
+function parseTab(raw: string | undefined): AccountTabSlug {
+  return VALID_TABS.includes(raw as AccountTabSlug) ? (raw as AccountTabSlug) : "overview";
+}
+
+type BillingAddress = {
+  line1?: string;
+  line2?: string | null;
+  city?: string;
+  postal_code?: string;
+  country?: string;
+} | null;
+
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab: rawTab } = await searchParams;
+  const tab = parseTab(rawTab);
+
+  const supabase = await createClient();
+  const [user, { data: factorsData }] = await Promise.all([
+    getAuthUser(),
+    supabase.auth.mfa.listFactors(),
+  ]);
   const profile = user ? await getProfile(user.id) : null;
 
-  const plan = (profile?.plan as Plan) ?? "free";
-  const limits = getPlanLimits(plan);
-  const tokenBalance = profile?.token_balance ?? 0;
-  const profileComplete = Boolean(profile?.full_name);
+  const linkedProviders = (user?.identities ?? [])
+    .map((identity) => identity.provider)
+    .filter((provider) => provider !== "email");
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Abonnement</p>
-          <p className="mt-1 text-lg font-medium">{PLAN_LABEL[plan]}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {limits.projects} projet(s) · {limits.urls} URL(s)
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Tokens</p>
-          <p className="mt-1 flex items-center gap-1.5 text-lg font-medium">
-            <Coins className="size-4 text-muted-foreground" aria-hidden="true" />
-            {tokenBalance}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Pour les scans complets de site
-          </p>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
-          {/* eslint-disable-next-line @next/next/no-img-element -- external DiceBear SVG */}
-          <img
-            src={resolveAvatarUrl(profile, user?.id ?? "", 64)}
-            alt=""
-            className="size-10 shrink-0 rounded-full bg-secondary"
-            width={40}
-            height={40}
+    <AccountTabsHub
+      initialTab={tab}
+      panels={{
+        overview: (
+          <OverviewTab
+            userId={user?.id ?? ""}
+            profile={profile}
           />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">
-              {profile?.username || profile?.display_name || profile?.full_name || profile?.email}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {profileComplete ? "Profil complet" : "Profil à compléter"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Vos données
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Téléchargez une copie de votre profil, vos projets et vos URLs
-          surveillées au format JSON.
-        </p>
-        <a
-          href="/api/account/export"
-          className="mt-2 inline-flex items-center gap-1.5 text-xs text-foreground underline underline-offset-2"
-        >
-          <Download className="size-3.5" aria-hidden="true" />
-          Exporter mes données
-        </a>
-      </div>
-    </div>
+        ),
+        profile: <ProfileTab profile={profile} />,
+        security: (
+          <SecurityTab
+            email={profile?.email ?? user?.email ?? ""}
+            linkedProviders={linkedProviders}
+            mfaEnabled={Boolean(factorsData?.totp?.[0])}
+            mfaFactorId={factorsData?.totp?.[0]?.id ?? null}
+          />
+        ),
+        notifications: (
+          <NotificationsTab
+            emailAlertsEnabled={profile?.email_alerts_enabled ?? true}
+            locale={profile?.locale ?? "fr"}
+          />
+        ),
+        tokens: <TokensTab tokenBalance={profile?.token_balance ?? 0} />,
+        billing: (
+          <BillingAddressTab
+            plan={(profile?.plan as Plan) ?? "free"}
+            billingAddress={(profile?.billing_address as BillingAddress) ?? null}
+          />
+        ),
+        danger: <DangerTab />,
+      }}
+    />
   );
 }

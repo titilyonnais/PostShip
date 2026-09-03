@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronDown, Copy, Menu, MoreHorizontal, Play, Plus, RotateCw } from "lucide-react";
 import { LogoMark } from "@/components/logo";
@@ -33,14 +33,9 @@ function isProjectSilenced(project: Project): boolean {
   return !!project.alerts_silenced_until && new Date(project.alerts_silenced_until).getTime() > Date.now();
 }
 
-function accountBarTitle(pathname: string): string {
+function accountBarTitle(pathname: string, tabSlug: string | null): string {
   if (pathname === "/app/billing") return "Abonnement";
-  // Every real /app/account/* route is an exact match for one
-  // ACCOUNT_TABS href — no prefix matching needed (and no prefix
-  // matching wanted: "/app/account" itself is a prefix of every other
-  // tab's href, so a startsWith check here would always resolve to
-  // "Vue d'ensemble").
-  const tab = ACCOUNT_TABS.find((t) => pathname === t.href);
+  const tab = ACCOUNT_TABS.find((t) => t.tab === tabSlug);
   return tab?.label ?? "Vue d'ensemble";
 }
 
@@ -87,7 +82,7 @@ function ProjectSwitcher({
                   aria-hidden="true"
                 />
                 <span className="sr-only">{statusLabel(p.last_status)}</span>
-                <span className="truncate">{p.name}</span>
+                <span className="min-w-0 flex-1 truncate">{p.name}</span>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
@@ -288,6 +283,7 @@ export function ProjectBar({
   onOpenMobile: () => void;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { project: activeProject } = useActiveProject(projects);
 
   const isAccountArea = pathname.startsWith("/app/account") || pathname === "/app/billing";
@@ -301,8 +297,9 @@ export function ProjectBar({
   const canWrite = !!activeProject;
 
   if (isAccountArea) {
-    const title = accountBarTitle(pathname);
-    const showChangePlan = pathname === "/app/account/billing";
+    const tabSlug = searchParams.get("tab");
+    const title = accountBarTitle(pathname, tabSlug);
+    const showChangePlan = pathname === "/app/account" && tabSlug === "billing";
 
     return (
       <div className="fixed top-0 right-0 left-0 z-30 h-14 border-b bg-background/80 backdrop-blur md:left-56">

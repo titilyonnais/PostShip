@@ -324,7 +324,7 @@ export async function updateEmail(
   const { error } = await supabase.auth.updateUser(
     { email: parsed.data },
     {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=${encodeURIComponent("/app/account/security")}`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=${encodeURIComponent("/app/account?tab=security")}`,
     },
   );
 

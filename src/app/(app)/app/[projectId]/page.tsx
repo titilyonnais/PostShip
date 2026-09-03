@@ -38,6 +38,37 @@ function formatPct(window: { pct: number | null; count: number }): string {
   return `${window.pct.toFixed(1)}%`;
 }
 
+// Feedback fix: the app read as all grayscale outside status dots — these
+// numbers are exactly the kind of thing worth color-coding, using the
+// same green/amber/red vocabulary already used everywhere else (status
+// dots, the heatmap), not a new accent.
+function toneClass(pct: number | null, greenAt: number, amberAt: number): string {
+  if (pct === null) return "text-foreground";
+  if (pct >= greenAt) return "text-[#3fb950]";
+  if (pct >= amberAt) return "text-[#d29922]";
+  return "text-[#f85149]";
+}
+
+function UptimeStatCard({
+  label,
+  window,
+}: {
+  label: string;
+  window: { pct: number | null; count: number };
+}) {
+  return (
+    <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`font-mono text-2xl font-semibold tracking-tight ${toneClass(window.pct, 99, 90)}`}>
+        {formatPct(window)}
+      </p>
+      <p className="text-[0.7rem] text-muted-foreground">
+        {window.count} vérification(s)
+      </p>
+    </div>
+  );
+}
+
 export default async function ProjectOverviewPage({
   params,
 }: {
@@ -157,10 +188,17 @@ export default async function ProjectOverviewPage({
 
       <div className="grid gap-8 lg:grid-cols-3">
       <div className="flex flex-col gap-6 lg:col-span-2">
+        {/* Feedback fix: these read as pure gray before — color them with
+            the same green/amber/red status vocabulary the dots already
+            use, not a new accent. */}
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/app/${projectId}/incidents`}
-            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
+              openIncidentCount > 0
+                ? "border-destructive/30 bg-destructive/5 text-destructive hover:border-destructive/50"
+                : "border-[#3fb950]/25 bg-[#3fb950]/5 text-[#3fb950] hover:border-[#3fb950]/40"
+            }`}
           >
             <Siren className="size-3.5" aria-hidden="true" />
             {openIncidentCount > 0
@@ -169,7 +207,13 @@ export default async function ProjectOverviewPage({
           </Link>
           <Link
             href={`/app/${projectId}/deploys`}
-            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
+              !lastDeploy
+                ? "border-border bg-card text-muted-foreground hover:border-foreground/25 hover:text-foreground"
+                : lastDeploy.outcome === "fail"
+                  ? "border-destructive/30 bg-destructive/5 text-destructive hover:border-destructive/50"
+                  : "border-[#3fb950]/25 bg-[#3fb950]/5 text-[#3fb950] hover:border-[#3fb950]/40"
+            }`}
           >
             <Rocket className="size-3.5" aria-hidden="true" />
             {lastDeploy
@@ -178,7 +222,11 @@ export default async function ProjectOverviewPage({
           </Link>
           <Link
             href={`/app/${projectId}/settings?tab=bot`}
-            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
+              botConnected
+                ? "border-[#3fb950]/25 bg-[#3fb950]/5 text-[#3fb950] hover:border-[#3fb950]/40"
+                : "border-border bg-card text-muted-foreground hover:border-foreground/25 hover:text-foreground"
+            }`}
           >
             <Bot className="size-3.5" aria-hidden="true" />
             {botConnected ? "Bot connecté" : "Bot non connecté"}
@@ -227,7 +275,7 @@ export default async function ProjectOverviewPage({
             deploy from before this feature. */}
         {lastDeploy?.kind === "production" && lastDeploy.score !== null && (
           <div className="flex items-center gap-4 rounded-3xl border border-border bg-card p-6">
-            <p className="font-mono text-4xl font-semibold tracking-tight">
+            <p className={`font-mono text-4xl font-semibold tracking-tight ${toneClass(lastDeploy.score, 90, 70)}`}>
               Ship {lastDeploy.score}
             </p>
             {lastDeploy.score_reason && (
@@ -310,33 +358,9 @@ export default async function ProjectOverviewPage({
             sidebar it becomes at lg+) — stack on phones, 3-across once
             there's room, back to stacked once it's a sidebar again. */}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
-          <div className="rounded-2xl border border-border bg-card p-3">
-            <p className="text-xs text-muted-foreground">
-              Taux de réussite — 24h
-            </p>
-            <p className="mt-1 font-mono text-lg">{formatPct(uptime.h24)}</p>
-            <p className="text-[0.7rem] text-muted-foreground">
-              {uptime.h24.count} vérification(s)
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-3">
-            <p className="text-xs text-muted-foreground">
-              Taux de réussite — 7j
-            </p>
-            <p className="mt-1 font-mono text-lg">{formatPct(uptime.d7)}</p>
-            <p className="text-[0.7rem] text-muted-foreground">
-              {uptime.d7.count} vérification(s)
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-3">
-            <p className="text-xs text-muted-foreground">
-              Taux de réussite — 30j
-            </p>
-            <p className="mt-1 font-mono text-lg">{formatPct(uptime.d30)}</p>
-            <p className="text-[0.7rem] text-muted-foreground">
-              {uptime.d30.count} vérification(s)
-            </p>
-          </div>
+          <UptimeStatCard label="Taux de réussite — 24h" window={uptime.h24} />
+          <UptimeStatCard label="Taux de réussite — 7j" window={uptime.d7} />
+          <UptimeStatCard label="Taux de réussite — 30j" window={uptime.d30} />
         </div>
         <p className="text-[0.7rem] text-muted-foreground">
           % de vérifications réussies dans chaque fenêtre. Les valeurs se
@@ -369,7 +393,7 @@ export default async function ProjectOverviewPage({
             Solde : {tokenBalance} token(s)
             {tokenBalance === 0 && (
               <Link
-                href={`/app/account/tokens?from=${encodeURIComponent(backTo)}`}
+                href={`/app/account?tab=tokens&from=${encodeURIComponent(backTo)}`}
                 className="text-foreground underline underline-offset-2"
               >
                 en acheter

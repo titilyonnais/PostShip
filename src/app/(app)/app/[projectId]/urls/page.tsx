@@ -173,7 +173,21 @@ export default async function UrlsPage({
         // still works at md+) — a 6-column table doesn't survive a 390px
         // viewport.
         <div className="md:overflow-x-auto md:rounded-xl md:border md:border-border">
-          <table className="flex flex-col gap-3 md:table md:w-full md:min-w-[640px] md:border-collapse">
+          {/* table-fixed + explicit widths on every column but URL: in
+              auto layout the URL column grows to fit its longest cell
+              regardless of the truncate class inside it, so real (long)
+              URLs forced the whole table into horizontal scroll. Fixed
+              layout caps the column at the remaining width so truncate
+              actually engages. */}
+          <table className="flex flex-col gap-3 md:table md:w-full md:table-fixed md:min-w-[640px] md:border-collapse">
+            <colgroup>
+              <col className="md:w-20" />
+              <col />
+              <col className="md:w-20" />
+              <col className="md:w-32" />
+              <col className="md:w-16" />
+              <col className="md:w-10" />
+            </colgroup>
             <thead className="hidden md:table-header-group">
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="px-3 py-2 font-medium">État</th>
@@ -218,7 +232,7 @@ export default async function UrlsPage({
                         <div className="flex min-w-0 items-center gap-1.5">
                           <Link
                             href={`/app/${projectId}/${target.id}`}
-                            className="truncate font-mono text-sm hover:underline"
+                            className="min-w-0 flex-1 truncate font-mono text-sm hover:underline"
                           >
                             {target.url}
                           </Link>

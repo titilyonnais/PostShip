@@ -68,7 +68,7 @@ export default async function ProjectScansPage({
           Solde : {tokenBalance} token(s)
           {tokenBalance === 0 && (
             <Link
-              href={`/app/account/tokens?from=${encodeURIComponent(`/app/${projectId}/scans`)}`}
+              href={`/app/account?tab=tokens&from=${encodeURIComponent(`/app/${projectId}/scans`)}`}
               className="text-foreground underline underline-offset-2"
             >
               en acheter

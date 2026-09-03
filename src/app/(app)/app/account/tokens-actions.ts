@@ -15,7 +15,7 @@ export async function buyTokens(packId: TokenPackId) {
   const pack = TOKEN_PACKS[packId];
   if (!pack?.priceId) {
     redirect(
-      `/app/account/tokens?error=${encodeURIComponent("Ce pack de tokens n'est pas encore configuré.")}`,
+      `/app/account?tab=tokens&error=${encodeURIComponent("Ce pack de tokens n'est pas encore configuré.")}`,
     );
   }
 
@@ -36,15 +36,15 @@ export async function buyTokens(packId: TokenPackId) {
       ? undefined
       : (profile?.email ?? user.email ?? undefined),
     line_items: [{ price: pack.priceId, quantity: 1 }],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/account/tokens?checkout=tokens_success`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/account/tokens?checkout=tokens_cancelled`,
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/account?tab=tokens&checkout=tokens_success`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/account?tab=tokens&checkout=tokens_cancelled`,
     client_reference_id: user.id,
     metadata: { user_id: user.id, kind: "tokens", tokens: String(pack.tokens) },
   });
 
   if (!session.url) {
     redirect(
-      `/app/account/tokens?error=${encodeURIComponent("Impossible de créer la session Stripe.")}`,
+      `/app/account?tab=tokens&error=${encodeURIComponent("Impossible de créer la session Stripe.")}`,
     );
   }
 

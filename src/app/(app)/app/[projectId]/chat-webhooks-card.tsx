@@ -51,7 +51,9 @@ function ChatWebhookSection({
           {connectLabel}
         </Link>
       )}
-      <p className="text-xs text-muted-foreground">
+      {/* flex-1: lines the field + Save button up across a row of cards
+          regardless of instruction length (Telegram's is much longer). */}
+      <p className="flex-1 text-xs text-muted-foreground">
         {connectHref
           ? configured
             ? instructions

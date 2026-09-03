@@ -52,11 +52,13 @@ function GitHubIcon() {
 
 export function LoginForm({
   plan,
+  planLabel,
   mode,
   error,
   confirm,
 }: {
   plan: string | null;
+  planLabel: string | null;
   mode: string | null;
   error: string | null;
   confirm: boolean;
@@ -69,55 +71,28 @@ export function LoginForm({
   const [passwordMode, setPasswordMode] = useState<"signin" | "signup">(
     mode === "signup" ? "signup" : "signin",
   );
-  // Shared across magic link + OAuth (both can create an account on first
-  // use, same as password signup) — a single visible checkbox gates all
-  // three, threaded into each <form> as a hidden field since a plain
-  // checkbox can only belong to one form at a time.
-  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [activeTab, setActiveTab] = useState(
+    mode === "signup" || mode === "password" ? "password" : "magic",
+  );
+  // Only the password tab's explicit signin/signup toggle ever really
+  // means "creating an account" — magic link and OAuth handle both
+  // transparently, so they always read as "Connexion".
+  const isSignupIntent = activeTab === "password" && passwordMode === "signup";
 
   return (
     <div className="flex w-full max-w-sm flex-col gap-5">
-      <label className="flex items-start gap-2 text-xs text-muted-foreground">
-        <input
-          type="checkbox"
-          required
-          checked={consentAccepted}
-          onChange={(e) => setConsentAccepted(e.target.checked)}
-          className="mt-0.5 size-3.5 rounded border-input accent-foreground"
-        />
-        <span>
-          J&apos;accepte les{" "}
-          <a
-            href="/terms"
-            target="_blank"
-            rel="noreferrer"
-            className="text-foreground underline underline-offset-2"
-          >
-            CGU
-          </a>
-          , les{" "}
-          <a
-            href="/cgv"
-            target="_blank"
-            rel="noreferrer"
-            className="text-foreground underline underline-offset-2"
-          >
-            CGV
-          </a>{" "}
-          et la{" "}
-          <a
-            href="/privacy"
-            target="_blank"
-            rel="noreferrer"
-            className="text-foreground underline underline-offset-2"
-          >
-            politique de confidentialité
-          </a>
-          .
-        </span>
-      </label>
+      <div className="flex flex-col items-center gap-1 text-center">
+        <h1 className="text-lg font-semibold">
+          {isSignupIntent ? "Créer un compte" : "Connexion"}
+        </h1>
+        <p className="text-xs text-muted-foreground">
+          {planLabel
+            ? `Plan sélectionné : ${planLabel}`
+            : "Configurez la surveillance de votre site en moins de 2 minutes."}
+        </p>
+      </div>
 
-      <Tabs defaultValue={mode === "signup" || mode === "password" ? "password" : "magic"}>
+      <Tabs value={activeTab} onValueChange={(value) => value && setActiveTab(value)}>
         <TabsList variant="line" className="w-full">
           <TabsTrigger value="magic" className="flex-1">
             Lien magique
@@ -134,7 +109,6 @@ export function LoginForm({
             </p>
           ) : (
             <form action={formAction} className="flex flex-col gap-3">
-              <input type="hidden" name="terms_accepted" value={consentAccepted ? "on" : ""} />
               <label htmlFor="email" className="text-xs text-muted-foreground">
                 Email
               </label>
@@ -146,7 +120,7 @@ export function LoginForm({
                 placeholder="vous@exemple.com"
                 required
               />
-              <Button type="submit" disabled={pending || !consentAccepted}>
+              <Button type="submit" disabled={pending}>
                 {pending ? "Envoi..." : "Recevoir un lien magique"}
               </Button>
               {state.error && (
@@ -267,30 +241,34 @@ export function LoginForm({
 
       <div className="grid grid-cols-2 gap-2">
         <form action={signInWithGoogle.bind(null, plan)}>
-          <input type="hidden" name="terms_accepted" value={consentAccepted ? "on" : ""} />
-          <Button
-            type="submit"
-            variant="outline"
-            className="w-full gap-1.5"
-            disabled={!consentAccepted}
-          >
+          <Button type="submit" variant="outline" className="w-full gap-1.5">
             <GoogleIcon />
             Google
           </Button>
         </form>
         <form action={signInWithGithub.bind(null, plan)}>
-          <input type="hidden" name="terms_accepted" value={consentAccepted ? "on" : ""} />
-          <Button
-            type="submit"
-            variant="outline"
-            className="w-full gap-1.5"
-            disabled={!consentAccepted}
-          >
+          <Button type="submit" variant="outline" className="w-full gap-1.5">
             <GitHubIcon />
             GitHub
           </Button>
         </form>
       </div>
+
+      <p className="text-center text-[0.7rem] text-muted-foreground">
+        En continuant, vous acceptez nos{" "}
+        <a href="/terms" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+          CGU
+        </a>
+        , nos{" "}
+        <a href="/cgv" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+          CGV
+        </a>{" "}
+        et notre{" "}
+        <a href="/privacy" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+          politique de confidentialité
+        </a>
+        .
+      </p>
     </div>
   );
 }

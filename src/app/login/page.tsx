@@ -44,14 +44,6 @@ export default async function LoginPage({
         <LogoMark className="size-14" />
       </Link>
       <div className="flex w-full max-w-sm flex-col gap-6 rounded-lg border border-border bg-card p-6 shadow-[0_8px_40px_rgba(0,0,0,0.25)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-lg font-semibold">Connexion</h1>
-          <p className="text-xs text-muted-foreground">
-            {normalizedPlan
-              ? `Plan sélectionné : ${PLAN_LABEL[normalizedPlan]}`
-              : "Configurez la surveillance de votre site en moins de 2 minutes."}
-          </p>
-        </div>
         {errorMessage && (
           <p role="alert" className="text-center text-sm text-destructive">
             {errorMessage}
@@ -59,6 +51,7 @@ export default async function LoginPage({
         )}
         <LoginForm
           plan={normalizedPlan}
+          planLabel={normalizedPlan ? PLAN_LABEL[normalizedPlan] : null}
           mode={mode ?? null}
           error={mode && error && !genericErrors[error] ? error : null}
           confirm={confirm === "1"}

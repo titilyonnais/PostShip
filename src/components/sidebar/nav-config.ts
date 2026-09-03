@@ -89,23 +89,34 @@ export const ACCOUNT_MENU_ITEMS: AccountNavItem[] = [
 
 export const ACCOUNT_DANGER_ITEM: AccountNavItem = {
   label: "Zone dangereuse",
-  href: "/app/account/danger",
+  href: "/app/account?tab=danger",
   icon: AlertTriangle,
 };
 
-// Tabs for the /app/account/* section itself (account/layout.tsx) — every
-// route that used to live in the sidebar's drill-down "Compte" pane, now
-// reached as a Vercel-Settings-style pill row instead. /app/billing
-// ("Abonnement") is a sibling route outside this layout, so it isn't
-// included — it's reached from the footer dropdown above.
-export const ACCOUNT_TABS: AccountNavItem[] = [
-  { label: "Vue d'ensemble", href: "/app/account", icon: Gauge },
-  { label: "Profil", href: "/app/account/profile", icon: User },
-  { label: "Sécurité", href: "/app/account/security", icon: ShieldCheck },
-  { label: "Notifications", href: "/app/account/notifications", icon: Bell },
-  { label: "Tokens", href: "/app/account/tokens", icon: Coins },
-  { label: "Factures", href: "/app/account/billing", icon: Receipt },
-  { label: "Zone dangereuse", href: "/app/account/danger", icon: AlertTriangle },
+export type AccountTabSlug =
+  | "overview"
+  | "profile"
+  | "security"
+  | "notifications"
+  | "tokens"
+  | "billing"
+  | "danger";
+
+export type AccountTabItem = { label: string; tab: AccountTabSlug; icon: LucideIcon };
+
+// Tabs for the /app/account hub (account/page.tsx + account-tabs.tsx) —
+// a single ?tab= page switched client-side, same instant pattern as the
+// project Paramètres hub (settings/settings-tabs.tsx), not real routes
+// any more. /app/billing ("Abonnement") is a sibling route outside this
+// hub, so it isn't included — it's reached from the footer dropdown.
+export const ACCOUNT_TABS: AccountTabItem[] = [
+  { label: "Vue d'ensemble", tab: "overview", icon: Gauge },
+  { label: "Profil", tab: "profile", icon: User },
+  { label: "Sécurité", tab: "security", icon: ShieldCheck },
+  { label: "Notifications", tab: "notifications", icon: Bell },
+  { label: "Tokens", tab: "tokens", icon: Coins },
+  { label: "Factures", tab: "billing", icon: Receipt },
+  { label: "Zone dangereuse", tab: "danger", icon: AlertTriangle },
 ];
 
 // Top-level segments right after "/app/" that are NOT project ids.

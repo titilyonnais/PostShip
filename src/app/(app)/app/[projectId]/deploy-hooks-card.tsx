@@ -32,8 +32,11 @@ function DeployHookSection({
         <Webhook className="size-3.5" aria-hidden="true" />
         {title}
       </h3>
-      <p className="text-xs text-muted-foreground">{instructions}</p>
-      <p className="break-all rounded-sm bg-secondary px-2 py-1 font-mono text-xs text-muted-foreground">
+      {/* Feedback fix: flex-1 here, not on the form — so the field + Save
+          button line up at the same height across a row of cards
+          regardless of how long each provider's instructions run. */}
+      <p className="flex-1 text-xs text-muted-foreground">{instructions}</p>
+      <p className="break-all rounded-xl bg-secondary px-2 py-1 font-mono text-xs text-muted-foreground">
         {process.env.NEXT_PUBLIC_APP_URL}
         {routePath}
       </p>

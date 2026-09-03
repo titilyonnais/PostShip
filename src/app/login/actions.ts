@@ -37,13 +37,13 @@ export async function signInWithMagicLink(
     return { error: "Adresse email invalide.", sent: false };
   }
 
-  // Magic link can create an account (Supabase auto-signup on first OTP),
-  // so it needs the same consent gate as password signup — never trust the
-  // browser's `required` attribute alone, a direct POST bypasses it.
-  if (formData.get("terms_accepted") !== "on") {
-    return { error: CONSENT_ERROR, sent: false };
-  }
-
+  // Magic link can create an account (Supabase auto-signup on first OTP) —
+  // unlike password signup, there's no separate confirmation step to pair
+  // a checkbox with, and blocking *sign-in* behind one is bad UX for an
+  // existing user. Consent for a genuinely new account is still captured
+  // and enforced: middleware + /auth/callback redirect anyone without
+  // profiles.terms_accepted_at to /accept-terms before /app or
+  // /onboarding, whichever path got them a session.
   if (!(await checkAuthRateLimit())) {
     return { error: AUTH_RATE_LIMIT_MESSAGE, sent: false };
   }
@@ -166,15 +166,10 @@ export async function signUpWithPassword(plan: string | null, formData: FormData
   redirect(nextPathFor(plan));
 }
 
-export async function signInWithGithub(plan: string | null, formData: FormData) {
-  // OAuth can create an account on first login, same consent gate as
-  // magic link / password signup — the checkbox's `required` attribute is
-  // a UX nicety, not a security boundary; a direct POST to this action
-  // bypasses it entirely.
-  if (formData.get("terms_accepted") !== "on") {
-    redirect(`/login?error=${encodeURIComponent(CONSENT_ERROR)}`);
-  }
-
+export async function signInWithGithub(plan: string | null, _formData: FormData) {
+  // OAuth can create an account on first login — consent for a genuinely
+  // new one is still captured and enforced post-auth (see the comment on
+  // signInWithMagicLink above), not gated here.
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "github",
@@ -190,11 +185,7 @@ export async function signInWithGithub(plan: string | null, formData: FormData) 
   redirect(data.url);
 }
 
-export async function signInWithGoogle(plan: string | null, formData: FormData) {
-  if (formData.get("terms_accepted") !== "on") {
-    redirect(`/login?error=${encodeURIComponent(CONSENT_ERROR)}`);
-  }
-
+export async function signInWithGoogle(plan: string | null, _formData: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",

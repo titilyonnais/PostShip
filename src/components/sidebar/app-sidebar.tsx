@@ -188,7 +188,7 @@ function SidebarContent({
                     aria-hidden="true"
                   />
                   <span className="sr-only">{statusLabel(p.last_status)}</span>
-                  <span className="truncate">{p.name}</span>
+                  <span className="min-w-0 flex-1 truncate">{p.name}</span>
                 </Link>
               ))}
               {projects.length === 0 && (
