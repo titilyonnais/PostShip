@@ -72,28 +72,47 @@ function formatUptime(pct: number | null): string {
   return pct === null ? "—" : `${pct.toFixed(1)}%`;
 }
 
+// Same red/amber/green thresholds as the app's own UptimeStatCard
+// (src/app/(app)/app/[projectId]/page.tsx) — 99% and 95%.
+function uptimeColor(pct: number | null): string {
+  if (pct === null) return "#8b949e";
+  if (pct >= 99) return "#3fb950";
+  if (pct >= 95) return "#d29922";
+  return "#f85149";
+}
+
 function buildDigestEmailHtml(
   projectName: string,
   stats: ProjectDigestStats,
   projectUrl: string,
 ): string {
+  const statRow = (label: string, value: string, color = "#e6edf3") => `
+    <tr>
+      <td style="padding:12px 0;border-bottom:1px solid #21262d;">
+        <table role="presentation" style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#8b949e;">${escapeHtml(label)}</td>
+            <td style="text-align:right;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;font-weight:600;color:${color};">${value}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+
   const rows = [
-    `7 jours : ${formatUptime(stats.uptimePct)} &middot; ${stats.runs} vérification(s) &middot; ${stats.fails} échec(s)`,
+    statRow("Disponibilité — 7 jours", formatUptime(stats.uptimePct), uptimeColor(stats.uptimePct)),
+    statRow("Vérifications", String(stats.runs)),
+    statRow("Échecs", String(stats.fails), stats.fails > 0 ? "#f85149" : "#e6edf3"),
     ...(stats.sslDaysRemaining !== null
-      ? [`SSL : ${stats.sslDaysRemaining} jour(s) restant(s)`]
+      ? [statRow("Certificat SSL", `${stats.sslDaysRemaining} j`, stats.sslDaysRemaining <= 7 ? "#f85149" : "#e6edf3")]
       : []),
-  ]
-    .map(
-      (line) =>
-        `<tr><td style="padding:10px 0;border-bottom:1px solid #21262d;color:#e6edf3;font-size:13px;">${line}</td></tr>`,
-    )
-    .join("");
+  ].join("");
 
   return renderEmailShell({
     preheader: `Résumé hebdomadaire — ${projectName}`,
-    title: `${escapeHtml(projectName)} — résumé de la semaine`,
+    title: `${projectName} — résumé de la semaine`,
+    intro: "Voici comment votre site s'est comporté ces 7 derniers jours.",
     bodyHtml: `<table role="presentation" style="width:100%;border-collapse:collapse;">${rows}</table>
-      <p style="margin:16px 0 0;"><a href="${projectUrl}" style="color:#8b949e;font-size:12px;">${projectUrl}</a></p>`,
+      <p style="margin:20px 0 0;"><a href="${projectUrl}" style="display:inline-block;background:#3fb950;color:#0a0c0e;font-size:13px;font-weight:600;text-decoration:none;padding:9px 16px;border-radius:10px;">Voir le projet</a></p>`,
   });
 }
 

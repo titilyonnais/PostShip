@@ -2,9 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import { buildAlertCopy, describeAlertItem } from "@/lib/alert-copy";
+import { describeMissingCode } from "@/lib/check-labels";
 import { escapeHtml, renderEmailShell } from "@/lib/email-template";
 import { isInQuietHours } from "@/lib/quiet-hours";
 import { sendOutboundWebhook } from "@/lib/outbound-webhook";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr";
 
 const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
@@ -67,36 +70,89 @@ async function recordAlertEvents(
   );
 }
 
-// Dark, operational, no purple-AI gradient nonsense (CLAUDE.md) — a plain
-// list with a colored dot and the one-sentence, deterministically-written
-// description of what happened (src/lib/alert-copy.ts), same information
-// as the text fallback and nothing more.
-function buildFailEmailHtml(projectName: string, items: AlertItem[]): string {
+const KIND_STYLE: Record<AlertItem["kind"], { color: string; bg: string; label: string }> = {
+  fail: { color: "#f85149", bg: "rgba(248,81,73,0.08)", label: "En échec" },
+  recovered: { color: "#3fb950", bg: "rgba(63,185,80,0.08)", label: "Rétabli" },
+  mutated: { color: "#d29922", bg: "rgba(210,153,34,0.08)", label: "Contenu modifié" },
+};
+
+// Mirrors the app's own incident card (StatusDot + mono URL + every
+// missing-code line spelled out, same labels as FailureDetails in-app)
+// instead of the single deterministic sentence used for Discord/Slack/
+// the plain-text fallback — an email is read away from the dashboard, so
+// it has to carry the same detail on its own.
+export function buildFailEmailHtml(
+  projectId: string,
+  projectName: string,
+  items: AlertItem[],
+): string {
   const rows = items
     .map((i) => {
-      const isRecovered = i.kind === "recovered";
-      const color = isRecovered ? "#3fb950" : "#f85149";
-      const label = isRecovered ? "Rétabli" : "En échec";
+      const style = KIND_STYLE[i.kind];
+      const detailLines: string[] = [];
+      if (i.kind === "fail" && i.missing) {
+        detailLines.push(...i.missing.map(describeMissingCode));
+      }
+      if (i.kind === "mutated") {
+        detailLines.push(i.mutationSummary ?? "Contenu modifié après déploiement.");
+      }
+      if (detailLines.length === 0) {
+        detailLines.push(describeAlertItem(i));
+      }
+      const meta: string[] = [];
+      if (i.httpStatus != null) meta.push(`HTTP ${i.httpStatus}`);
+      if (i.ttfbMs != null) meta.push(`TTFB ${i.ttfbMs} ms`);
+
       return `
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #21262d;">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:10px;"></span>
-            <span style="color:#8b949e;font-size:12px;">${label}</span><br />
-            <span style="font-size:13px;color:#e6edf3;">${escapeHtml(describeAlertItem(i))}</span>
+          <td style="padding:14px 0;border-bottom:1px solid #21262d;">
+            <table role="presentation" style="width:100%;border-collapse:collapse;">
+              <tr>
+                <td>
+                  <span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${style.bg};color:${style.color};font-size:11px;font-weight:600;">${style.label}</span>
+                </td>
+                <td style="text-align:right;">
+                  <a href="${APP_URL}/app/${projectId}/${i.targetId}" style="color:#58a6ff;font-size:12px;text-decoration:none;">Voir le détail &rarr;</a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:8px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#e6edf3;word-break:break-all;">${escapeHtml(i.url)}</p>
+            ${detailLines
+              .map(
+                (line) =>
+                  `<p style="margin:4px 0 0;font-size:12px;color:#8b949e;">${escapeHtml(line)}</p>`,
+              )
+              .join("")}
+            ${
+              meta.length > 0
+                ? `<p style="margin:6px 0 0;font-size:11px;color:#484f58;">${escapeHtml(meta.join(" · "))}</p>`
+                : ""
+            }
           </td>
         </tr>`;
     })
     .join("");
 
+  const nFail = items.filter((i) => i.kind === "fail").length;
+  const nRecovered = items.filter((i) => i.kind === "recovered").length;
+  const nMutated = items.filter((i) => i.kind === "mutated").length;
+  const introParts = [
+    nFail > 0 ? `${nFail} en échec` : null,
+    nRecovered > 0 ? `${nRecovered} rétabli(s)` : null,
+    nMutated > 0 ? `${nMutated} modifié(s)` : null,
+  ].filter(Boolean);
+
   return renderEmailShell({
-    preheader: `${items.length} événement(s) sur ${projectName}`,
+    preheader: `${projectName} — ${introParts.join(", ")}`,
     title: projectName,
+    intro: `${introParts.join(", ")} depuis la dernière vérification.`,
     bodyHtml: `<table role="presentation" style="width:100%;border-collapse:collapse;">${rows}</table>`,
   });
 }
 
 async function sendFailEmail(
   to: string,
+  projectId: string,
   projectName: string,
   items: AlertItem[],
 ) {
@@ -108,7 +164,7 @@ async function sendFailEmail(
     to,
     subject: copy.subject,
     text: copy.text,
-    html: buildFailEmailHtml(projectName, items),
+    html: buildFailEmailHtml(projectId, projectName, items),
   });
 }
 
@@ -251,7 +307,7 @@ export async function dispatchAlerts(
 
   if (project.ownerEmail) {
     try {
-      await sendFailEmail(project.ownerEmail, project.name, items);
+      await sendFailEmail(project.ownerEmail, project.id, project.name, items);
       if (recordDedup) await recordAlertEvents(supabase, project.id, items, "email");
     } catch (err) {
       console.error("Échec envoi email d'alerte", err);
