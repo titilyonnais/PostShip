@@ -18,6 +18,12 @@ export type AlertItem = {
   outcome: string;
   httpStatus: number | null;
   fingerprint: string;
+  // The check type (http/og/sitemap/ssl/stripe_health) — target.kind in
+  // the runner, renamed here since `kind` above already means something
+  // else (fail/recovered/mutated). Optional because a couple of older
+  // dispatchAlerts call sites don't have it in scope; falls back to the
+  // "http" icon in the email when absent.
+  checkKind?: "http" | "og" | "sitemap" | "ssl" | "stripe_health";
   // Read by src/lib/alert-copy.ts to write a one-sentence, deterministic
   // description per item instead of a raw "{url} ({status})" line.
   missing?: string[] | null;
@@ -70,17 +76,48 @@ async function recordAlertEvents(
   );
 }
 
-const KIND_STYLE: Record<AlertItem["kind"], { color: string; bg: string; label: string }> = {
-  fail: { color: "#f85149", bg: "rgba(248,81,73,0.08)", label: "En échec" },
-  recovered: { color: "#3fb950", bg: "rgba(63,185,80,0.08)", label: "Rétabli" },
-  mutated: { color: "#d29922", bg: "rgba(210,153,34,0.08)", label: "Contenu modifié" },
+// Exact tint/border ratios as the app's own incident card
+// (border-destructive/30, bg-destructive/5 — see
+// src/app/(app)/app/[projectId]/incidents/page.tsx), extended to
+// recovered/mutated for the two kinds that don't have their own
+// dedicated in-app card style.
+const KIND_STYLE: Record<
+  AlertItem["kind"],
+  { color: string; cardBg: string; cardBorder: string; iconBg: string; label: string }
+> = {
+  fail: {
+    color: "#f85149",
+    cardBg: "rgba(248,81,73,0.05)",
+    cardBorder: "rgba(248,81,73,0.3)",
+    iconBg: "rgba(248,81,73,0.1)",
+    label: "En échec",
+  },
+  recovered: {
+    color: "#3fb950",
+    cardBg: "rgba(63,185,80,0.05)",
+    cardBorder: "rgba(63,185,80,0.3)",
+    iconBg: "rgba(63,185,80,0.1)",
+    label: "Rétabli",
+  },
+  mutated: {
+    color: "#d29922",
+    cardBg: "rgba(210,153,34,0.05)",
+    cardBorder: "rgba(210,153,34,0.3)",
+    iconBg: "rgba(210,153,34,0.1)",
+    label: "Contenu modifié",
+  },
 };
 
-// Mirrors the app's own incident card (StatusDot + mono URL + every
-// missing-code line spelled out, same labels as FailureDetails in-app)
-// instead of the single deterministic sentence used for Discord/Slack/
-// the plain-text fallback — an email is read away from the dashboard, so
-// it has to carry the same detail on its own.
+const DEFAULT_CHECK_KIND: NonNullable<AlertItem["checkKind"]> = "http";
+
+// Mirrors the app's own incident card exactly: the same TargetKindBadge
+// icon (rasterized — most inbox clients strip inline <svg>, Gmail
+// included) tinted to the item's status color, a StatusDot-style dot +
+// label instead of a filled pill, the mono URL, and every missing-code
+// line spelled out (same wording as FailureDetails in-app) instead of
+// the single deterministic sentence used for Discord/Slack/the
+// plain-text fallback — an email is read away from the dashboard, so it
+// has to carry the same detail on its own.
 function buildFailEmailHtml(
   projectId: string,
   projectName: string,
@@ -89,6 +126,8 @@ function buildFailEmailHtml(
   const rows = items
     .map((i) => {
       const style = KIND_STYLE[i.kind];
+      const checkKind = i.checkKind ?? DEFAULT_CHECK_KIND;
+      const iconUrl = `${APP_URL}/email/icons/${checkKind}-${i.kind}.png`;
       const detailLines: string[] = [];
       if (i.kind === "fail" && i.missing) {
         detailLines.push(...i.missing.map(describeMissingCode));
@@ -106,29 +145,45 @@ function buildFailEmailHtml(
       return `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">
           <tr>
-            <td bgcolor="#161b1f" style="background:#161b1f;border:1px solid #21262d;border-left:3px solid ${style.color};border-radius:12px;padding:16px;">
+            <td bgcolor="#101317" style="background:${style.cardBg};border:1px solid ${style.cardBorder};border-radius:20px;padding:16px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                 <tr>
-                  <td>
-                    <span style="display:inline-block;padding:3px 9px;border-radius:999px;background:${style.bg};color:${style.color};font-size:11px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${style.label}</span>
+                  <td width="44" valign="top">
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                      <tr>
+                        <td width="32" height="32" bgcolor="${style.iconBg}" style="background:${style.iconBg};border-radius:16px;text-align:center;vertical-align:middle;">
+                          <img src="${iconUrl}" width="18" height="18" alt="" style="display:inline-block;vertical-align:middle;" />
+                        </td>
+                      </tr>
+                    </table>
                   </td>
-                  <td style="text-align:right;">
-                    <a href="${APP_URL}/app/${projectId}/${i.targetId}" style="color:#58a6ff;font-size:12px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Voir le d&eacute;tail &rarr;</a>
+                  <td valign="top">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                      <tr>
+                        <td>
+                          <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${style.color};margin-right:6px;"></span>
+                          <span style="font-size:12px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${style.label}</span>
+                        </td>
+                        <td style="text-align:right;">
+                          <a href="${APP_URL}/app/${projectId}/${i.targetId}" style="color:#58a6ff;font-size:12px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Voir le d&eacute;tail &rarr;</a>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin:8px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#e6e8eb;word-break:break-all;">${escapeHtml(i.url)}</p>
+                    ${detailLines
+                      .map(
+                        (line) =>
+                          `<p style="margin:5px 0 0;font-size:12px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(line)}</p>`,
+                      )
+                      .join("")}
+                    ${
+                      meta.length > 0
+                        ? `<p style="margin:8px 0 0;font-size:11px;color:#565d66;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(meta.join(" · "))}</p>`
+                        : ""
+                    }
                   </td>
                 </tr>
               </table>
-              <p style="margin:10px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#e6e8eb;word-break:break-all;">${escapeHtml(i.url)}</p>
-              ${detailLines
-                .map(
-                  (line) =>
-                    `<p style="margin:5px 0 0;font-size:12px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(line)}</p>`,
-                )
-                .join("")}
-              ${
-                meta.length > 0
-                  ? `<p style="margin:8px 0 0;font-size:11px;color:#565d66;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(meta.join(" · "))}</p>`
-                  : ""
-              }
             </td>
           </tr>
         </table>`;

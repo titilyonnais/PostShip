@@ -45,7 +45,7 @@ export function escapeHtml(value: string): string {
 export function emailButton(href: string, label: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
   <tr>
-    <td bgcolor="${PRIMARY_BG}" style="background:${PRIMARY_BG};border-radius:10px;">
+    <td bgcolor="${PRIMARY_BG}" style="background:${PRIMARY_BG};border-radius:16px;">
       <a href="${href}" style="display:inline-block;padding:11px 22px;color:${PRIMARY_FG};font-size:13px;font-weight:600;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(label)}</a>
     </td>
   </tr>
@@ -100,7 +100,7 @@ export function renderEmailShell(opts: {
               </td>
             </tr>
             <tr>
-              <td bgcolor="${CARD}" style="background:${CARD};border:1px solid ${BORDER};border-top:3px solid ${BRAND_GREEN};border-radius:16px;padding:32px;">
+              <td bgcolor="${CARD}" style="background:${CARD};border:1px solid ${BORDER};border-top:3px solid ${BRAND_GREEN};border-radius:24px;padding:32px;">
                 <h1 style="margin:0 0 10px;color:${FG};font-size:19px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(opts.title)}</h1>
                 ${
                   opts.intro
