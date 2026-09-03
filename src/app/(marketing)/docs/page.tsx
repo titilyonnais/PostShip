@@ -77,7 +77,7 @@ export default function DocsPage() {
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Cycle de vérification
         </h2>
-        <div className="flex items-start gap-3 rounded-md border border-border bg-card p-4">
+        <div className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4">
           <Clock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
             Free : toutes les 30 min. Solo et Team : toutes les 5 min, plus une
@@ -103,26 +103,6 @@ export default function DocsPage() {
         </p>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Vérification de domaine
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Avant de lancer les vérifications automatiques, PostShip doit
-          confirmer que vous êtes propriétaire du domaine surveillé — sinon
-          n&apos;importe qui pourrait pointer un projet vers un site qu&apos;il
-          ne possède pas et s&apos;en servir comme client HTTP gratuit. Depuis
-          Paramètres du projet → Vérification de domaine, ajoutez un
-          enregistrement DNS TXT ou un fichier{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">
-            /.well-known/postship.txt
-          </code>{" "}
-          contenant le jeton fourni, puis cliquez sur Vérifier. Les
-          vérifications manuelles (« Lancer maintenant ») ne sont pas
-          concernées.
-        </p>
-      </section>
-
       <section className="flex flex-col gap-6">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Types de vérification
@@ -131,7 +111,7 @@ export default function DocsPage() {
           {CHECK_TYPES.map((check) => (
             <div
               key={check.title}
-              className="flex items-start gap-3 rounded-md border border-border bg-card p-4"
+              className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"
             >
               <check.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div>
@@ -151,7 +131,7 @@ export default function DocsPage() {
           {INTEGRATIONS.map((integration) => (
             <div
               key={integration.title}
-              className="flex items-start gap-3 rounded-md border border-border bg-card p-4"
+              className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"
             >
               <integration.icon
                 className="mt-0.5 size-4 shrink-0 text-muted-foreground"

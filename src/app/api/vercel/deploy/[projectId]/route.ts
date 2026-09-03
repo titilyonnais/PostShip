@@ -55,27 +55,6 @@ export async function POST(
     return NextResponse.json({ error: "Plan does not include this" }, { status: 403 });
   }
 
-  // Same domain-ownership gate as the cron tick — a valid deploy-webhook
-  // signature only proves the caller knows the secret, not that the
-  // project's base_url actually belongs to them.
-  let host: string;
-  try {
-    host = new URL(project.base_url).hostname;
-  } catch {
-    return NextResponse.json({ error: "Invalid project base_url" }, { status: 500 });
-  }
-
-  const { data: verification } = await supabase
-    .from("domain_verifications")
-    .select("verified_at")
-    .eq("project_id", projectId)
-    .eq("host", host)
-    .maybeSingle();
-
-  if (!verification?.verified_at) {
-    return NextResponse.json({ skipped: "domain_not_verified" });
-  }
-
   // Fields confirmed against Vercel's own webhook docs
   // (vercel.com/docs/webhooks/webhooks-api) — payload.target is
   // "production" | "staging" | null, payload.deployment.url is the

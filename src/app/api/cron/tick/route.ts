@@ -87,7 +87,7 @@ export async function GET(request: Request) {
       } catch (err) {
         console.error("Échec avancement scan de site", err);
       }
-      return NextResponse.json({ checked: 0, failed: 0, skippedUnverified: 0 });
+      return NextResponse.json({ checked: 0, failed: 0 });
     }
 
     const { data: dueProjects, error } = await supabase
@@ -102,41 +102,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Cron only runs projects whose base_url host has proven ownership
-    // (see src/lib/domain-verify.ts) — anyone could otherwise point a
-    // project at a domain they don't control and use PostShip's
-    // infrastructure as a free, scheduled HTTP client against it. Manual
-    // "Lancer maintenant" runs are exempt (the user is authenticated and
-    // already rate-limited by its own cooldown).
-    const { data: verifications } = await supabase
-      .from("domain_verifications")
-      .select("project_id, host")
-      .in(
-        "project_id",
-        (dueProjects ?? []).map((p) => p.id),
-      )
-      .not("verified_at", "is", null);
-
-    const verifiedProjectIds = new Set(
-      (dueProjects ?? [])
-        .filter((project) => {
-          let host: string;
-          try {
-            host = new URL(project.base_url).hostname;
-          } catch {
-            return false;
-          }
-          return (verifications ?? []).some(
-            (v) => v.project_id === project.id && v.host === host,
-          );
-        })
-        .map((p) => p.id),
-    );
-
-    const skippedUnverified = (dueProjects?.length ?? 0) - verifiedProjectIds.size;
-    const dueProjectIds = (dueProjects ?? [])
-      .filter((p) => verifiedProjectIds.has(p.id))
-      .map((p) => p.id);
+    // V4 (ia-moderne backlog): domain ownership no longer gates the cron —
+    // assertPublicHttpsUrl's SSRF guard plus per-plan URL quotas are the
+    // abuse control now (see addTarget's host-match check for base_url
+    // itself). domain_verifications is left in place but unread.
+    const dueProjectIds = (dueProjects ?? []).map((p) => p.id);
 
     if (dueProjectIds.length === 0) {
       try {
@@ -144,7 +114,7 @@ export async function GET(request: Request) {
       } catch (err) {
         console.error("Échec avancement scan de site", err);
       }
-      return NextResponse.json({ checked: 0, failed: 0, skippedUnverified });
+      return NextResponse.json({ checked: 0, failed: 0 });
     }
 
     const { data: jobs, error: jobsError } = await supabase
@@ -220,7 +190,7 @@ export async function GET(request: Request) {
       console.error("Échec avancement scan de site", err);
     }
 
-    return NextResponse.json({ checked: jobs.length, failed, skippedUnverified });
+    return NextResponse.json({ checked: jobs.length, failed });
   } finally {
     await releaseLock(supabase);
   }

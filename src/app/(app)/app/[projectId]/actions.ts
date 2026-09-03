@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/db/server";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { assertSameSiteHost } from "@/lib/host-match";
 import { applyMoneyPath } from "@/lib/money-path";
 import { runOneTarget, runProjectChecks } from "@/lib/runner";
 import { createServiceClient } from "@/lib/db/service";
@@ -150,12 +151,21 @@ export async function addTarget(
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, user_id")
+    .select("id, user_id, base_url")
     .eq("id", projectId)
     .single();
 
   if (!project) {
     return { error: "Projet introuvable." };
+  }
+
+  // V4 (ia-moderne backlog): replaces the domain-verification ritual — the
+  // URL must live on the project's own base_url host (or a subdomain of
+  // it), so PostShip can't be used as a free scheduled HTTP client against
+  // a domain the caller doesn't control.
+  const hostMatch = assertSameSiteHost(urlCheck.url, project.base_url);
+  if (!hostMatch.ok) {
+    return { error: hostMatch.reason };
   }
 
   // Quota is governed by the project OWNER's plan and their total URL
@@ -839,7 +849,7 @@ export async function setAlertConfirmCount(
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/app/${projectId}/rules`);
+  revalidatePath(`/app/${projectId}/settings`);
   return { success: "Règle enregistrée." };
 }
 
@@ -878,7 +888,7 @@ export async function setQuietHours(
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/app/${projectId}/rules`);
+  revalidatePath(`/app/${projectId}/settings`);
   revalidatePath(`/app/${projectId}/incidents`);
   return {
     success:
@@ -911,7 +921,7 @@ export async function silenceTarget(
   if (error) return { error: error.message };
 
   revalidatePath(`/app/${projectId}/urls`);
-  revalidatePath(`/app/${projectId}/rules`);
+  revalidatePath(`/app/${projectId}/settings`);
   return {
     success: silencedUntil ? `URL coupée pour ${hours}h.` : "URL reprise.",
   };
