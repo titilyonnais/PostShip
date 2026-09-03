@@ -1,5 +1,5 @@
 import { Coins, Download } from "lucide-react";
-import { avatarUrl } from "@/lib/avatar";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 
@@ -41,7 +41,7 @@ export default async function AccountOverviewPage() {
         <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
           {/* eslint-disable-next-line @next/next/no-img-element -- external DiceBear SVG */}
           <img
-            src={avatarUrl(profile?.avatar_seed ?? user?.id ?? "", 64)}
+            src={resolveAvatarUrl(profile, user?.id ?? "", 64)}
             alt=""
             className="size-10 shrink-0 rounded-full bg-secondary"
             width={40}
@@ -49,7 +49,7 @@ export default async function AccountOverviewPage() {
           />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">
-              {profile?.username || profile?.full_name || profile?.email}
+              {profile?.username || profile?.display_name || profile?.full_name || profile?.email}
             </p>
             <p className="text-xs text-muted-foreground">
               {profileComplete ? "Profil complet" : "Profil à compléter"}

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-bar/app-shell";
-import { avatarUrl } from "@/lib/avatar";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import {
   getAuthUser,
   getOpenIncidentCounts,
@@ -38,11 +38,14 @@ export default async function AppLayout({
           displayName:
             profile?.username || profile?.display_name || user.email || "Compte",
           email: profile?.email ?? user.email ?? "",
-          avatarUrl: avatarUrl(profile?.avatar_seed ?? user.id),
+          avatarUrl: resolveAvatarUrl(profile, user.id),
         }}
       />
 
-      <main id="app-main" className="min-w-0 overflow-x-hidden px-6 pt-14 pb-6 md:ml-60">
+      {/* pt-20 = the bar's own height (h-14/56px) plus the page's normal
+          24px breathing room — pt-14 alone cleared the fixed bar but left
+          content sitting flush against it with no gap. */}
+      <main id="app-main" className="min-w-0 overflow-x-hidden px-6 pt-20 pb-6 md:ml-60">
         {children}
       </main>
     </div>

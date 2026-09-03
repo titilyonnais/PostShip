@@ -39,9 +39,32 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user) {
+      // GitHub/Google hand back a name and a real photo in user_metadata —
+      // only worth reading (and only worth writing) the first time this
+      // profile row is created, so a later login never clobbers a name or
+      // avatar the user has since customized in Profil.
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      const meta = data.user.user_metadata as Record<string, unknown> | null;
+      const oauthName =
+        (meta?.full_name as string | undefined) ||
+        (meta?.name as string | undefined) ||
+        (meta?.user_name as string | undefined) ||
+        null;
+      const oauthAvatarUrl =
+        (meta?.avatar_url as string | undefined) || (meta?.picture as string | undefined) || null;
+
       await supabase.from("profiles").upsert({
         id: data.user.id,
         email: data.user.email,
+        ...(!existingProfile && {
+          display_name: oauthName,
+          avatar_url: oauthAvatarUrl,
+        }),
       });
 
       if (data.user.email) {

@@ -88,7 +88,7 @@ export function TeamTab({
         </>
       ) : (
         <p className="text-xs text-muted-foreground">
-          Disponible à partir du plan Pro.{" "}
+          Disponible à partir du plan Team.{" "}
           <Link
             href={`/app/billing?from=${encodeURIComponent(backTo)}`}
             className="text-foreground underline underline-offset-2"

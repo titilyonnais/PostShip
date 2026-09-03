@@ -15,12 +15,28 @@ export const metadata = {
   title: "Intégrations",
 };
 
+const CONNECTED_LABEL: Record<string, string> = {
+  discord: "Discord connecté.",
+  slack: "Slack connecté.",
+};
+
+const OAUTH_ERROR_LABEL: Record<string, string> = {
+  plan: "Ce plan ne donne pas accès à cette intégration.",
+  discord: "Échec de la connexion à Discord — réessayez ou collez l'URL manuellement.",
+  slack: "Échec de la connexion à Slack — réessayez ou collez l'URL manuellement.",
+  discord_not_configured: "Connexion Discord pas encore activée sur ce site.",
+  slack_not_configured: "Connexion Slack pas encore activée sur ce site.",
+};
+
 export default async function IntegrationsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ connected?: string; oauth_error?: string }>;
 }) {
   const { projectId } = await params;
+  const { connected, oauth_error: oauthError } = await searchParams;
 
   const project = await getProject(projectId);
   if (!project) notFound();
@@ -31,6 +47,17 @@ export default async function IntegrationsPage({
 
   return (
     <div className="flex flex-col gap-6">
+      {connected && CONNECTED_LABEL[connected] && (
+        <p role="status" className="text-sm text-[#3fb950]">
+          {CONNECTED_LABEL[connected]}
+        </p>
+      )}
+      {oauthError && (
+        <p role="alert" className="text-sm text-destructive">
+          {OAUTH_ERROR_LABEL[oauthError] ?? "Échec de la connexion."}
+        </p>
+      )}
+
       <DeployHooksCard
         projectId={projectId}
         project={project}
@@ -66,7 +93,7 @@ export default async function IntegrationsPage({
         </h2>
         {!limits.stripeHealth && (
           <p className="text-xs text-muted-foreground">
-            Disponible à partir du plan Pro.
+            Disponible à partir du plan Team.
           </p>
         )}
         <p className="text-xs text-muted-foreground">

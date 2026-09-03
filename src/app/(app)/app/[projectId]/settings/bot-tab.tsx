@@ -120,7 +120,7 @@ export async function BotTab({
             href={`/app/billing?from=${encodeURIComponent(`/app/${projectId}/settings?tab=bot`)}`}
             className="text-foreground underline underline-offset-2"
           >
-            Passer à Solo/Pro
+            Passer à Solo
           </Link>
         </p>
       )}

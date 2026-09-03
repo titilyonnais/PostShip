@@ -16,6 +16,7 @@ import { sendOutboundWebhook } from "@/lib/outbound-webhook";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import type { ActionResult } from "@/lib/use-toast-action";
 import { assertRegisterableHttpsUrl } from "@/lib/validation";
+import { discordWebhookSchema, slackWebhookSchema } from "@/lib/webhook-url-schemas";
 
 // discord_webhook_url, slack_webhook_url, and the deploy-hook secret
 // columns are service-role-only (see migrations 0017 and 0021) — the "own
@@ -36,22 +37,6 @@ async function assertOwnsProject(
     .single();
   return !!data;
 }
-
-const discordWebhookSchema = z
-  .string()
-  .trim()
-  .regex(
-    /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/,
-    "URL de webhook Discord invalide.",
-  );
-
-const slackWebhookSchema = z
-  .string()
-  .trim()
-  .regex(
-    /^https:\/\/hooks\.slack\.com\/services\/[\w-]+\/[\w-]+\/[\w-]+$/,
-    "URL de webhook Slack invalide.",
-  );
 
 const telegramTokenSchema = z
   .string()

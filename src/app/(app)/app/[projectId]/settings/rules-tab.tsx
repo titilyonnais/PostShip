@@ -46,7 +46,7 @@ export async function RulesTab({
               href={`/app/billing?from=${encodeURIComponent(backTo)}`}
               className="text-foreground underline underline-offset-2"
             >
-              Passer à Solo/Pro
+              Passer à Solo
             </Link>
           </p>
         )}
@@ -90,7 +90,7 @@ export async function RulesTab({
               href={`/app/billing?from=${encodeURIComponent(backTo)}`}
               className="text-foreground underline underline-offset-2"
             >
-              Passer à Solo/Pro
+              Passer à Solo
             </Link>
           </p>
         )}

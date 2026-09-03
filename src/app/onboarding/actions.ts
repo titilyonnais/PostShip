@@ -137,6 +137,7 @@ export async function completeOnboarding(
 
   const session = await getStripe().checkout.sessions.create({
     mode: "subscription",
+    billing_address_collection: "required",
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/billing?checkout=success`,

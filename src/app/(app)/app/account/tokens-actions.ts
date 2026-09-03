@@ -27,6 +27,10 @@ export async function buyTokens(packId: TokenPackId) {
 
   const session = await getStripe().checkout.sessions.create({
     mode: "payment",
+    // A one-time card charge with no address on file otherwise — Stripe
+    // collects and validates it right here instead of relying on the
+    // separate (and easy to skip) Facturation form.
+    billing_address_collection: "required",
     customer: profile?.stripe_customer_id ?? undefined,
     customer_email: profile?.stripe_customer_id
       ? undefined

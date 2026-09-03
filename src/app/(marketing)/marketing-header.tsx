@@ -7,18 +7,18 @@ import { Menu, X } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/db/client";
-import { avatarUrl } from "@/lib/avatar";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import { ANONYMOUS_ONLY_SLOT_LABELS, getHeaderConfig, SECTION_LINKS } from "./header-config";
 
 type AuthState =
-  | { loaded: false; loggedIn: false; label: null; avatarSeed: null }
-  | { loaded: true; loggedIn: boolean; label: string | null; avatarSeed: string | null };
+  | { loaded: false; loggedIn: false; label: null; avatarUrl: null }
+  | { loaded: true; loggedIn: boolean; label: string | null; avatarUrl: string | null };
 
 const INITIAL_AUTH_STATE: AuthState = {
   loaded: false,
   loggedIn: false,
   label: null,
-  avatarSeed: null,
+  avatarUrl: null,
 };
 
 // Client-side on purpose (same trade-off as the old nav-auth.tsx it
@@ -37,7 +37,7 @@ function useMarketingAuth(): AuthState {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        if (active) setState({ loaded: true, loggedIn: false, label: null, avatarSeed: null });
+        if (active) setState({ loaded: true, loggedIn: false, label: null, avatarUrl: null });
         return;
       }
 
@@ -46,13 +46,13 @@ function useMarketingAuth(): AuthState {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        if (active) setState({ loaded: true, loggedIn: false, label: null, avatarSeed: null });
+        if (active) setState({ loaded: true, loggedIn: false, label: null, avatarUrl: null });
         return;
       }
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username, display_name, avatar_seed")
+        .select("username, display_name, avatar_seed, avatar_url")
         .eq("id", user.id)
         .single();
 
@@ -61,7 +61,7 @@ function useMarketingAuth(): AuthState {
           loaded: true,
           loggedIn: true,
           label: profile?.username || profile?.display_name || "Mon espace",
-          avatarSeed: profile?.avatar_seed ?? user.id,
+          avatarUrl: resolveAvatarUrl(profile, user.id),
         });
       }
     }
@@ -142,11 +142,11 @@ export function MarketingHeader() {
           )}
           {showAuthLink && (
             <Link href={authLinkHref} className={NAV_LINK_CLASS}>
-              {auth.loggedIn && auth.avatarSeed ? (
+              {auth.loggedIn && auth.avatarUrl ? (
                 <span className="flex items-center gap-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- external DiceBear SVG */}
+                  {/* eslint-disable-next-line @next/next/no-img-element -- external avatar (DiceBear or the OAuth provider's own photo) */}
                   <img
-                    src={avatarUrl(auth.avatarSeed)}
+                    src={auth.avatarUrl}
                     alt=""
                     className="size-5 rounded-full bg-secondary"
                     width={20}

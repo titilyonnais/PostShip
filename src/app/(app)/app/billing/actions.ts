@@ -54,6 +54,7 @@ export async function changePlan(plan: "free" | "solo" | "team") {
 
   const session = await getStripe().checkout.sessions.create({
     mode: "subscription",
+    billing_address_collection: "required",
     customer: profile?.stripe_customer_id ?? undefined,
     customer_email: profile?.stripe_customer_id
       ? undefined

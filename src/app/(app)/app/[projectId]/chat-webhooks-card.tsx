@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Zap } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
+import { buttonVariants } from "@/components/ui/button";
 import type { ActionResult } from "@/lib/use-toast-action";
 import {
   disableDiscordWebhook,
@@ -21,6 +22,8 @@ function ChatWebhookSection({
   disableAction,
   inputName,
   configured,
+  connectHref,
+  connectLabel,
 }: {
   title: string;
   instructions: React.ReactNode;
@@ -29,6 +32,12 @@ function ChatWebhookSection({
   disableAction: (prevState: ActionResult) => Promise<ActionResult>;
   inputName: string;
   configured: boolean;
+  // Quick-connect: skips the manual copy-paste entirely when the provider
+  // hands back a ready-to-use webhook URL on its own OAuth screen (see
+  // src/app/api/oauth/discord and .../slack) — undefined means this
+  // provider doesn't have one (Telegram has no such flow).
+  connectHref?: string;
+  connectLabel?: string;
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
@@ -36,7 +45,19 @@ function ChatWebhookSection({
         <MessageSquare className="size-3.5" aria-hidden="true" />
         {title}
       </h3>
-      <p className="text-xs text-muted-foreground">{instructions}</p>
+      {connectHref && !configured && (
+        <Link href={connectHref} className={buttonVariants({ variant: "default", size: "sm" })}>
+          <Zap className="size-3.5" aria-hidden="true" />
+          {connectLabel}
+        </Link>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {connectHref
+          ? configured
+            ? instructions
+            : "Ou collez l'URL vous-même :"
+          : instructions}
+      </p>
       <ActionForm action={action} className="flex gap-2">
         <label htmlFor={inputName} className="sr-only">
           URL du webhook {title}
@@ -162,7 +183,7 @@ export function ChatWebhooksCard({
             href={`/app/billing?from=${encodeURIComponent(backTo)}`}
             className="text-foreground underline underline-offset-2"
           >
-            Passer à Solo/Pro
+            Passer à Solo
           </Link>
         </p>
       )}
@@ -175,6 +196,8 @@ export function ChatWebhooksCard({
           disableAction={disableDiscordWebhook.bind(null, projectId)}
           inputName="discord_webhook_url"
           configured={!!project.discord_webhook_configured}
+          connectHref={`/api/oauth/discord/start?projectId=${projectId}`}
+          connectLabel="Connecter Discord"
         />
         <ChatWebhookSection
           title="Slack"
@@ -184,6 +207,8 @@ export function ChatWebhooksCard({
           disableAction={disableSlackWebhook.bind(null, projectId)}
           inputName="slack_webhook_url"
           configured={!!project.slack_webhook_configured}
+          connectHref={`/api/oauth/slack/start?projectId=${projectId}`}
+          connectLabel="Connecter Slack"
         />
         <TelegramSection
           action={setTelegramConfig.bind(null, projectId)}

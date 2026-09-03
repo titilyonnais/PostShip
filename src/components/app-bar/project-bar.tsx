@@ -60,7 +60,12 @@ function ProjectSwitcher({
           <button
             type="button"
             aria-label="Projet actif, changer de projet"
-            className="flex min-w-0 items-center gap-2 rounded-full px-2 py-1.5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            // Grid items stretch to fill their track by default — without
+            // this, the switcher matches the desktop bar's whole 1fr
+            // column width instead of its own content (found live: ~45%
+            // of the bar). w-fit is a no-op in the mobile flex row, where
+            // it's already content-sized.
+            className="flex w-fit min-w-0 items-center gap-2 justify-self-start rounded-full px-2 py-1.5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         }
       >

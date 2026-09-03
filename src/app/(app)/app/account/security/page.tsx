@@ -11,6 +11,12 @@ export const metadata = {
   title: "Sécurité",
 };
 
+const PROVIDER_LABEL: Record<string, string> = {
+  github: "GitHub",
+  google: "Google",
+  email: "Email",
+};
+
 export default async function AccountSecurityPage() {
   const supabase = await createClient();
   const [user, { data: factorsData }] = await Promise.all([
@@ -20,9 +26,34 @@ export default async function AccountSecurityPage() {
 
   const profile = user ? await getProfile(user.id) : null;
   const totpFactor = factorsData?.totp?.[0] ?? null;
+  // Every provider actually used to sign in, not just the last one — a
+  // user who added GitHub after signing up with a magic link still has
+  // both linked (auth.users.identities), which is what should show here
+  // instead of always reading as "Email".
+  const linkedProviders = (user?.identities ?? [])
+    .map((identity) => identity.provider)
+    .filter((provider) => provider !== "email");
 
   return (
     <div className="flex flex-col gap-6">
+      {linkedProviders.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Comptes connectés
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {linkedProviders.map((provider) => (
+              <li
+                key={provider}
+                className="rounded-full border border-border bg-card px-3 py-1 text-sm"
+              >
+                {PROVIDER_LABEL[provider] ?? provider}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <EmailSection currentEmail={profile?.email ?? user?.email ?? ""} />
 
       <div className="flex flex-col gap-2 border-t border-border pt-6">

@@ -226,10 +226,70 @@ export async function regenerateAvatar(
 
   await supabase
     .from("profiles")
-    .update({ avatar_seed: crypto.randomUUID() })
+    // Also clears any uploaded photo — "Nouvel avatar" should switch back
+    // to a generated one, not silently no-op while a real photo is set
+    // (resolveAvatarUrl prefers avatar_url whenever it's present).
+    .update({ avatar_seed: crypto.randomUUID(), avatar_url: null })
     .eq("id", user.id);
 
   return { success: "Nouvel avatar généré." };
+}
+
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_MIME_EXT: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+export async function uploadAvatarPhoto(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choisissez une image." };
+  }
+  if (file.size > AVATAR_MAX_BYTES) {
+    return { error: "Image trop lourde (2 Mo max)." };
+  }
+  const ext = AVATAR_MIME_EXT[file.type];
+  if (!ext) {
+    return { error: "Format non pris en charge (PNG, JPEG ou WebP)." };
+  }
+
+  // One fixed key per user, overwritten on every upload — no orphaned
+  // files to clean up, and the bucket's own RLS (see migration 0052)
+  // only lets a user write under their own uid prefix.
+  const path = `${user.id}/avatar.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) return { error: "Échec de l'envoi de l'image." };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  // A stable key means a stable public URL, which browsers/CDNs would
+  // otherwise cache indefinitely across re-uploads — bust it so the new
+  // photo actually shows up.
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ avatar_url: `${publicUrl}?v=${Date.now()}` })
+    .eq("id", user.id);
+
+  if (updateError) return { error: `Photo envoyée mais profil non mis à jour : ${updateError.message}` };
+
+  return { success: "Photo mise à jour." };
 }
 
 const changeEmailSchema = z.string().trim().email("Adresse email invalide.");

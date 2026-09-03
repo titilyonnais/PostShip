@@ -19,6 +19,7 @@ export default async function AccountProfilePage() {
       <IdentitySection
         username={profile?.username ?? ""}
         avatarSeed={profile?.avatar_seed ?? user?.id ?? ""}
+        avatarUrl={profile?.avatar_url ?? null}
       />
 
       <ActionForm

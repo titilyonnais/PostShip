@@ -305,7 +305,11 @@ export default async function ProjectOverviewPage({
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-3 gap-2 lg:grid-cols-1">
+        {/* Feedback fix: grid-cols-3 alone was cramped on every width below
+            lg (where this column is full-page-width, not the narrow
+            sidebar it becomes at lg+) — stack on phones, 3-across once
+            there's room, back to stacked once it's a sidebar again. */}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
           <div className="rounded-2xl border border-border bg-card p-3">
             <p className="text-xs text-muted-foreground">
               Taux de réussite — 24h
