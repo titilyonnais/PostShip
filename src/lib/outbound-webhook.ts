@@ -23,7 +23,7 @@ export async function sendOutboundWebhook(
   webhookUrl: string,
   secret: string,
   payload: {
-    event: "fail" | "recovered";
+    event: "fail" | "recovered" | "mutated";
     projectId: string;
     projectName: string;
     items: OutboundWebhookItem[];

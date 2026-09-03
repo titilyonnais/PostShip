@@ -10,7 +10,7 @@ const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 export type AlertItem = {
   targetId: string;
   url: string;
-  kind: "fail" | "recovered";
+  kind: "fail" | "recovered" | "mutated";
   outcome: string;
   httpStatus: number | null;
   fingerprint: string;
@@ -23,6 +23,9 @@ export type AlertItem = {
   // dispatchAlerts drops this item (but check_runs was already written by
   // the runner regardless) rather than the whole project going quiet.
   silencedUntil?: string | null;
+  // V6 (ia-moderne backlog): the "field: before → after" line for a
+  // "mutated" item — see src/lib/surface.ts.
+  mutationSummary?: string | null;
 };
 
 export async function shouldSendFailAlert(

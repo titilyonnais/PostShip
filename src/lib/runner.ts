@@ -16,6 +16,7 @@ import {
   shouldAlertRecovered,
 } from "@/lib/alert-confirm";
 import type { SnapshotItem } from "@/lib/deploy-diff";
+import { describeSurfaceMutation, detectSurfaceMutations, shouldAlertMutated, type PageSurface } from "@/lib/surface";
 
 const MAX_CONCURRENCY_PER_PROJECT = 3;
 
@@ -44,7 +45,62 @@ type SingleTargetResult = {
   missing: string[] | null;
   consecutiveFails: number;
   silencedUntil: string | null;
+  mutated: boolean;
+  mutationSummary: string | null;
 };
+
+// V6 (ia-moderne backlog): compares this run's scraped page surface
+// against the last one stored for this target, upserts the new one, and
+// reports whether it counts as a "mutated" alert — deploy runs only (see
+// src/lib/surface.ts). A failure here must never break the check itself.
+async function trackPageSurface(
+  supabase: SupabaseClient,
+  projectId: string,
+  targetId: string,
+  surface: PageSurface,
+  isDeployRun: boolean,
+): Promise<{ mutated: boolean; mutationSummary: string | null }> {
+  try {
+    const { data: existing } = await supabase
+      .from("page_surfaces")
+      .select("title, h1, description, og_title, mutated_at")
+      .eq("target_id", targetId)
+      .maybeSingle();
+
+    const before: PageSurface | null = existing
+      ? {
+          title: existing.title,
+          h1: existing.h1,
+          description: existing.description,
+          ogTitle: existing.og_title,
+        }
+      : null;
+
+    const mutated = shouldAlertMutated(before, surface, isDeployRun);
+    const mutationSummary = mutated
+      ? detectSurfaceMutations(before, surface).map(describeSurfaceMutation).join(" · ")
+      : null;
+
+    await supabase.from("page_surfaces").upsert(
+      {
+        project_id: projectId,
+        target_id: targetId,
+        title: surface.title,
+        h1: surface.h1,
+        description: surface.description,
+        og_title: surface.ogTitle,
+        seen_at: new Date().toISOString(),
+        mutated_at: mutated ? new Date().toISOString() : (existing?.mutated_at ?? null),
+      },
+      { onConflict: "target_id" },
+    );
+
+    return { mutated, mutationSummary };
+  } catch (err) {
+    console.error("Échec suivi de la surface de page", err);
+    return { mutated: false, mutationSummary: null };
+  }
+}
 
 async function runSingleTarget(
   supabase: SupabaseClient,
@@ -53,6 +109,10 @@ async function runSingleTarget(
   ownerPlan: Plan,
   budget?: FetchBudget,
   stripeSuccessUrl?: string | null,
+  // Set by runProjectChecks when this run was triggered by a production
+  // deploy webhook — gates the V6 "mutated" alert (never runOneTarget or
+  // the cron/manual path).
+  deployHint?: string,
 ): Promise<SingleTargetResult> {
   const startedAt = new Date().toISOString();
 
@@ -152,6 +212,15 @@ async function runSingleTarget(
     ? (result.details.missing as string[])
     : null;
 
+  // V6 (ia-moderne backlog): only http targets scrape a page surface
+  // (see http.ts's extractHtmlMeta) — details.surface is null for every
+  // other check kind, or a non-HTML http response.
+  const surface = (result.details as { surface?: PageSurface | null } | undefined)
+    ?.surface;
+  const { mutated, mutationSummary } = surface
+    ? await trackPageSurface(supabase, projectId, target.id, surface, !!deployHint)
+    : { mutated: false, mutationSummary: null };
+
   return {
     targetId: target.id,
     url: target.url,
@@ -162,6 +231,8 @@ async function runSingleTarget(
     missing,
     consecutiveFails,
     silencedUntil: target.silenced_until ?? null,
+    mutated,
+    mutationSummary,
   };
 }
 
@@ -514,6 +585,7 @@ export async function runProjectChecks(
         ownerPlan,
         budget,
         project.stripe_success_url,
+        deployHint,
       ),
   );
 
@@ -522,6 +594,24 @@ export async function runProjectChecks(
     const previous = previousOutcomeByTarget.get(result.targetId) ?? null;
     const previousConsecutiveFails =
       previousConsecutiveFailsByTarget.get(result.targetId) ?? 0;
+
+    // V6 (ia-moderne backlog): independent of pass/fail — a page can
+    // return 200 and still have quietly lost its H1/title/description/
+    // og:title after this deploy. trackPageSurface already gated
+    // `mutated` on deployHint being set (see runSingleTarget).
+    if (result.mutated) {
+      alertItems.push({
+        targetId: result.targetId,
+        url: result.url,
+        kind: "mutated",
+        outcome: result.outcome,
+        httpStatus: result.http_status,
+        fingerprint: result.fingerprint,
+        deployHint,
+        silencedUntil: result.silencedUntil,
+        mutationSummary: result.mutationSummary,
+      });
+    }
 
     if (result.outcome === "pass") {
       if (shouldAlertRecovered(previous, previousConsecutiveFails, confirmCount)) {

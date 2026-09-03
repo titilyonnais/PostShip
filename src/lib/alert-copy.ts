@@ -4,12 +4,16 @@
 
 export type AlertCopyItem = {
   url: string;
-  kind: "fail" | "recovered";
+  kind: "fail" | "recovered" | "mutated";
   outcome: string;
   httpStatus: number | null;
   missing?: string[] | null;
   ttfbMs?: number | null;
   deployHint?: string | null;
+  // V6 (ia-moderne backlog): a human-readable "field: before → after"
+  // line for a "mutated" item — describeAlertItem falls back to a plain
+  // sentence if unset.
+  mutationSummary?: string | null;
 };
 
 export type AlertCopy = {
@@ -22,6 +26,12 @@ export type AlertCopy = {
 export function describeAlertItem(item: AlertCopyItem): string {
   if (item.kind === "recovered") {
     return `Rétabli — ${item.url}`;
+  }
+
+  if (item.kind === "mutated") {
+    return item.mutationSummary
+      ? `${item.url} — ${item.mutationSummary}`
+      : `Contenu modifié après déploiement sur ${item.url}.`;
   }
 
   const missing = item.missing ?? [];
@@ -53,24 +63,34 @@ export function buildAlertCopy(
 ): AlertCopy {
   const nFail = items.filter((i) => i.kind === "fail").length;
   const nRecovered = items.filter((i) => i.kind === "recovered").length;
+  const nMutated = items.filter((i) => i.kind === "mutated").length;
   const hasFail = nFail > 0;
 
   const deployHint = items.find((i) => i.deployHint)?.deployHint ?? null;
-  const recap = `${nFail} en échec, ${nRecovered} rétablis.`;
+  const recap =
+    `${nFail} en échec, ${nRecovered} rétablis.` +
+    (nMutated > 0 ? ` ${nMutated} modification(s) de contenu.` : "");
   const recapLine = deployHint
     ? `Depuis le dernier déploiement : ${recap}`
     : recap;
 
   const lines = items.map(describeAlertItem);
 
-  const subject = `[PostShip] ${projectName} — ${hasFail ? nFail : nRecovered} URL(s) ${hasFail ? "en échec" : "rétabli"}`;
+  const subject = `[PostShip] ${projectName} — ${
+    hasFail
+      ? `${nFail} URL(s) en échec`
+      : nRecovered > 0
+        ? `${nRecovered} URL(s) rétabli`
+        : `${nMutated} URL(s) modifiée(s)`
+  }`;
 
   const text = [recapLine, ...lines].join("\n");
 
   const discordDescription = [
     recapLine,
     ...items.map(
-      (item) => `${item.kind === "recovered" ? "✅" : "🔴"} ${describeAlertItem(item)}`,
+      (item) =>
+        `${item.kind === "recovered" ? "✅" : item.kind === "mutated" ? "🟠" : "🔴"} ${describeAlertItem(item)}`,
     ),
   ].join("\n");
 
@@ -78,7 +98,7 @@ export function buildAlertCopy(
     recapLine,
     ...items.map(
       (item) =>
-        `${item.kind === "recovered" ? ":large_green_circle:" : ":red_circle:"} ${describeAlertItem(item)}`,
+        `${item.kind === "recovered" ? ":large_green_circle:" : item.kind === "mutated" ? ":large_orange_circle:" : ":red_circle:"} ${describeAlertItem(item)}`,
     ),
   ].join("\n");
 

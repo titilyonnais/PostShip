@@ -9,6 +9,7 @@ import {
   TIMEOUT_MS,
   type CheckResult,
 } from "@/lib/checks/shared";
+import type { PageSurface } from "@/lib/surface";
 
 export type MoneyPathAssertions = {
   requireStripeJs?: boolean;
@@ -73,6 +74,14 @@ function evaluateMoneyPathAssertions(
   return missing;
 }
 
+const SURFACE_MAX_LEN = 200;
+
+function clipSurfaceField(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, SURFACE_MAX_LEN) : null;
+}
+
 // title/description/canonical are informational only — plenty of
 // legitimate pages skip them, so their absence alone must not flip the
 // outcome to "fail" (verified live: example.com always lacks them, which
@@ -83,7 +92,7 @@ function extractHtmlMeta(html: string) {
   try {
     root = parseHtml(html);
   } catch {
-    return { failing: ["html_unparsable"], meta: {} };
+    return { failing: ["html_unparsable"], meta: {}, surface: null };
   }
 
   const title = root.querySelector("title")?.text.trim() || null;
@@ -101,6 +110,20 @@ function extractHtmlMeta(html: string) {
   const robots =
     root.querySelector('meta[name="robots" i]')?.getAttribute("content") ||
     null;
+
+  // V6 (ia-moderne backlog): the "mutation radar" fields — see
+  // src/lib/surface.ts for what they're compared against.
+  const h1 = root.querySelector("h1")?.text.trim() || null;
+  const ogTitle =
+    root.querySelector('meta[property="og:title" i]')?.getAttribute("content") ||
+    null;
+
+  const surface: PageSurface = {
+    title: clipSurfaceField(title),
+    h1: clipSurfaceField(h1),
+    description: clipSurfaceField(description),
+    ogTitle: clipSurfaceField(ogTitle),
+  };
 
   const jsonLdScripts = root.querySelectorAll(
     'script[type="application/ld+json"]',
@@ -123,6 +146,7 @@ function extractHtmlMeta(html: string) {
       robots,
       jsonLdCount: jsonLdScripts.length,
     },
+    surface,
   };
 }
 
@@ -219,6 +243,7 @@ export async function runHttpCheck(
         ? { ...htmlMeta.meta, xRobotsTag: response.headers.get("x-robots-tag") }
         : null,
       brokenAssets,
+      surface: htmlMeta?.surface ?? null,
     };
 
     return {

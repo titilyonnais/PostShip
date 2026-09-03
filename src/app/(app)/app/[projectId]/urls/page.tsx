@@ -67,23 +67,35 @@ export default async function UrlsPage({
   const limits = getPlanLimits(ownerPlan);
 
   const supabase = await createClient();
-  const [{ data: targets }, { data: recentRuns }] = await Promise.all([
-    supabase
-      .from("check_targets")
-      .select(
-        "id, project_id, url, kind, expect_status, expect_contains, expect_not_contains, enabled, created_at, last_outcome, assertions, request_header_configured, silenced_until",
-      )
-      .eq("project_id", projectId)
-      .order("created_at"),
-    supabase
-      .from("check_runs")
-      .select(
-        "target_id, outcome, started_at, http_status, ttfb_ms, fingerprint, details",
-      )
-      .eq("project_id", projectId)
-      .order("started_at", { ascending: false })
-      .limit(200),
-  ]);
+  const [{ data: targets }, { data: recentRuns }, { data: surfaces }, { data: lastProdDeploy }] =
+    await Promise.all([
+      supabase
+        .from("check_targets")
+        .select(
+          "id, project_id, url, kind, expect_status, expect_contains, expect_not_contains, enabled, created_at, last_outcome, assertions, request_header_configured, silenced_until",
+        )
+        .eq("project_id", projectId)
+        .order("created_at"),
+      supabase
+        .from("check_runs")
+        .select(
+          "target_id, outcome, started_at, http_status, ttfb_ms, fingerprint, details",
+        )
+        .eq("project_id", projectId)
+        .order("started_at", { ascending: false })
+        .limit(200),
+      // V6 (ia-moderne backlog): last-seen h1 + whether it mutated,
+      // per target.
+      supabase.from("page_surfaces").select("target_id, h1, mutated_at").eq("project_id", projectId),
+      supabase
+        .from("deploy_events")
+        .select("started_at")
+        .eq("project_id", projectId)
+        .eq("kind", "production")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
   const latestRunByTarget = new Map<string, RunRow>();
   for (const run of (recentRuns ?? []) as RunRow[]) {
@@ -91,6 +103,13 @@ export default async function UrlsPage({
       latestRunByTarget.set(run.target_id, run);
     }
   }
+
+  const surfaceByTarget = new Map(
+    (surfaces ?? []).map((s) => [s.target_id as string, s]),
+  );
+  const lastDeployAt = lastProdDeploy?.started_at
+    ? new Date(lastProdDeploy.started_at).getTime()
+    : null;
 
   const allTargets = targets ?? [];
   const activeKind =
@@ -158,6 +177,11 @@ export default async function UrlsPage({
                 const run = latestRunByTarget.get(target.id);
                 const isFailing =
                   run && (run.outcome === "fail" || run.outcome === "error");
+                const surface = surfaceByTarget.get(target.id);
+                const isMutatedSinceDeploy =
+                  !!surface?.mutated_at &&
+                  lastDeployAt !== null &&
+                  new Date(surface.mutated_at).getTime() >= lastDeployAt;
 
                 return (
                   <Fragment key={target.id}>
@@ -182,7 +206,19 @@ export default async function UrlsPage({
                           >
                             <ExternalLink className="size-3" aria-hidden="true" />
                           </a>
+                          {isMutatedSinceDeploy && (
+                            <span
+                              className="size-1.5 shrink-0 rounded-full bg-amber-500"
+                              title="Contenu modifié depuis le dernier déploiement"
+                              aria-label="Contenu modifié depuis le dernier déploiement"
+                            />
+                          )}
                         </div>
+                        {surface?.h1 && (
+                          <p className="mt-0.5 truncate text-[0.7rem] text-muted-foreground">
+                            « {surface.h1} »
+                          </p>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">
                         {target.kind}
