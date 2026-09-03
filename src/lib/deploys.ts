@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { buildDeployWatchJobs, type WatchReason } from "@/lib/deploy-watches";
 import type { SnapshotItem } from "@/lib/deploy-diff";
 
 export type DeployProvider = "vercel" | "netlify" | "cloudflare";
@@ -18,7 +19,9 @@ export type DeployEventRow = {
 
 // Called from the 3 deploy webhook routes, after runProjectChecks /
 // runPreviewChecks — a failed insert here must never surface as a 500,
-// the site checks it's logging already ran.
+// the site checks it's logging already ran. Returns the inserted row's
+// id (or null on failure) so the caller can schedule V5's T+2/T+8 watches
+// against it.
 export async function recordDeployEvent(
   supabase: SupabaseClient,
   params: {
@@ -31,22 +34,84 @@ export async function recordDeployEvent(
     failCount: number;
     snapshot: SnapshotItem[];
   },
-): Promise<void> {
+): Promise<string | null> {
   try {
-    const { error } = await supabase.from("deploy_events").insert({
-      project_id: params.projectId,
-      provider: params.provider,
-      kind: params.kind,
-      sha: params.sha,
-      deployment_url: params.deploymentUrl,
-      outcome: params.outcome,
-      fail_count: params.failCount,
-      snapshot: params.snapshot,
-    });
-    if (error) console.error("Échec enregistrement deploy_events", error);
+    const { data, error } = await supabase
+      .from("deploy_events")
+      .insert({
+        project_id: params.projectId,
+        provider: params.provider,
+        kind: params.kind,
+        sha: params.sha,
+        deployment_url: params.deploymentUrl,
+        outcome: params.outcome,
+        fail_count: params.failCount,
+        snapshot: params.snapshot,
+      })
+      .select("id")
+      .single();
+    if (error) {
+      console.error("Échec enregistrement deploy_events", error);
+      return null;
+    }
+    return data?.id ?? null;
   } catch (err) {
     console.error("Échec enregistrement deploy_events", err);
+    return null;
   }
+}
+
+// V5 (ia-moderne backlog): queues the T+2/T+8 re-checks for a production
+// deploy — Solo+ only (Free gets T+0 only, see the plan gate at each call
+// site). A failed insert here must never surface as a 500 either; the
+// T+0 check and its deploy_events row already happened regardless.
+export async function scheduleDeployWatches(
+  supabase: SupabaseClient,
+  projectId: string,
+  deployEventId: string,
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from("check_jobs")
+      .insert(buildDeployWatchJobs(projectId, deployEventId));
+    if (error) console.error("Échec planification des watches T+2/T+8", error);
+  } catch (err) {
+    console.error("Échec planification des watches T+2/T+8", err);
+  }
+}
+
+export type DeployWatchStatus = {
+  reason: WatchReason;
+  status: "queued" | "running" | "done" | "error";
+  outcome: "pass" | "fail" | null;
+};
+
+// Reads back the watch jobs for a batch of deploy_events ids, for the
+// Déplois page's "T+0 OK · T+2 en attente · T+8 —" line.
+export async function getDeployWatchesByEvent(
+  supabase: SupabaseClient,
+  deployEventIds: string[],
+): Promise<Map<string, DeployWatchStatus[]>> {
+  const byEvent = new Map<string, DeployWatchStatus[]>();
+  if (deployEventIds.length === 0) return byEvent;
+
+  const { data } = await supabase
+    .from("check_jobs")
+    .select("deploy_event_id, reason, status, outcome")
+    .in("deploy_event_id", deployEventIds)
+    .in("reason", ["watch_t2", "watch_t8"]);
+
+  for (const row of data ?? []) {
+    const list = byEvent.get(row.deploy_event_id as string) ?? [];
+    list.push({
+      reason: row.reason as WatchReason,
+      status: row.status as DeployWatchStatus["status"],
+      outcome: row.outcome as DeployWatchStatus["outcome"],
+    });
+    byEvent.set(row.deploy_event_id as string, list);
+  }
+
+  return byEvent;
 }
 
 export async function getRecentDeployEvents(

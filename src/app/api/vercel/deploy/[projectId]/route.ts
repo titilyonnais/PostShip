@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { describeAlertItem } from "@/lib/alert-copy";
 import { createServiceClient } from "@/lib/db/service";
-import { recordDeployEvent } from "@/lib/deploys";
+import { recordDeployEvent, scheduleDeployWatches } from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { postGithubCheckRun } from "@/lib/github-check";
 import { runPreviewChecks, runProjectChecks } from "@/lib/runner";
@@ -133,7 +133,7 @@ export async function POST(
     );
   }
 
-  await recordDeployEvent(supabase, {
+  const deployEventId = await recordDeployEvent(supabase, {
     projectId,
     provider: "vercel",
     kind: "production",
@@ -154,6 +154,13 @@ export async function POST(
       outcome: r.outcome,
     })),
   });
+
+  // V5 (ia-moderne backlog): T+2/T+8 re-checks — every deploy that reaches
+  // this point is already Solo+ (the deployHooks gate above 403s Free
+  // before this), so no extra plan check is needed here.
+  if (deployEventId) {
+    await scheduleDeployWatches(supabase, projectId, deployEventId);
+  }
 
   // Opt-in, and only when this specific webhook exposes a commit SHA — no
   // GitHub App, a fine-grained PAT (checks:write) the user pastes once.

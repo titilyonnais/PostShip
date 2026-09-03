@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
-import { recordDeployEvent } from "@/lib/deploys";
+import { recordDeployEvent, scheduleDeployWatches } from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { isValidNetlifySignature } from "@/lib/netlify-webhook";
 import { runProjectChecks } from "@/lib/runner";
@@ -51,7 +51,7 @@ export async function POST(
     );
   }
 
-  await recordDeployEvent(supabase, {
+  const deployEventId = await recordDeployEvent(supabase, {
     projectId,
     provider: "netlify",
     kind: "production",
@@ -70,6 +70,12 @@ export async function POST(
       outcome: r.outcome,
     })),
   });
+
+  // V5 (ia-moderne backlog): every deploy that reaches this point is
+  // already Solo+ (the deployHooks gate above 403s Free before this).
+  if (deployEventId) {
+    await scheduleDeployWatches(supabase, projectId, deployEventId);
+  }
 
   return NextResponse.json({ triggered: true });
 }

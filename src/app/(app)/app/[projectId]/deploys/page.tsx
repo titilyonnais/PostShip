@@ -4,8 +4,14 @@ import { Rocket } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
 import { getProject } from "@/lib/db/loaders";
-import { getRecentDeployEvents, type DeployProvider } from "@/lib/deploys";
+import {
+  getDeployWatchesByEvent,
+  getRecentDeployEvents,
+  type DeployProvider,
+  type DeployWatchStatus,
+} from "@/lib/deploys";
 import { diffDeploySnapshots } from "@/lib/deploy-diff";
+import type { WatchReason } from "@/lib/deploy-watches";
 
 export const metadata = {
   title: "Déplois",
@@ -16,6 +22,18 @@ const PROVIDER_LABEL: Record<DeployProvider, string> = {
   netlify: "Netlify",
   cloudflare: "Cloudflare Pages",
 };
+
+// V5 (ia-moderne backlog): "OK" / "échec" once the watch has run, "en
+// attente" while still queued/running, "—" if none was scheduled at all
+// (Free plan, or a deploy from before this feature).
+function watchLabel(watches: DeployWatchStatus[] | undefined, reason: WatchReason): string {
+  const entry = watches?.find((w) => w.reason === reason);
+  if (!entry) return "—";
+  if (entry.status === "queued" || entry.status === "running") return "en attente";
+  if (entry.outcome === "pass") return "OK";
+  if (entry.outcome === "fail") return "échec";
+  return "—";
+}
 
 export default async function DeploysPage({
   params,
@@ -29,6 +47,10 @@ export default async function DeploysPage({
 
   const supabase = await createClient();
   const events = await getRecentDeployEvents(supabase, projectId);
+  const watchesByEvent = await getDeployWatchesByEvent(
+    supabase,
+    events.filter((e) => e.kind === "production").map((e) => e.id),
+  );
 
   if (events.length === 0) {
     return (
@@ -65,37 +87,49 @@ export default async function DeploysPage({
             className="rounded-2xl border border-border bg-card"
           >
             <details className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center gap-2 text-sm">
-                  <StatusDot status={event.outcome ?? "pending"} />
-                  <span className="font-medium">
-                    {PROVIDER_LABEL[event.provider]}
+              <summary className="flex cursor-pointer list-none flex-col gap-1 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm">
+                    <StatusDot status={event.outcome ?? "pending"} />
+                    <span className="font-medium">
+                      {PROVIDER_LABEL[event.provider]}
+                    </span>
+                    {event.kind === "preview" && (
+                      <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+                        Preview
+                      </span>
+                    )}
+                    {shortSha && (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {shortSha}
+                      </span>
+                    )}
+                    {event.fail_count > 0 && (
+                      <span className="text-xs text-destructive">
+                        {event.fail_count} URL(s) en échec
+                      </span>
+                    )}
                   </span>
-                  {event.kind === "preview" && (
-                    <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-                      Preview
-                    </span>
-                  )}
-                  {shortSha && (
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {shortSha}
-                    </span>
-                  )}
-                  {event.fail_count > 0 && (
-                    <span className="text-xs text-destructive">
-                      {event.fail_count} URL(s) en échec
-                    </span>
-                  )}
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {new Date(event.started_at).toLocaleString("fr-FR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {new Date(event.started_at).toLocaleString("fr-FR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
+                {event.kind === "production" && (
+                  <span className="pl-5.5 font-mono text-[0.7rem] text-muted-foreground">
+                    T+0{" "}
+                    {event.outcome === "fail" ? "échec" : event.outcome === "pass" ? "OK" : "—"}
+                    {" · T+2 "}
+                    {watchLabel(watchesByEvent.get(event.id), "watch_t2")}
+                    {" · T+8 "}
+                    {watchLabel(watchesByEvent.get(event.id), "watch_t8")}
+                  </span>
+                )}
               </summary>
 
               <div className="flex flex-col gap-2 border-t border-border px-4 py-3">

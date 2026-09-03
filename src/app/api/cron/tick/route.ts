@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { BUDGET_EXHAUSTED_MESSAGE, createFetchBudget } from "@/lib/budgets";
+import { BUDGET_EXHAUSTED_MESSAGE, createFetchBudget, type FetchBudget } from "@/lib/budgets";
 import { createServiceClient } from "@/lib/db/service";
 import { runWithConcurrencyLimit } from "@/lib/concurrency";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
+import { deployHintForWatchReason, type WatchReason } from "@/lib/deploy-watches";
 import { runProjectChecks } from "@/lib/runner";
 import { advanceSiteScans } from "@/lib/scan";
 
@@ -47,6 +48,89 @@ async function releaseLock(supabase: ReturnType<typeof createServiceClient>) {
   await supabase.from("cron_lock").update({ locked_until: null }).eq("id", LOCK_ID);
 }
 
+type Job = {
+  id: string;
+  project_id: string;
+  // Set only for a V5 watch job (ia-moderne backlog) — passed through to
+  // runProjectChecks as deployHint, and its outcome is additionally
+  // recorded on the job row for the Déplois page to read back.
+  deployHint?: string;
+  isWatch: boolean;
+};
+
+// Runs one batch of check_jobs rows (cron due-projects and/or V5's T+2/T+8
+// watches) under the tick's shared budget, updating each row's
+// status/error (and outcome, for watches) as it completes. Returns how
+// many failed to run (an exception, not a site check failing).
+async function processJobs(
+  supabase: ReturnType<typeof createServiceClient>,
+  jobs: Job[],
+  budget: FetchBudget,
+): Promise<number> {
+  let failed = 0;
+
+  // One project's checks (and its own intra-project concurrency, see
+  // runner.ts) shouldn't block the next project from starting — a tick
+  // covering 20 projects at up to a few seconds each was easily blowing
+  // past maxDuration run one at a time.
+  await runWithConcurrencyLimit(jobs, INTER_PROJECT_CONCURRENCY, async (job) => {
+    // Checked before even starting the job, not just inside the fetches
+    // themselves — once the tick's shared budget is gone, remaining jobs
+    // are marked done-with-error immediately rather than each one
+    // starting, immediately hitting the exhausted budget on its first
+    // fetch, and still paying for the job bookkeeping round-trips.
+    if (budget.remaining <= 0) {
+      failed += 1;
+      await supabase
+        .from("check_jobs")
+        .update({
+          status: "error",
+          started_at: new Date().toISOString(),
+          finished_at: new Date().toISOString(),
+          error: BUDGET_EXHAUSTED_MESSAGE,
+        })
+        .eq("id", job.id);
+      return;
+    }
+
+    await supabase
+      .from("check_jobs")
+      .update({ status: "running", started_at: new Date().toISOString() })
+      .eq("id", job.id);
+
+    try {
+      const results = await runProjectChecks(job.project_id, budget, job.deployHint);
+      const outcome = job.isWatch
+        ? results.length === 0
+          ? null
+          : results.every((r) => r.outcome === "pass")
+            ? "pass"
+            : "fail"
+        : undefined;
+      await supabase
+        .from("check_jobs")
+        .update({
+          status: "done",
+          finished_at: new Date().toISOString(),
+          ...(job.isWatch ? { outcome } : {}),
+        })
+        .eq("id", job.id);
+    } catch (err) {
+      failed += 1;
+      await supabase
+        .from("check_jobs")
+        .update({
+          status: "error",
+          finished_at: new Date().toISOString(),
+          error: err instanceof Error ? err.message : String(err),
+        })
+        .eq("id", job.id);
+    }
+  });
+
+  return failed;
+}
+
 export async function GET(request: Request) {
   if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -81,108 +165,54 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: dueError.message }, { status: 500 });
     }
 
-    if (!dueIds || dueIds.length === 0) {
-      try {
-        await advanceSiteScans(budget);
-      } catch (err) {
-        console.error("Échec avancement scan de site", err);
-      }
-      return NextResponse.json({ checked: 0, failed: 0 });
-    }
+    const jobs: Job[] = [];
 
-    const { data: dueProjects, error } = await supabase
-      .from("projects")
-      .select("id, base_url")
-      .in(
-        "id",
-        dueIds.map((row) => row.project_id),
-      );
+    if (dueIds && dueIds.length > 0) {
+      // V4 (ia-moderne backlog): domain ownership no longer gates the
+      // cron — assertPublicHttpsUrl's SSRF guard plus per-plan URL
+      // quotas are the abuse control now (see addTarget's host-match
+      // check for base_url itself). domain_verifications is left in
+      // place but unread.
+      const dueProjectIds = dueIds.map((row) => row.project_id);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // V4 (ia-moderne backlog): domain ownership no longer gates the cron —
-    // assertPublicHttpsUrl's SSRF guard plus per-plan URL quotas are the
-    // abuse control now (see addTarget's host-match check for base_url
-    // itself). domain_verifications is left in place but unread.
-    const dueProjectIds = (dueProjects ?? []).map((p) => p.id);
-
-    if (dueProjectIds.length === 0) {
-      try {
-        await advanceSiteScans(budget);
-      } catch (err) {
-        console.error("Échec avancement scan de site", err);
-      }
-      return NextResponse.json({ checked: 0, failed: 0 });
-    }
-
-    const { data: jobs, error: jobsError } = await supabase
-      .from("check_jobs")
-      .insert(
-        dueProjectIds.map((projectId) => ({
-          project_id: projectId,
-          reason: "cron",
-        })),
-      )
-      .select("id, project_id");
-
-    if (jobsError || !jobs) {
-      return NextResponse.json(
-        { error: jobsError?.message ?? "Impossible de créer les jobs." },
-        { status: 500 },
-      );
-    }
-
-    let failed = 0;
-
-    // One project's checks (and its own intra-project concurrency, see
-    // runner.ts) shouldn't block the next project from starting — a tick
-    // covering 20 projects at up to a few seconds each was easily blowing
-    // past maxDuration run one at a time.
-    await runWithConcurrencyLimit(jobs, INTER_PROJECT_CONCURRENCY, async (job) => {
-      // Checked before even starting the job, not just inside the fetches
-      // themselves — once the tick's shared budget is gone, remaining jobs
-      // are marked done-with-error immediately rather than each one
-      // starting, immediately hitting the exhausted budget on its first
-      // fetch, and still paying for the job bookkeeping round-trips.
-      if (budget.remaining <= 0) {
-        failed += 1;
-        await supabase
-          .from("check_jobs")
-          .update({
-            status: "error",
-            started_at: new Date().toISOString(),
-            finished_at: new Date().toISOString(),
-            error: BUDGET_EXHAUSTED_MESSAGE,
-          })
-          .eq("id", job.id);
-        return;
-      }
-
-      await supabase
+      const { data: cronJobs, error: jobsError } = await supabase
         .from("check_jobs")
-        .update({ status: "running", started_at: new Date().toISOString() })
-        .eq("id", job.id);
+        .insert(dueProjectIds.map((projectId) => ({ project_id: projectId, reason: "cron" })))
+        .select("id, project_id");
 
-      try {
-        await runProjectChecks(job.project_id, budget);
-        await supabase
-          .from("check_jobs")
-          .update({ status: "done", finished_at: new Date().toISOString() })
-          .eq("id", job.id);
-      } catch (err) {
-        failed += 1;
-        await supabase
-          .from("check_jobs")
-          .update({
-            status: "error",
-            finished_at: new Date().toISOString(),
-            error: err instanceof Error ? err.message : String(err),
-          })
-          .eq("id", job.id);
+      if (jobsError) {
+        return NextResponse.json({ error: jobsError.message }, { status: 500 });
       }
-    });
+
+      for (const job of cronJobs ?? []) {
+        jobs.push({ id: job.id, project_id: job.project_id, isWatch: false });
+      }
+    }
+
+    // V5 (ia-moderne backlog): the T+2/T+8 re-checks queued by the deploy
+    // webhook routes (src/lib/deploys.ts's scheduleDeployWatches) — due
+    // the moment their run_after has passed.
+    const { data: watchJobs, error: watchError } = await supabase
+      .from("check_jobs")
+      .select("id, project_id, reason")
+      .eq("status", "queued")
+      .in("reason", ["watch_t2", "watch_t8"])
+      .lte("run_after", new Date().toISOString());
+
+    if (watchError) {
+      console.error("Échec lecture des watches T+2/T+8", watchError);
+    }
+
+    for (const job of watchJobs ?? []) {
+      jobs.push({
+        id: job.id,
+        project_id: job.project_id,
+        deployHint: deployHintForWatchReason(job.reason as WatchReason),
+        isWatch: true,
+      });
+    }
+
+    const failed = jobs.length > 0 ? await processJobs(supabase, jobs, budget) : 0;
 
     try {
       await advanceSiteScans(budget);
