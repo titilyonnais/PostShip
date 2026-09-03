@@ -148,7 +148,7 @@ export default async function ProjectOverviewPage({
               : "Aucun deploy suivi"}
           </Link>
           <Link
-            href={`/app/${projectId}/bot`}
+            href={`/app/${projectId}/settings?tab=bot`}
             className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
           >
             <Bot className="size-3.5" aria-hidden="true" />

@@ -149,7 +149,7 @@ export function ChatWebhooksCard({
           Alertes
         </h2>
         <Link
-          href={`/app/${projectId}/bot`}
+          href={`/app/${projectId}/settings?tab=bot`}
           className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
         >
           Commandes → Bot
