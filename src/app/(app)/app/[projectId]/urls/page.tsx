@@ -67,7 +67,7 @@ export default async function UrlsPage({
   const limits = getPlanLimits(ownerPlan);
 
   const supabase = await createClient();
-  const [{ data: targets }, { data: recentRuns }, { data: surfaces }, { data: lastProdDeploy }] =
+  const [{ data: targets }, { data: recentRuns }, { data: surfaces }, { data: recentProdDeploys }] =
     await Promise.all([
       supabase
         .from("check_targets")
@@ -87,14 +87,18 @@ export default async function UrlsPage({
       // V6 (ia-moderne backlog): last-seen h1 + whether it mutated,
       // per target.
       supabase.from("page_surfaces").select("target_id, h1, mutated_at").eq("project_id", projectId),
+      // The 2 most recent production deploys — mutated_at is written
+      // *during* runProjectChecks, a moment before deploy_events' own
+      // started_at is inserted, so "mutated since the last deploy" has to
+      // be read as "mutated after the *previous* one" rather than
+      // compared straight against the latest row's own timestamp.
       supabase
         .from("deploy_events")
         .select("started_at")
         .eq("project_id", projectId)
         .eq("kind", "production")
         .order("started_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(2),
     ]);
 
   const latestRunByTarget = new Map<string, RunRow>();
@@ -107,9 +111,13 @@ export default async function UrlsPage({
   const surfaceByTarget = new Map(
     (surfaces ?? []).map((s) => [s.target_id as string, s]),
   );
-  const lastDeployAt = lastProdDeploy?.started_at
-    ? new Date(lastProdDeploy.started_at).getTime()
+  // The deploy before the latest one, if any — a mutation timestamped
+  // any time after that (including a few ms before the latest deploy's
+  // own started_at) counts as "since the last deploy".
+  const previousDeployAt = recentProdDeploys?.[1]?.started_at
+    ? new Date(recentProdDeploys[1].started_at).getTime()
     : null;
+  const hasProdDeploy = !!recentProdDeploys?.[0];
 
   const allTargets = targets ?? [];
   const activeKind =
@@ -180,8 +188,9 @@ export default async function UrlsPage({
                 const surface = surfaceByTarget.get(target.id);
                 const isMutatedSinceDeploy =
                   !!surface?.mutated_at &&
-                  lastDeployAt !== null &&
-                  new Date(surface.mutated_at).getTime() >= lastDeployAt;
+                  hasProdDeploy &&
+                  (previousDeployAt === null ||
+                    new Date(surface.mutated_at).getTime() >= previousDeployAt);
 
                 return (
                   <Fragment key={target.id}>
