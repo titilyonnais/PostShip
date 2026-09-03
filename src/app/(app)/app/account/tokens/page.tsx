@@ -18,7 +18,7 @@ export default async function AccountTokensPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1 rounded-md border border-border bg-card p-4">
+      <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
         <span className="text-xs text-muted-foreground">Solde de tokens</span>
         <span className="flex items-center gap-2 font-mono text-2xl">
           <Coins className="size-5 text-muted-foreground" aria-hidden="true" />

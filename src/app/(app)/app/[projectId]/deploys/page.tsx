@@ -32,7 +32,7 @@ export default async function DeploysPage({
 
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-12 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-12 text-center">
         <Rocket className="size-6 text-muted-foreground" aria-hidden="true" />
         <p className="text-sm text-muted-foreground">
           Aucun déploiement suivi pour le moment — configurez un webhook
@@ -62,7 +62,7 @@ export default async function DeploysPage({
         return (
           <li
             key={event.id}
-            className="rounded-md border border-border bg-card"
+            className="rounded-2xl border border-border bg-card"
           >
             <details className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">

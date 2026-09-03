@@ -141,7 +141,7 @@ export default async function UrlsPage({
       </div>
 
       {filteredTargets.length > 0 ? (
-        <div className="overflow-x-auto rounded-md border border-border">
+        <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
@@ -231,7 +231,7 @@ export default async function UrlsPage({
           </table>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-10 text-center">
           <Link2 className="size-6 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
             {allTargets.length === 0

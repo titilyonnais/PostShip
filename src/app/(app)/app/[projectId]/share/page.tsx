@@ -110,7 +110,7 @@ export default async function SharePage({
   const badgeMarkdown = `[![PostShip](${appUrl}/badge/${projectId})](${appUrl})`;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Cartes sociales
@@ -128,7 +128,7 @@ export default async function SharePage({
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-10 text-center">
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-10 text-center">
             <Globe className="size-6 text-muted-foreground" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">
               Ajoutez un check OG depuis{" "}
@@ -144,7 +144,7 @@ export default async function SharePage({
         )}
       </section>
 
-      <section className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+      <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           <BadgeCheck className="size-3.5" aria-hidden="true" />
           Badge public
@@ -176,7 +176,7 @@ export default async function SharePage({
         </div>
       </section>
 
-      <section className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+      <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Statut en une ligne
         </h2>

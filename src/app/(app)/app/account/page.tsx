@@ -21,14 +21,14 @@ export default async function AccountOverviewPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-md border border-border bg-card p-4">
+        <div className="rounded-2xl border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground">Abonnement</p>
           <p className="mt-1 text-lg font-medium">{PLAN_LABEL[plan]}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {limits.projects} projet(s) · {limits.urls} URL(s)
           </p>
         </div>
-        <div className="rounded-md border border-border bg-card p-4">
+        <div className="rounded-2xl border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground">Tokens</p>
           <p className="mt-1 flex items-center gap-1.5 text-lg font-medium">
             <Coins className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -38,7 +38,7 @@ export default async function AccountOverviewPage() {
             Pour les scans complets de site
           </p>
         </div>
-        <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
           {/* eslint-disable-next-line @next/next/no-img-element -- external DiceBear SVG */}
           <img
             src={avatarUrl(profile?.avatar_seed ?? user?.id ?? "", 64)}
@@ -58,7 +58,7 @@ export default async function AccountOverviewPage() {
         </div>
       </div>
 
-      <div className="rounded-md border border-border bg-card p-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Vos données
         </h2>

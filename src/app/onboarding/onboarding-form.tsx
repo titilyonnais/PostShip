@@ -80,7 +80,7 @@ export function OnboardingForm({ plan }: { plan: string | null }) {
       </div>
 
       {isPaidSignup && (
-        <div className="flex flex-col gap-4 rounded-md border border-border bg-card p-4">
+        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4">
           <div>
             <h2 className="text-sm font-medium">Adresse de facturation</h2>
             <p className="text-xs text-muted-foreground">

@@ -21,7 +21,7 @@ export function OgCardPreview({ title, description, image, domain }: OgCardPrevi
   const showImage = !!image && image.startsWith("https://") && !imageFailed;
 
   return (
-    <div className="overflow-hidden rounded-md border border-border bg-card">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="aspect-[1.91/1] w-full bg-secondary">
         {showImage ? (
           // eslint-disable-next-line @next/next/no-img-element

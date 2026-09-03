@@ -115,7 +115,7 @@ export default function PricingPage() {
           {Object.values(TOKEN_PACKS).map((pack) => (
             <div
               key={pack.tokens}
-              className="flex flex-col gap-2 rounded-md border border-border bg-card p-6"
+              className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-6"
             >
               <p className="font-mono text-2xl">{pack.priceLabel}</p>
               <p className="text-sm font-medium">{pack.tokens} tokens</p>

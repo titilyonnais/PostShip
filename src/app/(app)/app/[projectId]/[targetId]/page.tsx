@@ -75,7 +75,7 @@ export default async function TargetPage({
             return (
               <li
                 key={run.id}
-                className="rounded-md border border-border bg-card p-3 motion-safe:animate-in motion-safe:fade-in"
+                className="rounded-2xl border border-border bg-card p-3 motion-safe:animate-in motion-safe:fade-in"
                 style={{ animationDelay: `${Math.min(index, 10) * 25}ms` }}
               >
                 <div className="flex items-center justify-between">
@@ -104,7 +104,7 @@ export default async function TargetPage({
           })}
         </ul>
       ) : (
-        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-12 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-12 text-center">
           <History className="size-6 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
             Aucune exécution pour le moment.

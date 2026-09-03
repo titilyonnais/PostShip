@@ -72,7 +72,11 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.375rem;
+  /* V3 (ia-moderne backlog): rounder, more spacious UI — was 0.375rem.
+     Buttons/badges/toasts go rounded-full explicitly (not derived from
+     this token); inputs/selects/cards ride rounded-2xl, dialogs
+     rounded-3xl, tables stay rounded-xl (see the component files). */
+  --radius: 1rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);

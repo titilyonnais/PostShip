@@ -30,7 +30,7 @@ export default async function AccountLayout({
       </Suspense>
 
       <div>
-        <h1 className="text-lg font-semibold">Paramètres</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Paramètres</h1>
         <p className="text-sm text-muted-foreground">
           {profile?.email ?? user?.email} — plan {PLAN_LABEL[plan]} (
           {limits.retentionDays} jours de rétention)

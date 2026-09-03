@@ -55,7 +55,7 @@ export default async function AppHomePage({
             >
               <Link
                 href={`/app/${project.id}`}
-                className="group flex items-center justify-between rounded-md border border-border bg-card px-4 py-3 transition-colors hover:border-foreground/25"
+                className="group flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 transition-colors hover:border-foreground/25"
               >
                 <div>
                   <p className="text-sm font-medium">{project.name}</p>
@@ -80,7 +80,7 @@ export default async function AppHomePage({
           ))}
         </ul>
       ) : (
-        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-12 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-12 text-center">
           <Rocket className="size-6 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">Ajoute l’URL de prod</p>
         </div>

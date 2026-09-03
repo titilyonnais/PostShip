@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function AccountDangerPage() {
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-4">
+    <div className="flex flex-col gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
       <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-destructive uppercase">
         <AlertTriangle className="size-3.5" aria-hidden="true" />
         Zone dangereuse

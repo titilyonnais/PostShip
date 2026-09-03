@@ -27,7 +27,7 @@ function DeployHookSection({
   configured: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         <Webhook className="size-3.5" aria-hidden="true" />
         {title}
@@ -74,7 +74,7 @@ export function DeployHooksCard({
   backTo: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         <Webhook className="size-3.5" aria-hidden="true" />
         Déploiement

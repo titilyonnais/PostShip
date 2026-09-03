@@ -31,7 +31,7 @@ function ChatWebhookSection({
   configured: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         <MessageSquare className="size-3.5" aria-hidden="true" />
         {title}
@@ -78,7 +78,7 @@ function TelegramSection({
   configured: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         <MessageSquare className="size-3.5" aria-hidden="true" />
         Telegram
@@ -142,7 +142,7 @@ export function ChatWebhooksCard({
   backTo: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           <MessageSquare className="size-3.5" aria-hidden="true" />

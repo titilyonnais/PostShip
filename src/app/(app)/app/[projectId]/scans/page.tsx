@@ -53,7 +53,7 @@ export default async function ProjectScansPage({
     <div className="flex flex-col gap-6">
       {hasActiveScan && <AutoRefresh intervalMs={5000} />}
 
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           <ScanSearch className="size-3.5" aria-hidden="true" />
           Nouveau scan complet
@@ -94,7 +94,7 @@ export default async function ProjectScansPage({
               <li key={scan.id}>
                 <Link
                   href={`/app/${projectId}/scans/${scan.id}`}
-                  className="flex flex-col gap-2 rounded-md border border-border bg-card px-4 py-3 transition-colors hover:border-foreground/20"
+                  className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-4 py-3 transition-colors hover:border-foreground/20"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="min-w-0 truncate font-mono text-sm">
@@ -145,7 +145,7 @@ export default async function ProjectScansPage({
           })}
         </ul>
       ) : (
-        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-12 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-12 text-center">
           <ScanSearch className="size-6 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
             Aucun scan complet pour le moment.

@@ -304,7 +304,7 @@ function ProjectSwitcher({
         render={
           <button
             type="button"
-            className="flex w-full min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-foreground/25"
+            className="flex w-full min-w-0 items-center gap-2 rounded-2xl border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-foreground/25"
           />
         }
       >

@@ -114,7 +114,7 @@ export default function MarketingHomePage() {
         </div>
 
         <div
-          className="rounded-md border border-border bg-card font-mono text-xs shadow-[0_0_0_1px_rgba(255,255,255,0.02)]"
+          className="rounded-2xl border border-border bg-card font-mono text-xs shadow-[0_0_0_1px_rgba(255,255,255,0.02)]"
           role="img"
           aria-label="Exemple de résultat de vérification : deux pages en 200, l'image Open Graph en échec 404, sitemap valide avec 10 URLs, un échec détecté déclenche une alerte"
         >
@@ -273,7 +273,7 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      <section className="flex flex-col items-center gap-4 rounded-md border border-border bg-card px-6 py-14 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
+      <section className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card px-6 py-14 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
         <Sparkles className="size-5 text-muted-foreground" aria-hidden="true" />
         <h2 className="text-2xl font-semibold tracking-tight">
           Sachez avant vos utilisateurs, pas dans les commentaires

@@ -63,7 +63,7 @@ export default async function ScanReportPage({
         </h1>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center justify-between text-sm">
           <span className="flex items-center gap-1.5">
             {STATUS_LABEL[scan.status] ?? scan.status}
@@ -92,17 +92,17 @@ export default async function ScanReportPage({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="rounded-md border border-border bg-card p-3">
+        <div className="rounded-2xl border border-border bg-card p-3">
           <p className="text-xs text-muted-foreground">OK</p>
           <p className="mt-1 font-mono text-sm text-[#3fb950]">{scan.pages_ok}</p>
         </div>
-        <div className="rounded-md border border-border bg-card p-3">
+        <div className="rounded-2xl border border-border bg-card p-3">
           <p className="text-xs text-muted-foreground">En échec</p>
           <p className="mt-1 font-mono text-sm text-destructive">
             {scan.pages_failed}
           </p>
         </div>
-        <div className="rounded-md border border-border bg-card p-3">
+        <div className="rounded-2xl border border-border bg-card p-3">
           <p className="text-xs text-muted-foreground">Tokens dépensés</p>
           <p className="mt-1 font-mono text-sm">{scan.tokens_spent}</p>
         </div>
@@ -119,7 +119,7 @@ export default async function ScanReportPage({
           {pages.map((page) => (
             <li
               key={page.id}
-              className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-3 py-2"
             >
               <span className="min-w-0 truncate font-mono text-xs">{page.url}</span>
               <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
@@ -139,7 +139,7 @@ export default async function ScanReportPage({
           ))}
         </ul>
       ) : (
-        <p className="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
           {isActive
             ? "Découverte des pages en cours..."
             : "Aucune page trouvée."}

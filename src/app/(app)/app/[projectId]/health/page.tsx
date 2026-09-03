@@ -83,8 +83,8 @@ export default async function HealthPage({
   const expiryDays = health.domainExpiry.daysRemaining;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           <ShieldCheck className="size-3.5" aria-hidden="true" />
           SSL
@@ -105,7 +105,7 @@ export default async function HealthPage({
         )}
       </div>
 
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           <Globe className="size-3.5" aria-hidden="true" />
           DNS
@@ -123,7 +123,7 @@ export default async function HealthPage({
         )}
       </div>
 
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           <HeartPulse className="size-3.5" aria-hidden="true" />
           Expiration du domaine
@@ -142,7 +142,7 @@ export default async function HealthPage({
         )}
       </div>
 
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Indexation
         </h2>

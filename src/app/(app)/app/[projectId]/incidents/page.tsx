@@ -76,7 +76,7 @@ export default async function IncidentsPage({
               <li key={incident.targetId}>
                 <Link
                   href={`/app/${projectId}/${incident.targetId}`}
-                  className="flex flex-col gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 transition-colors hover:border-destructive/50"
+                  className="flex flex-col gap-1 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 transition-colors hover:border-destructive/50"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2">
@@ -100,7 +100,7 @@ export default async function IncidentsPage({
             ))}
           </ul>
         ) : (
-          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-10 text-center">
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-10 text-center">
             <Siren className="size-6 text-muted-foreground" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">
               Aucun incident. Silence, c&apos;est le produit.
@@ -151,7 +151,7 @@ export default async function IncidentsPage({
             ))}
           </ul>
         ) : (
-          <p className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
             Aucune alerte envoyée sur cette période.
           </p>
         )}

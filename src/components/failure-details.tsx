@@ -73,7 +73,7 @@ export function FailureDetails({
   if (!hasContent) return null;
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-xs">
+    <div className="flex flex-col gap-1.5 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-xs">
       {statusMismatch && (
         <p className="text-destructive">
           Statut attendu <strong>{expectStatus}</strong>, reçu{" "}

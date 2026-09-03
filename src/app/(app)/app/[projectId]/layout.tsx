@@ -32,7 +32,7 @@ export default async function ProjectLayout({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold">{project.name}</h1>
+            <h1 className="text-lg font-semibold tracking-tight">{project.name}</h1>
             {project.paused && (
               <Badge variant="outline" className="gap-1 text-amber-600 dark:text-amber-400">
                 <PauseCircle className="size-3" aria-hidden="true" />

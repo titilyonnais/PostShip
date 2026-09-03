@@ -126,7 +126,7 @@ export default async function ProjectOverviewPage({
   const botConnected = project.telegram_configured || project.discord_webhook_configured;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="grid gap-8 lg:grid-cols-3">
       <div className="flex flex-col gap-6 lg:col-span-2">
         <div className="flex flex-wrap gap-2">
           <Link
@@ -193,7 +193,7 @@ export default async function ProjectOverviewPage({
           incidents30d={reliability.incidents30d}
         />
 
-        <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-4">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
               Ouverts
@@ -228,7 +228,7 @@ export default async function ProjectOverviewPage({
           )}
         </div>
 
-        <div className="flex flex-col gap-1 rounded-md border border-border bg-card p-4">
+        <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
               Dernier déploiement
@@ -263,7 +263,7 @@ export default async function ProjectOverviewPage({
 
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-3 gap-2 lg:grid-cols-1">
-          <div className="rounded-md border border-border bg-card p-3">
+          <div className="rounded-2xl border border-border bg-card p-3">
             <p className="text-xs text-muted-foreground">
               Taux de réussite — 24h
             </p>
@@ -272,7 +272,7 @@ export default async function ProjectOverviewPage({
               {uptime.h24.count} vérification(s)
             </p>
           </div>
-          <div className="rounded-md border border-border bg-card p-3">
+          <div className="rounded-2xl border border-border bg-card p-3">
             <p className="text-xs text-muted-foreground">
               Taux de réussite — 7j
             </p>
@@ -281,7 +281,7 @@ export default async function ProjectOverviewPage({
               {uptime.d7.count} vérification(s)
             </p>
           </div>
-          <div className="rounded-md border border-border bg-card p-3">
+          <div className="rounded-2xl border border-border bg-card p-3">
             <p className="text-xs text-muted-foreground">
               Taux de réussite — 30j
             </p>
@@ -298,7 +298,7 @@ export default async function ProjectOverviewPage({
           assez de données pour les distinguer.
         </p>
 
-        <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+        <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
           {scanActive && <AutoRefresh intervalMs={5000} />}
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">

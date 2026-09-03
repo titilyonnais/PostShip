@@ -26,7 +26,7 @@ export function ReliabilityHeatmap({
   incidents30d: number;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-4">
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Fiabilité — 30 jours

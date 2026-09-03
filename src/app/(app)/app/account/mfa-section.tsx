@@ -87,7 +87,7 @@ export function MfaSection({
       </h2>
 
       {enabled && !enrollment && (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
           <p className="flex items-center gap-2 text-sm">
             <ShieldCheck className="size-4 text-[#3fb950]" aria-hidden="true" />
             Activée — un code est demandé à chaque connexion.
@@ -114,7 +114,7 @@ export function MfaSection({
       )}
 
       {enrollment && (
-        <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-4">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
           {/* eslint-disable-next-line @next/next/no-img-element -- data URI QR code returned by Supabase, nothing for next/image to optimize */}
           <img
             src={enrollment.qrCode}

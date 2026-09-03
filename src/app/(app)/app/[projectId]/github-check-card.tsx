@@ -17,7 +17,7 @@ export function GithubCheckCard({
   backTo: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         <GitBranch className="size-3.5" aria-hidden="true" />
         GitHub

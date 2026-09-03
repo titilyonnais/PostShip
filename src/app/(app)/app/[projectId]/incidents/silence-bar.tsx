@@ -21,7 +21,7 @@ export function SilenceBar({
   const isSilenced = !!silencedUntil && new Date(silencedUntil).getTime() > Date.now();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card px-4 py-2.5 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-sm">
       <span className="flex items-center gap-2 text-muted-foreground">
         <BellOff className="size-3.5" aria-hidden="true" />
         {isSilenced
