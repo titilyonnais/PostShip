@@ -3,6 +3,7 @@ import { BackToProjectLink } from "@/components/back-to-project-link";
 import { CheckoutReturnToast } from "@/components/checkout-return-toast";
 import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { AccountTabs } from "./account-tabs";
 
 const PLAN_LABEL: Record<Plan, string> = {
   free: "Free",
@@ -35,6 +36,8 @@ export default async function AccountLayout({
           {limits.retentionDays} jours de rétention)
         </p>
       </div>
+
+      <AccountTabs />
 
       {children}
     </div>

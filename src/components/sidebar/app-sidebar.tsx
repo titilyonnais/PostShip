@@ -1,18 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
-  Plus,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronDown, Menu, Plus, X, type LucideIcon } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { statusDotClass } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -26,12 +18,11 @@ import {
 import { signOut } from "@/app/(app)/actions";
 import {
   ACCOUNT_DANGER_ITEM,
-  ACCOUNT_DRILL_CATEGORY,
-  ACCOUNT_NAV_GROUPS,
-  PROJECT_NAV_GROUPS,
+  ACCOUNT_MENU_ITEMS,
+  PROJECT_NAV_BOTTOM,
+  PROJECT_NAV_OBSERVABILITE,
+  PROJECT_NAV_TOP,
   RESERVED_APP_SEGMENTS,
-  groupIdForProjectSegment,
-  type AccountNavItem,
   type NavItem,
 } from "./nav-config";
 
@@ -48,15 +39,6 @@ type Profile = {
   avatarUrl: string;
 };
 
-function isAccountPathname(pathname: string): boolean {
-  return (
-    pathname === "/app/account" ||
-    pathname.startsWith("/app/account/") ||
-    pathname === "/app/billing" ||
-    pathname.startsWith("/app/billing/")
-  );
-}
-
 function useActiveProject(projects: Project[]) {
   const pathname = usePathname();
   return useMemo(() => {
@@ -69,44 +51,6 @@ function useActiveProject(projects: Project[]) {
     const project = projects.find((p) => p.id === candidate) ?? null;
     return { project, subSegment: segments[2], pathname };
   }, [pathname, projects]);
-}
-
-// D1-D4 (drill-nav backlog): two exclusive levels, pathname is the source
-// of truth for which one shows — `forcedRoot` only exists to let "←"
-// show level 0 without navigating (pathname unchanged). Any real
-// navigation clears it, so a refresh always lands on the level the URL
-// actually implies.
-function useDrillNav(activeProject: Project | null, subSegment: string | undefined, pathname: string) {
-  const accountMode = isAccountPathname(pathname);
-
-  const contentPane = useMemo(() => {
-    if (accountMode) return "compte";
-    if (activeProject) return groupIdForProjectSegment(subSegment);
-    return null;
-  }, [accountMode, activeProject, subSegment]);
-
-  const [forcedRoot, setForcedRoot] = useState(false);
-  const prevPathnameRef = useRef(pathname);
-  useEffect(() => {
-    if (prevPathnameRef.current !== pathname) {
-      prevPathnameRef.current = pathname;
-      setForcedRoot(false);
-    }
-  }, [pathname]);
-
-  const visiblePane = forcedRoot ? null : contentPane;
-  const goBack = useCallback(() => setForcedRoot(true), []);
-
-  useEffect(() => {
-    if (!visiblePane) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") goBack();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [visiblePane, goBack]);
-
-  return { contentPane, visiblePane, accountMode, goBack };
 }
 
 function NavLink({
@@ -130,7 +74,7 @@ function NavLink({
       onClick={onNavigate}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+        "flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm transition-colors",
         isActive
           ? "bg-secondary font-medium text-foreground"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -144,50 +88,6 @@ function NavLink({
         </span>
       )}
     </Link>
-  );
-}
-
-function CategoryRow({
-  href,
-  label,
-  Icon,
-  badge,
-  onNavigate,
-}: {
-  href: string;
-  label: string;
-  Icon: LucideIcon;
-  badge?: number;
-  onNavigate?: () => void;
-}) {
-  return (
-    <Link
-      href={href}
-      onClick={onNavigate}
-      className="flex min-w-0 items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-    >
-      <Icon className="size-4 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {!!badge && (
-        <span className="shrink-0 rounded-full bg-destructive px-1.5 py-0.5 text-[0.65rem] font-medium leading-none text-white">
-          {badge}
-        </span>
-      )}
-      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50" aria-hidden="true" />
-    </Link>
-  );
-}
-
-function DrillBackHeader({ label, onBack }: { label: string; onBack: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onBack}
-      className="flex items-center gap-1 px-2.5 py-1 text-[0.65rem] font-medium tracking-wide text-muted-foreground/70 uppercase transition-colors hover:text-foreground"
-    >
-      <ChevronLeft className="size-3.5" aria-hidden="true" />
-      {label}
-    </button>
   );
 }
 
@@ -210,29 +110,11 @@ function SidebarContent({
   openIncidentCounts: Record<string, number>;
   onNavigate?: () => void;
 }) {
-  const { project: activeProject, subSegment, pathname } = useActiveProject(projects);
-  const { contentPane, visiblePane, accountMode, goBack } = useDrillNav(
-    activeProject,
-    subSegment,
-    pathname,
-  );
+  const { project: activeProject, subSegment } = useActiveProject(projects);
 
-  // Kept across a visit to /app/account/* so the level-0 categories still
-  // anchor to the project you came from — an ordinary in-memory piece of
-  // context, not the pane's source of truth (that stays pathname/forcedRoot).
-  const [lastProjectId, setLastProjectId] = useState<string | null>(null);
-  useEffect(() => {
-    if (activeProject) setLastProjectId(activeProject.id);
-  }, [activeProject]);
-
-  const anchorProject =
-    activeProject ??
-    (accountMode ? (projects.find((p) => p.id === lastProjectId) ?? null) : null);
-
-  const activeGroup =
-    contentPane && contentPane !== "compte"
-      ? PROJECT_NAV_GROUPS.find((g) => g.id === contentPane)
-      : null;
+  function isItemActive(item: NavItem) {
+    return item.segment ? subSegment === item.segment : !subSegment;
+  }
 
   return (
     <div className="flex h-full min-w-0 flex-col">
@@ -244,156 +126,101 @@ function SidebarContent({
         <LogoMark className="size-8" />
       </Link>
 
-      <nav className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden pb-4">
-        <div className="relative w-full overflow-hidden">
-          <div
-            className="flex w-[200%] transition-transform duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:duration-0"
-            style={{ transform: visiblePane ? "translateX(-50%)" : "translateX(0%)" }}
-          >
-            {/* Level 0 */}
-            <div className="flex w-1/2 min-w-0 shrink-0 flex-col gap-2 px-3">
-              {anchorProject ? (
-                <>
-                  <ProjectSwitcher
-                    projects={projects}
-                    activeProject={anchorProject}
-                    onNavigate={onNavigate}
-                  />
-                  <div className="flex flex-col gap-0.5">
-                    {PROJECT_NAV_GROUPS.map((group) => (
-                      <CategoryRow
-                        key={group.id}
-                        href={group.items[0]!.href(anchorProject.id)}
-                        label={group.label}
-                        Icon={group.icon}
-                        badge={
-                          group.id === "surveillance"
-                            ? (openIncidentCounts[anchorProject.id] ?? 0)
-                            : 0
-                        }
-                        onNavigate={onNavigate}
-                      />
-                    ))}
-                    <CategoryRow
-                      href={ACCOUNT_DRILL_CATEGORY.href}
-                      label={ACCOUNT_DRILL_CATEGORY.label}
-                      Icon={ACCOUNT_DRILL_CATEGORY.icon}
-                      onNavigate={onNavigate}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <p className="px-2.5 text-[0.65rem] font-medium tracking-wide text-muted-foreground/70 uppercase">
-                    Projets
-                  </p>
-                  <div className="flex flex-col gap-0.5">
-                    {projects.map((p) => (
-                      <Link
-                        key={p.id}
-                        href={`/app/${p.id}`}
-                        onClick={onNavigate}
-                        className="flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      >
-                        <span
-                          className={cn(
-                            "size-1.5 shrink-0 rounded-full",
-                            statusDotClass(p.last_status),
-                          )}
-                          aria-hidden="true"
-                        />
-                        <span className="truncate">{p.name}</span>
-                      </Link>
-                    ))}
-                    {projects.length === 0 && (
-                      <p className="px-2.5 text-xs text-muted-foreground">
-                        Aucun projet pour le moment.
-                      </p>
-                    )}
-                    <Link
-                      href="/app"
-                      onClick={onNavigate}
-                      className="flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Plus className="size-4 shrink-0" aria-hidden="true" />
-                      <span className="truncate">Nouveau projet</span>
-                    </Link>
-                    <CategoryRow
-                      href={ACCOUNT_DRILL_CATEGORY.href}
-                      label={ACCOUNT_DRILL_CATEGORY.label}
-                      Icon={ACCOUNT_DRILL_CATEGORY.icon}
-                      onNavigate={onNavigate}
-                    />
-                  </div>
-                </div>
-              )}
+      <nav className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4">
+        {activeProject ? (
+          <div className="flex flex-col gap-4">
+            <ProjectSwitcher
+              projects={projects}
+              activeProject={activeProject}
+              onNavigate={onNavigate}
+            />
+
+            <div className="flex flex-col gap-0.5">
+              {PROJECT_NAV_TOP.map((item) => (
+                <NavLink
+                  key={item.label}
+                  href={item.href(activeProject.id)}
+                  label={item.label}
+                  Icon={item.icon}
+                  isActive={isItemActive(item)}
+                  badge={
+                    item.segment === "incidents"
+                      ? (openIncidentCounts[activeProject.id] ?? 0)
+                      : 0
+                  }
+                  onNavigate={onNavigate}
+                />
+              ))}
             </div>
 
-            {/* Level 1 */}
-            <div className="flex w-1/2 min-w-0 shrink-0 flex-col gap-4 px-3">
-              {contentPane === "compte" ? (
-                <>
-                  <DrillBackHeader label="Compte" onBack={goBack} />
-                  {ACCOUNT_NAV_GROUPS.map((group) => (
-                    <div key={group.label} className="flex flex-col gap-1">
-                      <NavGroupLabel>{group.label}</NavGroupLabel>
-                      <div className="flex flex-col gap-0.5">
-                        {group.items.map((item: AccountNavItem) => (
-                          <NavLink
-                            key={item.href}
-                            href={item.href}
-                            label={item.label}
-                            Icon={item.icon}
-                            isActive={
-                              item.href === "/app/account"
-                                ? pathname === "/app/account"
-                                : pathname === item.href ||
-                                  pathname.startsWith(`${item.href}/`)
-                            }
-                            onNavigate={onNavigate}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+            <div className="flex flex-col gap-1">
+              <NavGroupLabel>{PROJECT_NAV_OBSERVABILITE.label}</NavGroupLabel>
+              <div className="flex flex-col gap-0.5">
+                {PROJECT_NAV_OBSERVABILITE.items.map((item) => (
                   <NavLink
-                    href={ACCOUNT_DANGER_ITEM.href}
-                    label={ACCOUNT_DANGER_ITEM.label}
-                    Icon={ACCOUNT_DANGER_ITEM.icon}
-                    isActive={pathname === ACCOUNT_DANGER_ITEM.href}
+                    key={item.label}
+                    href={item.href(activeProject.id)}
+                    label={item.label}
+                    Icon={item.icon}
+                    isActive={isItemActive(item)}
                     onNavigate={onNavigate}
                   />
-                </>
-              ) : activeGroup && anchorProject ? (
-                <>
-                  <DrillBackHeader label={activeGroup.label} onBack={goBack} />
-                  <div className="flex flex-col gap-0.5">
-                    {activeGroup.items.map((item: NavItem) => {
-                      const isActive = item.segment
-                        ? subSegment === item.segment
-                        : !subSegment;
-                      const incidentCount =
-                        item.segment === "incidents"
-                          ? (openIncidentCounts[anchorProject.id] ?? 0)
-                          : 0;
-                      return (
-                        <NavLink
-                          key={item.label}
-                          href={item.href(anchorProject.id)}
-                          label={item.label}
-                          Icon={item.icon}
-                          isActive={isActive}
-                          badge={incidentCount}
-                          onNavigate={onNavigate}
-                        />
-                      );
-                    })}
-                  </div>
-                </>
-              ) : null}
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-0.5 border-t border-border pt-3">
+              {PROJECT_NAV_BOTTOM.map((item) => (
+                <NavLink
+                  key={item.label}
+                  href={item.href(activeProject.id)}
+                  label={item.label}
+                  Icon={item.icon}
+                  isActive={isItemActive(item)}
+                  onNavigate={onNavigate}
+                />
+              ))}
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="px-2.5 text-[0.65rem] font-medium tracking-wide text-muted-foreground/70 uppercase">
+              Projets
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {projects.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/app/${p.id}`}
+                  onClick={onNavigate}
+                  className="flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <span
+                    className={cn(
+                      "size-1.5 shrink-0 rounded-full",
+                      statusDotClass(p.last_status),
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate">{p.name}</span>
+                </Link>
+              ))}
+              {projects.length === 0 && (
+                <p className="px-2.5 text-xs text-muted-foreground">
+                  Aucun projet pour le moment.
+                </p>
+              )}
+              <Link
+                href="/app"
+                onClick={onNavigate}
+                className="flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Plus className="size-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">Nouveau projet</span>
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
 
       <div className="min-w-0 shrink-0 border-t border-border p-3">
@@ -426,6 +253,23 @@ function SidebarContent({
             <div className="truncate px-1.5 py-1 text-xs text-muted-foreground">
               {profile.email}
             </div>
+            <DropdownMenuSeparator />
+            {ACCOUNT_MENU_ITEMS.map((item) => (
+              <DropdownMenuItem
+                key={item.href}
+                render={<Link href={item.href} onClick={onNavigate} />}
+              >
+                <item.icon className="size-3.5" aria-hidden="true" />
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuItem
+              variant="destructive"
+              render={<Link href={ACCOUNT_DANGER_ITEM.href} onClick={onNavigate} />}
+            >
+              <ACCOUNT_DANGER_ITEM.icon className="size-3.5" aria-hidden="true" />
+              {ACCOUNT_DANGER_ITEM.label}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <form action={signOut}>
               <DropdownMenuItem
@@ -525,7 +369,7 @@ export function AppSidebar({
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 overflow-hidden border-r border-border bg-card md:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 overflow-hidden border-r border-border bg-card md:flex">
         <SidebarContent
           projects={projects}
           profile={profile}

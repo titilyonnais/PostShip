@@ -3,13 +3,11 @@ import {
   AlertTriangle,
   Bell,
   Blocks,
-  Bot,
   CreditCard,
   Gauge,
   HeartPulse,
   LayoutDashboard,
   Link2,
-  ListChecks,
   Receipt,
   Rocket,
   ScanSearch,
@@ -30,108 +28,49 @@ export type NavItem = {
   segment?: string;
 };
 
-export type NavGroup = {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  items: NavItem[];
+// V1 (ia-moderne backlog): flat, always-visible project nav — Vercel's
+// model, not a drill-down. Top-level items first, then a labelled
+// "Observabilité" group (a section label, not a link), then a divider,
+// then Intégrations/Paramètres. Règles and Bot are no longer sidebar
+// items — they're tabs under Paramètres (see settings/page.tsx).
+export const PROJECT_NAV_TOP: NavItem[] = [
+  { label: "Aperçu", href: (id) => `/app/${id}`, icon: LayoutDashboard },
+  { label: "Déplois", href: (id) => `/app/${id}/deploys`, icon: Rocket, segment: "deploys" },
+  { label: "Incidents", href: (id) => `/app/${id}/incidents`, icon: Siren, segment: "incidents" },
+  { label: "URLs", href: (id) => `/app/${id}/urls`, icon: Link2, segment: "urls" },
+];
+
+export const PROJECT_NAV_OBSERVABILITE: { label: string; items: NavItem[] } = {
+  label: "Observabilité",
+  items: [
+    { label: "Santé", href: (id) => `/app/${id}/health`, icon: HeartPulse, segment: "health" },
+    { label: "Partage", href: (id) => `/app/${id}/share`, icon: Share2, segment: "share" },
+    { label: "Scans", href: (id) => `/app/${id}/scans`, icon: ScanSearch, segment: "scans" },
+  ],
 };
 
-export const PROJECT_NAV_GROUPS: NavGroup[] = [
+export const PROJECT_NAV_BOTTOM: NavItem[] = [
   {
-    id: "surveillance",
-    label: "Surveillance",
-    icon: LayoutDashboard,
-    items: [
-      { label: "Aperçu", href: (id) => `/app/${id}`, icon: LayoutDashboard },
-      { label: "URLs", href: (id) => `/app/${id}/urls`, icon: Link2, segment: "urls" },
-      {
-        label: "Incidents",
-        href: (id) => `/app/${id}/incidents`,
-        icon: Siren,
-        segment: "incidents",
-      },
-      {
-        label: "Déplois",
-        href: (id) => `/app/${id}/deploys`,
-        icon: Rocket,
-        segment: "deploys",
-      },
-    ],
-  },
-  {
-    id: "controles",
-    label: "Contrôles",
-    icon: HeartPulse,
-    items: [
-      {
-        label: "Santé",
-        href: (id) => `/app/${id}/health`,
-        icon: HeartPulse,
-        segment: "health",
-      },
-      {
-        label: "Partage",
-        href: (id) => `/app/${id}/share`,
-        icon: Share2,
-        segment: "share",
-      },
-      {
-        label: "Scans",
-        href: (id) => `/app/${id}/scans`,
-        icon: ScanSearch,
-        segment: "scans",
-      },
-    ],
-  },
-  {
-    id: "outils",
-    label: "Outils",
+    label: "Intégrations",
+    href: (id) => `/app/${id}/integrations`,
     icon: Blocks,
-    items: [
-      {
-        label: "Règles",
-        href: (id) => `/app/${id}/rules`,
-        icon: ListChecks,
-        segment: "rules",
-      },
-      { label: "Bot", href: (id) => `/app/${id}/bot`, icon: Bot, segment: "bot" },
-      {
-        label: "Intégrations",
-        href: (id) => `/app/${id}/integrations`,
-        icon: Blocks,
-        segment: "integrations",
-      },
-      {
-        label: "Paramètres",
-        href: (id) => `/app/${id}/settings`,
-        icon: Settings,
-        segment: "settings",
-      },
-    ],
+    segment: "integrations",
+  },
+  {
+    label: "Paramètres",
+    href: (id) => `/app/${id}/settings`,
+    icon: Settings,
+    segment: "settings",
   },
 ];
 
 // Flattened for lookups that don't care about grouping (the incidents
-// badge count, etc).
-export const PROJECT_NAV: NavItem[] = PROJECT_NAV_GROUPS.flatMap((g) => g.items);
-
-// Which drill-down group owns a given project sub-route segment.
-// `undefined` segment is the project root (Aperçu). Any segment that
-// doesn't match a known item (e.g. a target-detail id under /urls, or a
-// scan-detail id under /scans — the id itself never equals a nav
-// segment) falls back to Surveillance, since that's always where a
-// drill-in-deeper page like that was reached from.
-export function groupIdForProjectSegment(segment: string | undefined): string {
-  for (const group of PROJECT_NAV_GROUPS) {
-    for (const item of group.items) {
-      if (item.segment ? item.segment === segment : segment === undefined) {
-        return group.id;
-      }
-    }
-  }
-  return "surveillance";
-}
+// badge count, active-link matching).
+export const PROJECT_NAV: NavItem[] = [
+  ...PROJECT_NAV_TOP,
+  ...PROJECT_NAV_OBSERVABILITE.items,
+  ...PROJECT_NAV_BOTTOM,
+];
 
 export type AccountNavItem = {
   label: string;
@@ -139,55 +78,35 @@ export type AccountNavItem = {
   icon: LucideIcon;
 };
 
-export type AccountNavGroup = {
-  label: string;
-  items: AccountNavItem[];
-};
-
-export const ACCOUNT_NAV_GROUPS: AccountNavGroup[] = [
-  {
-    label: "Compte",
-    items: [
-      { label: "Vue d'ensemble", href: "/app/account", icon: Gauge },
-      { label: "Profil", href: "/app/account/profile", icon: User },
-      { label: "Sécurité", href: "/app/account/security", icon: ShieldCheck },
-      { label: "Notifications", href: "/app/account/notifications", icon: Bell },
-    ],
-  },
-  {
-    label: "Facturation",
-    items: [
-      { label: "Tokens", href: "/app/account/tokens", icon: Coins },
-      { label: "Factures", href: "/app/account/billing", icon: Receipt },
-      { label: "Abonnement", href: "/app/billing", icon: CreditCard },
-    ],
-  },
+// V1: the footer user dropdown, not the project sidebar — Compte,
+// Facturation and Zone dangereuse live here now (Vercel keeps account
+// nav out of the project nav entirely; Zone dangereuse rendered
+// separately below, same as the account page's own tabs).
+export const ACCOUNT_MENU_ITEMS: AccountNavItem[] = [
+  { label: "Compte", href: "/app/account", icon: Gauge },
+  { label: "Facturation", href: "/app/billing", icon: CreditCard },
 ];
 
-// Rendered on its own, below the groups — never inside one, so it can't
-// get lost in the middle of the account menu.
 export const ACCOUNT_DANGER_ITEM: AccountNavItem = {
   label: "Zone dangereuse",
   href: "/app/account/danger",
   icon: AlertTriangle,
 };
 
-// Flattened for lookups that don't care about grouping (active-link
-// matching).
-export const ACCOUNT_NAV: AccountNavItem[] = [
-  ...ACCOUNT_NAV_GROUPS.flatMap((g) => g.items),
-  ACCOUNT_DANGER_ITEM,
+// Tabs for the /app/account/* section itself (account/layout.tsx) — every
+// route that used to live in the sidebar's drill-down "Compte" pane, now
+// reached as a Vercel-Settings-style pill row instead. /app/billing
+// ("Abonnement") is a sibling route outside this layout, so it isn't
+// included — it's reached from the footer dropdown above.
+export const ACCOUNT_TABS: AccountNavItem[] = [
+  { label: "Vue d'ensemble", href: "/app/account", icon: Gauge },
+  { label: "Profil", href: "/app/account/profile", icon: User },
+  { label: "Sécurité", href: "/app/account/security", icon: ShieldCheck },
+  { label: "Notifications", href: "/app/account/notifications", icon: Bell },
+  { label: "Tokens", href: "/app/account/tokens", icon: Coins },
+  { label: "Factures", href: "/app/account/billing", icon: Receipt },
+  { label: "Zone dangereuse", href: "/app/account/danger", icon: AlertTriangle },
 ];
-
-// The drill-down's 4th level-0 category, alongside the 3 project groups
-// (D1-D4, drill-nav backlog) — same shape as a NavGroup's identity fields
-// so the sidebar can render all 4 category rows uniformly.
-export const ACCOUNT_DRILL_CATEGORY = {
-  id: "compte",
-  label: "Compte",
-  icon: Gauge,
-  href: "/app/account",
-};
 
 // Top-level segments right after "/app/" that are NOT project ids.
 export const RESERVED_APP_SEGMENTS = new Set(["account", "billing"]);
