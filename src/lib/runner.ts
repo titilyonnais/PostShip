@@ -47,6 +47,12 @@ type SingleTargetResult = {
   silencedUntil: string | null;
   mutated: boolean;
   mutationSummary: string | null;
+  // V7 (ia-moderne backlog): everything computeShipScore (src/lib/
+  // ship-score.ts) needs to categorize this target, carried on the
+  // result so the deploy webhook routes don't have to re-fetch targets.
+  kind: string;
+  isMoneyPath: boolean;
+  sslDaysRemaining: number | null;
 };
 
 // V6 (ia-moderne backlog): compares this run's scraped page surface
@@ -221,6 +227,13 @@ async function runSingleTarget(
     ? await trackPageSurface(supabase, projectId, target.id, surface, !!deployHint)
     : { mutated: false, mutationSummary: null };
 
+  const isMoneyPath =
+    target.kind === "http" && !!target.assertions && Object.keys(target.assertions).length > 0;
+  const sslDaysRemaining =
+    target.kind === "ssl"
+      ? ((result.details as { daysRemaining?: number } | undefined)?.daysRemaining ?? null)
+      : null;
+
   return {
     targetId: target.id,
     url: target.url,
@@ -233,6 +246,9 @@ async function runSingleTarget(
     silencedUntil: target.silenced_until ?? null,
     mutated,
     mutationSummary,
+    kind: target.kind,
+    isMoneyPath,
+    sslDaysRemaining,
   };
 }
 

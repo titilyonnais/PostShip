@@ -6,6 +6,7 @@ import { recordDeployEvent, scheduleDeployWatches } from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { postGithubCheckRun } from "@/lib/github-check";
 import { runPreviewChecks, runProjectChecks } from "@/lib/runner";
+import { computeShipScore } from "@/lib/ship-score";
 
 // Signature scheme confirmed via Vercel docs (context7, vercel.com/docs/headers/request-headers):
 // HMAC-SHA1 of the raw body, hex-encoded, in the `x-vercel-signature` header.
@@ -133,6 +134,10 @@ export async function POST(
     );
   }
 
+  // V7 (ia-moderne backlog): one number for this deploy, posted below to
+  // the GitHub Check and read back on Aperçu.
+  const shipScore = computeShipScore(results);
+
   const deployEventId = await recordDeployEvent(supabase, {
     projectId,
     provider: "vercel",
@@ -153,6 +158,8 @@ export async function POST(
       url: r.url,
       outcome: r.outcome,
     })),
+    score: shipScore.score,
+    scoreReason: shipScore.reason,
   });
 
   // V5 (ia-moderne backlog): T+2/T+8 re-checks — every deploy that reaches
@@ -187,10 +194,7 @@ export async function POST(
       token: project.github_token_enc,
       sha,
       conclusion: failedCount === 0 ? "success" : "failure",
-      title:
-        failedCount === 0
-          ? `${results.length}/${results.length} URLs OK`
-          : `${failedCount} URL(s) en échec`,
+      title: `PostShip · ${shipScore.score}`,
       summary,
     });
   }

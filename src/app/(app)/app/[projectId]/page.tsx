@@ -84,7 +84,7 @@ export default async function ProjectOverviewPage({
       .maybeSingle(),
     supabase
       .from("deploy_events")
-      .select("provider, kind, outcome, started_at")
+      .select("provider, kind, outcome, started_at, score, score_reason")
       .eq("project_id", projectId)
       .order("started_at", { ascending: false })
       .limit(1)
@@ -192,6 +192,20 @@ export default async function ProjectOverviewPage({
           mttrMinutes={reliability.mttrMinutes}
           incidents30d={reliability.incidents30d}
         />
+
+        {/* V7 (ia-moderne backlog): the ship score for the last production
+            deploy — null (and hidden) for cron/manual runs, previews, or a
+            deploy from before this feature. */}
+        {lastDeploy?.kind === "production" && lastDeploy.score !== null && (
+          <div className="flex items-center gap-4 rounded-3xl border border-border bg-card p-6">
+            <p className="font-mono text-4xl font-semibold tracking-tight">
+              Ship {lastDeploy.score}
+            </p>
+            {lastDeploy.score_reason && (
+              <p className="text-sm text-muted-foreground">{lastDeploy.score_reason}</p>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between">

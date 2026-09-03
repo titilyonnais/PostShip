@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/db/service";
 import { recordDeployEvent, scheduleDeployWatches } from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runProjectChecks } from "@/lib/runner";
+import { computeShipScore } from "@/lib/ship-score";
 
 // Cloudflare's webhook destinations don't sign the payload — the secret
 // generated when you create the destination is sent back verbatim in the
@@ -63,6 +64,8 @@ export async function POST(
     );
   }
 
+  const shipScore = computeShipScore(results);
+
   const deployEventId = await recordDeployEvent(supabase, {
     projectId,
     provider: "cloudflare",
@@ -81,6 +84,8 @@ export async function POST(
       url: r.url,
       outcome: r.outcome,
     })),
+    score: shipScore.score,
+    scoreReason: shipScore.reason,
   });
 
   // V5 (ia-moderne backlog): every deploy that reaches this point is

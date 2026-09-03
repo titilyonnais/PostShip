@@ -15,6 +15,10 @@ export type DeployEventRow = {
   outcome: "pass" | "fail" | "error" | null;
   fail_count: number;
   snapshot: SnapshotItem[];
+  // V7 (ia-moderne backlog) — null for cron/manual runs and preview
+  // deploys, and for any deploy from before this feature.
+  score: number | null;
+  score_reason: string | null;
 };
 
 // Called from the 3 deploy webhook routes, after runProjectChecks /
@@ -33,6 +37,10 @@ export async function recordDeployEvent(
     outcome: "pass" | "fail" | "error" | null;
     failCount: number;
     snapshot: SnapshotItem[];
+    // V7 (ia-moderne backlog) — omitted (or null) for a preview deploy,
+    // which recordDeployEvent is still called for.
+    score?: number | null;
+    scoreReason?: string | null;
   },
 ): Promise<string | null> {
   try {
@@ -47,6 +55,8 @@ export async function recordDeployEvent(
         outcome: params.outcome,
         fail_count: params.failCount,
         snapshot: params.snapshot,
+        score: params.score ?? null,
+        score_reason: params.scoreReason ?? null,
       })
       .select("id")
       .single();
@@ -121,7 +131,7 @@ export async function getRecentDeployEvents(
   const { data } = await supabase
     .from("deploy_events")
     .select(
-      "id, provider, kind, sha, deployment_url, started_at, outcome, fail_count, snapshot",
+      "id, provider, kind, sha, deployment_url, started_at, outcome, fail_count, snapshot, score, score_reason",
     )
     .eq("project_id", projectId)
     .order("started_at", { ascending: false })

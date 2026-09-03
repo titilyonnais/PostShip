@@ -4,6 +4,7 @@ import { recordDeployEvent, scheduleDeployWatches } from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { isValidNetlifySignature } from "@/lib/netlify-webhook";
 import { runProjectChecks } from "@/lib/runner";
+import { computeShipScore } from "@/lib/ship-score";
 
 export async function POST(
   request: Request,
@@ -51,6 +52,8 @@ export async function POST(
     );
   }
 
+  const shipScore = computeShipScore(results);
+
   const deployEventId = await recordDeployEvent(supabase, {
     projectId,
     provider: "netlify",
@@ -69,6 +72,8 @@ export async function POST(
       url: r.url,
       outcome: r.outcome,
     })),
+    score: shipScore.score,
+    scoreReason: shipScore.reason,
   });
 
   // V5 (ia-moderne backlog): every deploy that reaches this point is
