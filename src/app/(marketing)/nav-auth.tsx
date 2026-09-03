@@ -71,7 +71,7 @@ export function NavAuth() {
     return (
       <Link
         href="/login"
-        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="rounded-full px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Connexion
       </Link>
@@ -81,7 +81,7 @@ export function NavAuth() {
   return (
     <Link
       href="/app"
-      className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      className="flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- external DiceBear SVG */}
       <img

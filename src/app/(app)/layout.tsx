@@ -25,7 +25,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen">
       <a
-        href="#main"
+        href="#app-main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
       >
         Aller au contenu
@@ -42,7 +42,7 @@ export default async function AppLayout({
         }}
       />
 
-      <main id="main" className="min-w-0 overflow-x-hidden p-6 md:ml-60">
+      <main id="app-main" className="min-w-0 overflow-x-hidden p-6 md:ml-60">
         {children}
       </main>
     </div>

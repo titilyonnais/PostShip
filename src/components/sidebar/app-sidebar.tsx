@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { ChevronDown, Menu, Plus, X, type LucideIcon } from "lucide-react";
 import { LogoMark } from "@/components/logo";
-import { statusDotClass } from "@/lib/status";
+import { statusDotClass, statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -74,7 +74,7 @@ function NavLink({
       onClick={onNavigate}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm transition-colors",
+        "flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isActive
           ? "bg-secondary font-medium text-foreground"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -193,7 +193,7 @@ function SidebarContent({
                   key={p.id}
                   href={`/app/${p.id}`}
                   onClick={onNavigate}
-                  className="flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span
                     className={cn(
@@ -202,6 +202,7 @@ function SidebarContent({
                     )}
                     aria-hidden="true"
                   />
+                  <span className="sr-only">{statusLabel(p.last_status)}</span>
                   <span className="truncate">{p.name}</span>
                 </Link>
               ))}
@@ -213,7 +214,7 @@ function SidebarContent({
               <Link
                 href="/app"
                 onClick={onNavigate}
-                className="flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Plus className="size-4 shrink-0" aria-hidden="true" />
                 <span className="truncate">Nouveau projet</span>
@@ -229,7 +230,7 @@ function SidebarContent({
             render={
               <button
                 type="button"
-                className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-muted"
+                className="flex w-full min-w-0 items-center gap-2 rounded-full px-1.5 py-1.5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             }
           >
@@ -304,7 +305,8 @@ function ProjectSwitcher({
         render={
           <button
             type="button"
-            className="flex w-full min-w-0 items-center gap-2 rounded-2xl border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-foreground/25"
+            aria-label="Projet actif, changer de projet"
+            className="flex w-full min-w-0 items-center gap-2 rounded-2xl border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         }
       >
@@ -315,6 +317,7 @@ function ProjectSwitcher({
           )}
           aria-hidden="true"
         />
+        <span className="sr-only">{statusLabel(activeProject.last_status)}</span>
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {activeProject.name}
         </span>
@@ -338,6 +341,7 @@ function ProjectSwitcher({
                   )}
                   aria-hidden="true"
                 />
+                <span className="sr-only">{statusLabel(p.last_status)}</span>
                 <span className="truncate">{p.name}</span>
               </DropdownMenuItem>
             ))}
@@ -384,7 +388,7 @@ export function AppSidebar({
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Ouvrir le menu"
         >
           <Menu className="size-5" aria-hidden="true" />
@@ -400,7 +404,7 @@ export function AppSidebar({
                 render={
                   <button
                     type="button"
-                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label="Fermer le menu"
                   />
                 }

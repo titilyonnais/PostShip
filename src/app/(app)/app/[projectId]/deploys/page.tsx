@@ -52,20 +52,35 @@ export default async function DeploysPage({
     events.filter((e) => e.kind === "production").map((e) => e.id),
   );
 
+  const header = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">Déplois</h1>
+      <p className="text-sm text-muted-foreground">
+        L&apos;historique de chaque déclenchement Vercel, Netlify ou
+        Cloudflare Pages, avec le résultat des checks.
+      </p>
+    </div>
+  );
+
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-12 text-center">
-        <Rocket className="size-6 text-muted-foreground" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">
-          Aucun déploiement suivi pour le moment — configurez un webhook
-          Vercel, Netlify ou Cloudflare Pages depuis Paramètres.
-        </p>
+      <div className="flex flex-col gap-8">
+        {header}
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-12 text-center">
+          <Rocket className="size-6 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm text-muted-foreground">
+            Aucun déploiement suivi pour le moment — configurez un webhook
+            Vercel, Netlify ou Cloudflare Pages depuis Paramètres.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <ul className="flex flex-col gap-2">
+    <div className="flex flex-col gap-8">
+      {header}
+      <ul className="flex flex-col gap-2">
       {events.map((event, index) => {
         const shortSha = event.sha ? event.sha.slice(0, 7) : null;
         const commitUrl =
@@ -189,6 +204,7 @@ export default async function DeploysPage({
           </li>
         );
       })}
-    </ul>
+      </ul>
+    </div>
   );
 }

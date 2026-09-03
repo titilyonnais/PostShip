@@ -54,6 +54,13 @@ export default async function IncidentsPage({
 
   return (
     <div className="flex flex-col gap-8">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Incidents</h1>
+        <p className="text-sm text-muted-foreground">
+          Ce qui est en échec en ce moment, et le journal des alertes envoyées.
+        </p>
+      </div>
+
       <SilenceBar projectId={projectId} silencedUntil={project.alerts_silenced_until} />
 
       {hasQuietHours && (

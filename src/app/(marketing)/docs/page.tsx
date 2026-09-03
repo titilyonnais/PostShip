@@ -44,6 +44,18 @@ const CHECK_TYPES = [
   },
 ];
 
+const TOC = [
+  { href: "#cycle", label: "Cycle de vérification" },
+  { href: "#pages-protegees", label: "Pages protégées" },
+  { href: "#types-de-verification", label: "Types de vérification" },
+  { href: "#integrations", label: "Intégrations" },
+  { href: "#alertes", label: "Alertes" },
+  { href: "#collaborateurs", label: "Collaborateurs" },
+  { href: "#bot-telegram", label: "Bot Telegram" },
+  { href: "#incidents-deplois-sante", label: "Incidents, déplois, santé" },
+  { href: "#scan-de-site", label: "Scan de site" },
+];
+
 const INTEGRATIONS = [
   {
     icon: Webhook,
@@ -64,7 +76,23 @@ const INTEGRATIONS = [
 
 export default function DocsPage() {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-16 px-6 py-16 sm:px-10">
+    <div className="mx-auto flex w-full max-w-5xl gap-12 px-6 py-16 sm:px-10">
+      <nav
+        aria-label="Sommaire"
+        className="sticky top-24 hidden h-fit w-48 shrink-0 flex-col gap-1 lg:flex"
+      >
+        {TOC.map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-16">
       <div className="flex flex-col gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
         <h1 className="text-3xl font-semibold tracking-tight">Documentation</h1>
         <p className="text-sm text-muted-foreground">
@@ -74,7 +102,7 @@ export default function DocsPage() {
       </div>
 
       <section className="flex flex-col gap-6">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 id="cycle" className="scroll-mt-24 text-xl font-semibold tracking-tight">
           Cycle de vérification
         </h2>
         <div className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4">
@@ -90,7 +118,7 @@ export default function DocsPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 id="pages-protegees" className="scroll-mt-24 text-xl font-semibold tracking-tight">
           Pages protégées
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -104,7 +132,7 @@ export default function DocsPage() {
       </section>
 
       <section className="flex flex-col gap-6">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 id="types-de-verification" className="scroll-mt-24 text-xl font-semibold tracking-tight">
           Types de vérification
         </h2>
         <div className="flex flex-col gap-4">
@@ -124,7 +152,7 @@ export default function DocsPage() {
       </section>
 
       <section className="flex flex-col gap-6">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 id="integrations" className="scroll-mt-24 text-xl font-semibold tracking-tight">
           Intégrations
         </h2>
         <div className="flex flex-col gap-4">
@@ -149,7 +177,7 @@ export default function DocsPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 id="alertes" className="scroll-mt-24 text-xl font-semibold tracking-tight">
           Alertes
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -162,7 +190,7 @@ export default function DocsPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 id="collaborateurs" className="scroll-mt-24 text-xl font-semibold tracking-tight">
           Collaborateurs (plan Team)
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -176,8 +204,11 @@ export default function DocsPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <Bot className="size-3.5" aria-hidden="true" />
+        <h2
+          id="bot-telegram"
+          className="flex scroll-mt-24 items-center gap-2 text-xl font-semibold tracking-tight"
+        >
+          <Bot className="size-4" aria-hidden="true" />
           Bot Telegram (plans Solo et Team)
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -203,7 +234,7 @@ export default function DocsPage() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 id="incidents-deplois-sante" className="scroll-mt-24 text-xl font-semibold tracking-tight">
           Incidents, déplois, santé
         </h2>
         <div className="flex flex-col gap-3">
@@ -227,7 +258,7 @@ export default function DocsPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 id="scan-de-site" className="scroll-mt-24 text-xl font-semibold tracking-tight">
           Scan de site
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -242,6 +273,7 @@ export default function DocsPage() {
           .
         </p>
       </section>
+      </div>
     </div>
   );
 }

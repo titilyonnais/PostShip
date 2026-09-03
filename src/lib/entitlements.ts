@@ -1,8 +1,8 @@
 // "team" is the internal plan value used in the database, Stripe
-// (planFromPriceId, webhooks) and here — the UI displays it as "Pro"
-// (see PLAN_LABEL in src/lib/pricing.ts). teamMembers gates per-project
-// collaborators (invite-by-email on a single project, no billing/other
-// projects access), not multi-seat org membership — there's no seats model.
+// (planFromPriceId, webhooks) and in the UI (see PLAN_LABEL in
+// src/lib/pricing.ts). teamMembers gates per-project collaborators
+// (invite-by-email on a single project, no billing/other projects access),
+// not multi-seat org membership — there's no seats model.
 export type Plan = "free" | "solo" | "team";
 
 export const PLAN_LIMITS: Record<

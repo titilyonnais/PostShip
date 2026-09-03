@@ -19,7 +19,10 @@ const DESCRIPTION =
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
-  title: { default: "PostShip", template: "%s — PostShip" },
+  title: {
+    default: "Après chaque déploiement, on vérifie votre site — PostShip",
+    template: "%s — PostShip",
+  },
   description: DESCRIPTION,
   openGraph: {
     title: "PostShip",
@@ -28,6 +31,8 @@ export const metadata: Metadata = {
     siteName: "PostShip",
     locale: "fr_FR",
     type: "website",
+    // og:image / twitter:image are wired automatically by Next's file
+    // convention (src/app/opengraph-image.tsx) — no static asset needed.
   },
   twitter: {
     card: "summary_large_image",
@@ -55,7 +60,7 @@ export default function RootLayout({
         <Toaster
           position="top-center"
           closeButton
-          duration={10000}
+          duration={5000}
           gap={8}
         />
       </body>

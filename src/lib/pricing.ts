@@ -1,12 +1,9 @@
 import type { Plan } from "@/lib/entitlements";
 
-// Displayed as "Pro" everywhere in the UI — the internal plan value stays
-// "team" in the database and in Stripe (planFromPriceId, webhooks) so this
-// is a display-only rename, not a data migration. See docs/PLAN.md.
 export const PLAN_LABEL: Record<Plan, string> = {
   free: "Free",
   solo: "Solo",
-  team: "Pro",
+  team: "Team",
 };
 
 export const PUBLIC_PLANS: {

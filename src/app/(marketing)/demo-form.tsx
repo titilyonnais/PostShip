@@ -47,7 +47,7 @@ export function DemoForm() {
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 sm:flex-row sm:items-center"
     >
-      <label htmlFor="demo-url" className="sr-only">
+      <label htmlFor="demo-url" className="text-sm text-muted-foreground">
         URL à vérifier
       </label>
       <Input
@@ -76,6 +76,7 @@ export function DemoForm() {
       {result && (
         <p
           role="status"
+          aria-live="polite"
           className="text-sm text-muted-foreground sm:basis-full"
         >
           {result.outcome === "pass" ? "✅" : "🔴"} statut{" "}

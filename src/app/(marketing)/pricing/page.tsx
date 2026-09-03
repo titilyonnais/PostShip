@@ -52,13 +52,18 @@ export default function PricingPage() {
         {PUBLIC_PLANS.map((plan, index) => (
           <div
             key={plan.id}
-            className={`flex flex-col gap-4 rounded-md border p-6 transition-colors duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 ${
+            className={`relative flex flex-col gap-4 rounded-2xl border p-6 transition-colors duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 ${
               plan.highlight
-                ? "border-foreground/30 bg-card"
+                ? "border-foreground/30 bg-card ring-1 ring-foreground/30"
                 : "border-border hover:border-foreground/20"
             }`}
             style={{ animationDelay: `${index * 100}ms` }}
           >
+            {plan.highlight && (
+              <span className="absolute -top-2.5 right-4 rounded-full bg-foreground px-2 py-0.5 text-[0.65rem] font-medium text-background">
+                Le plus choisi
+              </span>
+            )}
             <div>
               <h2 className="text-sm font-medium">{PLAN_LABEL[plan.id]}</h2>
               <p className="mt-1 font-mono text-2xl">{plan.price}</p>
@@ -136,12 +141,17 @@ export default function PricingPage() {
         >
           Questions fréquentes
         </h2>
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {FAQ.map((item) => (
-            <div key={item.q} className="flex flex-col gap-1.5">
-              <h3 className="text-sm font-medium">{item.q}</h3>
-              <p className="text-sm text-muted-foreground">{item.a}</p>
-            </div>
+            <details
+              key={item.q}
+              className="group rounded-2xl border border-border p-4"
+            >
+              <summary className="cursor-pointer list-none text-sm font-medium marker:content-none [&::-webkit-details-marker]:hidden">
+                {item.q}
+              </summary>
+              <p className="mt-1.5 text-sm text-muted-foreground">{item.a}</p>
+            </details>
           ))}
         </div>
       </section>

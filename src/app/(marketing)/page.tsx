@@ -15,6 +15,8 @@ const JSON_LD = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "PostShip",
+  url: "https://postship.fr",
+  inLanguage: "fr-FR",
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Web",
   description:
@@ -72,7 +74,7 @@ const CHECKS = [
   },
   {
     icon: ImageIcon,
-    title: "Ta carte sociale est encore montrable",
+    title: "Votre carte sociale reste montrable",
     items: [
       "Image accessible, bon format, pas trop lourde",
       "Titre et description toujours présents",
@@ -92,10 +94,10 @@ export default function MarketingHomePage() {
 
       <section className="grid gap-10 sm:grid-cols-2 sm:items-center motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
         <div className="flex flex-col gap-4">
-          <h1 className="text-4xl font-semibold tracking-tight text-balance">
+          <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
             PostShip vérifie votre site après chaque déploiement
           </h1>
-          <p className="max-w-md text-sm text-muted-foreground">
+          <p className="max-w-lg text-base text-muted-foreground">
             Comme un utilisateur : statut HTTP, JS et prix toujours présents,
             aperçu réseaux sociaux, sitemap, SSL. Une alerte Discord, Slack,
             Telegram ou email si ça casse. Silence quand tout est vert.
@@ -107,10 +109,19 @@ export default function MarketingHomePage() {
             >
               Commencer gratuitement
             </Link>
-            <span className="text-xs text-muted-foreground">
-              Gratuit jusqu&apos;à 3 URLs — aucune carte requise
-            </span>
+            <Link
+              href="#demo"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Voir un check
+            </Link>
           </div>
+          <span className="text-xs text-muted-foreground">
+            Gratuit jusqu&apos;à 3 URLs — aucune carte requise
+          </span>
+          <p className="text-xs text-muted-foreground">
+            Vercel · Netlify · Cloudflare Pages · Discord · Slack · Telegram
+          </p>
         </div>
 
         <div
@@ -167,7 +178,7 @@ export default function MarketingHomePage() {
       <section aria-labelledby="steps-heading" className="flex flex-col gap-8">
         <h2
           id="steps-heading"
-          className="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+          className="text-xl font-semibold tracking-tight sm:text-2xl"
         >
           Comment ça marche
         </h2>
@@ -178,7 +189,7 @@ export default function MarketingHomePage() {
               className="flex flex-col gap-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <span className="font-mono text-2xl text-muted-foreground/50">
+              <span className="font-mono text-2xl text-muted-foreground/70">
                 {step.n}
               </span>
               <h3 className="text-sm font-medium">{step.title}</h3>
@@ -191,7 +202,7 @@ export default function MarketingHomePage() {
       <section aria-labelledby="checks-heading" className="flex flex-col gap-6">
         <h2
           id="checks-heading"
-          className="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+          className="text-xl font-semibold tracking-tight sm:text-2xl"
         >
           Ce que PostShip surveille
         </h2>
@@ -199,14 +210,14 @@ export default function MarketingHomePage() {
           {CHECKS.map((check, index) => (
             <div
               key={check.title}
-              className="flex flex-col gap-3 rounded-md border border-border p-5 transition-colors duration-200 hover:border-foreground/25 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+              className="flex flex-col gap-3 rounded-2xl border border-border p-5 transition-colors duration-200 hover:border-foreground/25 focus-within:border-foreground/25 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <check.icon
                 className="size-4 text-muted-foreground"
                 aria-hidden="true"
               />
-              <h3 className="text-sm font-medium">{check.title}</h3>
+              <h3 className="text-base font-medium">{check.title}</h3>
               <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
                 {check.items.map((item) => (
                   <li key={item} className="flex items-start gap-1.5">
@@ -223,10 +234,14 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="demo-heading" className="flex flex-col gap-4">
+      <section
+        id="demo"
+        aria-labelledby="demo-heading"
+        className="scroll-mt-24 flex flex-col gap-4"
+      >
         <h2
           id="demo-heading"
-          className="text-center text-xs font-medium tracking-wide text-muted-foreground uppercase"
+          className="text-center text-xl font-semibold tracking-tight sm:text-2xl"
         >
           Essayez sur une URL publique
         </h2>
@@ -237,7 +252,7 @@ export default function MarketingHomePage() {
         <div className="flex items-center justify-between">
           <h2
             id="pricing-heading"
-            className="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+            className="text-xl font-semibold tracking-tight sm:text-2xl"
           >
             Tarifs
           </h2>
@@ -251,16 +266,20 @@ export default function MarketingHomePage() {
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           {PUBLIC_PLANS.map((plan, index) => (
-            <Link
+            <article
               key={plan.id}
-              href={`/login?plan=${plan.id}`}
-              className={`flex flex-col gap-2 rounded-md border p-5 transition-colors duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 ${
+              className={`relative flex flex-col gap-2 rounded-2xl border p-5 transition-colors duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 ${
                 plan.highlight
-                  ? "border-foreground/30 bg-card hover:border-foreground/50"
+                  ? "border-foreground/30 bg-card ring-1 ring-foreground/30"
                   : "border-border hover:border-foreground/20"
               }`}
               style={{ animationDelay: `${index * 100}ms` }}
             >
+              {plan.highlight && (
+                <span className="absolute -top-2.5 right-4 rounded-full bg-foreground px-2 py-0.5 text-[0.65rem] font-medium text-background">
+                  Le plus choisi
+                </span>
+              )}
               <h3 className="text-sm font-medium">{PLAN_LABEL[plan.id]}</h3>
               <p className="font-mono text-lg">{plan.price}</p>
               <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
@@ -268,7 +287,16 @@ export default function MarketingHomePage() {
                   <li key={feature}>{feature}</li>
                 ))}
               </ul>
-            </Link>
+              <Link
+                href={`/login?plan=${plan.id}`}
+                className={buttonVariants({
+                  variant: plan.highlight ? "default" : "outline",
+                  className: "mt-2",
+                })}
+              >
+                Choisir {PLAN_LABEL[plan.id]}
+              </Link>
+            </article>
           ))}
         </div>
       </section>

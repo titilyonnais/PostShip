@@ -140,12 +140,12 @@ export default async function UrlsPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <h1 className="text-sm font-medium">URLs surveillées</h1>
-          <span className="text-xs text-muted-foreground">
-            {allTargets.length}/{limits.urls}
-          </span>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">URLs surveillées</h1>
+          <p className="text-sm text-muted-foreground">
+            {allTargets.length}/{limits.urls} URLs vérifiées après chaque déploiement.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <AddTargetForm projectId={projectId} />
