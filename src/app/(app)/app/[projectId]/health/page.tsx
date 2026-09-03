@@ -86,7 +86,7 @@ export default async function HealthPage({
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <ShieldCheck className="size-3.5" aria-hidden="true" />
+          <ShieldCheck className="size-3.5 text-brand-2" aria-hidden="true" />
           SSL
         </h2>
         {sslTarget ? (
@@ -107,7 +107,7 @@ export default async function HealthPage({
 
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <Globe className="size-3.5" aria-hidden="true" />
+          <Globe className="size-3.5 text-brand-2" aria-hidden="true" />
           DNS
         </h2>
         {health.dns.hasRecords ? (
@@ -125,7 +125,7 @@ export default async function HealthPage({
 
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <HeartPulse className="size-3.5" aria-hidden="true" />
+          <HeartPulse className="size-3.5 text-brand-2" aria-hidden="true" />
           Expiration du domaine
         </h2>
         {expiryDays !== null ? (

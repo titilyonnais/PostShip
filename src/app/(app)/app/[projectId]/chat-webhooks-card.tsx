@@ -4,6 +4,7 @@ import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 import { buttonVariants } from "@/components/ui/button";
+import { FieldRow, FieldRowDivider } from "@/components/ui/field-row";
 import type { ActionResult } from "@/lib/use-toast-action";
 import {
   disableDiscordWebhook,
@@ -42,7 +43,7 @@ function ChatWebhookSection({
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <MessageSquare className="size-3.5" aria-hidden="true" />
+        <MessageSquare className="size-3.5 text-brand-2" aria-hidden="true" />
         {title}
       </h3>
       {connectHref && !configured && (
@@ -60,20 +61,27 @@ function ChatWebhookSection({
             : "Ou collez l'URL vous-même :"
           : instructions}
       </p>
-      <ActionForm action={action} className="flex gap-2">
-        <label htmlFor={inputName} className="sr-only">
-          URL du webhook {title}
-        </label>
-        <Input
-          id={inputName}
-          name={inputName}
-          type="url"
-          placeholder={configured ? "•••••••• (déjà configuré)" : placeholder}
-          className="flex-1"
-        />
-        <SubmitButton variant="outline" pendingText="Enregistrement...">
-          Enregistrer
-        </SubmitButton>
+      <ActionForm action={action}>
+        <FieldRow>
+          <label htmlFor={inputName} className="sr-only">
+            URL du webhook {title}
+          </label>
+          <Input
+            id={inputName}
+            name={inputName}
+            type="url"
+            placeholder={configured ? "•••••••• (déjà configuré)" : placeholder}
+            className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:border-transparent focus-visible:ring-0"
+          />
+          <FieldRowDivider />
+          <SubmitButton
+            variant="ghost"
+            className="shrink-0 rounded-none px-4"
+            pendingText="Enregistrement..."
+          >
+            Enregistrer
+          </SubmitButton>
+        </FieldRow>
       </ActionForm>
       {configured && (
         <ActionForm action={disableAction}>
@@ -103,7 +111,7 @@ function TelegramSection({
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <MessageSquare className="size-3.5" aria-hidden="true" />
+        <MessageSquare className="size-3.5 text-brand-2" aria-hidden="true" />
         Telegram
       </h3>
       <p className="text-xs text-muted-foreground">
@@ -168,7 +176,7 @@ export function ChatWebhooksCard({
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <MessageSquare className="size-3.5" aria-hidden="true" />
+          <MessageSquare className="size-3.5 text-brand-2" aria-hidden="true" />
           Alertes
         </h2>
         <Link

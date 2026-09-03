@@ -88,9 +88,9 @@ export function GeneralTab({
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           {project.paused ? (
-            <PauseCircle className="size-3.5" aria-hidden="true" />
+            <PauseCircle className="size-3.5 text-brand-2" aria-hidden="true" />
           ) : (
-            <PlayCircle className="size-3.5" aria-hidden="true" />
+            <PlayCircle className="size-3.5 text-brand-2" aria-hidden="true" />
           )}
           Mode maintenance
         </h2>
@@ -134,7 +134,7 @@ export function GeneralTab({
       ) : (
         <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
           <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            <UserPlus className="size-3.5" aria-hidden="true" />
+            <UserPlus className="size-3.5 text-brand-2" aria-hidden="true" />
             Vous êtes collaborateur sur ce projet
           </h2>
           <p className="text-xs text-muted-foreground">

@@ -1,12 +1,13 @@
-import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink, Link2 } from "lucide-react";
+import { Clock, ExternalLink, Gauge, Link2 } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
+import { TargetKindBadge, TARGET_KIND_LABEL } from "@/components/target-kind-badge";
 import { FailureDetails, type CheckRunDetails } from "@/components/failure-details";
 import { createClient } from "@/lib/db/server";
-import { getProject, getProjectOwnerPlan } from "@/lib/db/loaders";
+import { getProject, getProjectOwnerPlan, getViewerTimezone } from "@/lib/db/loaders";
 import { getPlanLimits } from "@/lib/entitlements";
+import { formatDateTime } from "@/lib/timezone";
 import { AddTargetForm } from "../add-target-form";
 import { MoneyPathDialog } from "../money-path-dialog";
 import { TargetActionsMenu } from "../target-actions-menu";
@@ -65,6 +66,7 @@ export default async function UrlsPage({
 
   const ownerPlan = await getProjectOwnerPlan(project.user_id);
   const limits = getPlanLimits(ownerPlan);
+  const timezone = await getViewerTimezone();
 
   const supabase = await createClient();
   const [{ data: targets }, { data: recentRuns }, { data: surfaces }, { data: recentProdDeploys }] =
@@ -168,146 +170,104 @@ export default async function UrlsPage({
       </div>
 
       {filteredTargets.length > 0 ? (
-        // S7 (site backlog): stacked cards below md, a real table from md
-        // up (native <table>/<td> so colSpan on the failure-details row
-        // still works at md+) — a 6-column table doesn't survive a 390px
-        // viewport.
-        <div className="md:overflow-x-auto md:rounded-xl md:border md:border-border">
-          {/* table-fixed + explicit widths on every column but URL: in
-              auto layout the URL column grows to fit its longest cell
-              regardless of the truncate class inside it, so real (long)
-              URLs forced the whole table into horizontal scroll. Fixed
-              layout caps the column at the remaining width so truncate
-              actually engages. */}
-          <table className="flex flex-col gap-3 md:table md:w-full md:table-fixed md:min-w-[640px] md:border-collapse">
-            <colgroup>
-              <col className="md:w-20" />
-              <col />
-              <col className="md:w-20" />
-              <col className="md:w-32" />
-              <col className="md:w-16" />
-              <col className="md:w-10" />
-            </colgroup>
-            <thead className="hidden md:table-header-group">
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="px-3 py-2 font-medium">État</th>
-                <th className="px-3 py-2 font-medium">URL</th>
-                <th className="px-3 py-2 font-medium">Type</th>
-                <th className="px-3 py-2 font-medium">Dernière vérif</th>
-                <th className="px-3 py-2 font-medium">TTFB</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody className="flex flex-col gap-3 md:table-row-group">
-              {filteredTargets.map((target) => {
-                const run = latestRunByTarget.get(target.id);
-                const isFailing =
-                  run && (run.outcome === "fail" || run.outcome === "error");
-                const surface = surfaceByTarget.get(target.id);
-                const isMutatedSinceDeploy =
-                  !!surface?.mutated_at &&
-                  hasProdDeploy &&
-                  (previousDeployAt === null ||
-                    new Date(surface.mutated_at).getTime() >= previousDeployAt);
+        <ul className="flex flex-col gap-3">
+          {filteredTargets.map((target, index) => {
+            const run = latestRunByTarget.get(target.id);
+            const isFailing =
+              run && (run.outcome === "fail" || run.outcome === "error");
+            const surface = surfaceByTarget.get(target.id);
+            const isMutatedSinceDeploy =
+              !!surface?.mutated_at &&
+              hasProdDeploy &&
+              (previousDeployAt === null ||
+                new Date(surface.mutated_at).getTime() >= previousDeployAt);
 
-                return (
-                  <Fragment key={target.id}>
-                    <tr className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 md:table-row md:rounded-none md:border-0 md:border-b md:border-border md:bg-transparent md:p-0">
-                      <td className="flex items-center justify-between gap-2 md:table-cell md:px-3 md:py-2 md:align-middle">
-                        <StatusDot status={run?.outcome ?? null} />
-                        <div className="md:hidden">
-                          <TargetActionsMenu
-                            projectId={projectId}
-                            targetId={target.id}
-                            url={target.url}
-                            enabled={target.enabled}
-                            silenced={
-                              !!target.silenced_until &&
-                              new Date(target.silenced_until).getTime() > Date.now()
-                            }
+            return (
+              <li
+                key={target.id}
+                className="rounded-2xl border border-border bg-card p-4 transition-colors duration-200 hover:border-foreground/20 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-300"
+                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <TargetKindBadge kind={target.kind} />
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                        <Link
+                          href={`/app/${projectId}/${target.id}`}
+                          className="min-w-0 max-w-full truncate font-mono text-sm font-medium hover:underline"
+                        >
+                          {target.url}
+                        </Link>
+                        <a
+                          href={target.url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                          aria-label={`Ouvrir ${target.url} dans un nouvel onglet`}
+                        >
+                          <ExternalLink className="size-3" aria-hidden="true" />
+                        </a>
+                        {isMutatedSinceDeploy && (
+                          <span
+                            className="size-1.5 shrink-0 rounded-full bg-amber-500"
+                            title="Contenu modifié depuis le dernier déploiement"
+                            aria-label="Contenu modifié depuis le dernier déploiement"
                           />
-                        </div>
-                      </td>
-                      <td className="min-w-0 md:table-cell md:px-3 md:py-2 md:align-middle">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          <Link
-                            href={`/app/${projectId}/${target.id}`}
-                            className="min-w-0 flex-1 truncate font-mono text-sm hover:underline"
-                          >
-                            {target.url}
-                          </Link>
-                          <a
-                            href={target.url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-                            aria-label={`Ouvrir ${target.url} dans un nouvel onglet`}
-                          >
-                            <ExternalLink className="size-3" aria-hidden="true" />
-                          </a>
-                          {isMutatedSinceDeploy && (
-                            <span
-                              className="size-1.5 shrink-0 rounded-full bg-amber-500"
-                              title="Contenu modifié depuis le dernier déploiement"
-                              aria-label="Contenu modifié depuis le dernier déploiement"
-                            />
-                          )}
-                        </div>
-                        {surface?.h1 && (
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                            « {surface.h1} »
-                          </p>
                         )}
-                      </td>
-                      <td className="flex items-center justify-between text-sm text-muted-foreground md:table-cell md:px-3 md:py-2 md:align-middle">
-                        <span className="text-xs text-muted-foreground md:hidden">Type</span>
-                        {target.kind}
-                      </td>
-                      <td className="flex items-center justify-between text-sm text-muted-foreground md:table-cell md:px-3 md:py-2 md:align-middle">
-                        <span className="text-xs text-muted-foreground md:hidden">Dernière vérif</span>
-                        {run
-                          ? new Date(run.started_at).toLocaleString("fr-FR", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "Jamais vérifié"}
-                      </td>
-                      <td className="flex items-center justify-between text-sm text-muted-foreground md:table-cell md:px-3 md:py-2 md:align-middle">
-                        <span className="text-xs text-muted-foreground md:hidden">TTFB</span>
-                        {run?.ttfb_ms != null ? `${run.ttfb_ms} ms` : "—"}
-                      </td>
-                      <td className="hidden md:table-cell md:px-3 md:py-2 md:align-middle">
-                        <TargetActionsMenu
-                          projectId={projectId}
-                          targetId={target.id}
-                          url={target.url}
-                          enabled={target.enabled}
-                          silenced={
-                            !!target.silenced_until &&
-                            new Date(target.silenced_until).getTime() > Date.now()
-                          }
-                        />
-                      </td>
-                    </tr>
-                    {isFailing && run?.details && (
-                      <tr className="block md:table-row">
-                        <td colSpan={6} className="block pb-1 md:table-cell md:px-3 md:pb-3">
-                          <FailureDetails
-                            details={run.details}
-                            httpStatus={run.http_status}
-                            expectStatus={target.expect_status}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </div>
+                      {surface?.h1 && (
+                        <p className="max-w-full truncate text-xs text-muted-foreground">
+                          « {surface.h1} »
+                        </p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <StatusDot status={run?.outcome ?? null} />
+                        <span>{TARGET_KIND_LABEL[target.kind] ?? target.kind}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="size-3" aria-hidden="true" />
+                          {run
+                            ? formatDateTime(run.started_at, timezone, {
+                                day: "2-digit",
+                                month: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "Jamais vérifié"}
+                        </span>
+                        {run?.ttfb_ms != null && (
+                          <span className="inline-flex items-center gap-1">
+                            <Gauge className="size-3" aria-hidden="true" />
+                            {run.ttfb_ms} ms
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <TargetActionsMenu
+                    projectId={projectId}
+                    targetId={target.id}
+                    url={target.url}
+                    enabled={target.enabled}
+                    silenced={
+                      !!target.silenced_until &&
+                      new Date(target.silenced_until).getTime() > Date.now()
+                    }
+                  />
+                </div>
+                {isFailing && run?.details && (
+                  <div className="mt-3 border-t border-border/60 pt-3">
+                    <FailureDetails
+                      details={run.details}
+                      httpStatus={run.http_status}
+                      expectStatus={target.expect_status}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       ) : (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-10 text-center">
           <Link2 className="size-6 text-muted-foreground" aria-hidden="true" />

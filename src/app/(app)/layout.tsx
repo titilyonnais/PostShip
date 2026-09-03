@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-bar/app-shell";
+import { TimezoneCapture } from "@/components/timezone-capture";
 import { resolveAvatarUrl } from "@/lib/avatar";
 import {
   getAuthUser,
@@ -30,6 +31,8 @@ export default async function AppLayout({
       >
         Aller au contenu
       </a>
+
+      <TimezoneCapture hasTimezone={!!profile?.timezone} />
 
       <AppShell
         projects={projects}

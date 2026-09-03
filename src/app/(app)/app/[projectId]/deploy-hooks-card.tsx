@@ -3,6 +3,7 @@ import { Webhook } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
+import { FieldRow, FieldRowDivider } from "@/components/ui/field-row";
 import type { ActionResult } from "@/lib/use-toast-action";
 import {
   setCloudflareHookSecret,
@@ -29,7 +30,7 @@ function DeployHookSection({
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <Webhook className="size-3.5" aria-hidden="true" />
+        <Webhook className="size-3.5 text-brand-2" aria-hidden="true" />
         {title}
       </h3>
       {/* Feedback fix: flex-1 here, not on the form — so the field + Save
@@ -40,20 +41,27 @@ function DeployHookSection({
         {process.env.NEXT_PUBLIC_APP_URL}
         {routePath}
       </p>
-      <ActionForm action={action} className="flex gap-2">
-        <label htmlFor={inputName} className="sr-only">
-          Secret {title}
-        </label>
-        <Input
-          id={inputName}
-          name={inputName}
-          type="password"
-          placeholder={configured ? "•••••••• (déjà configuré)" : "Secret"}
-          className="flex-1"
-        />
-        <SubmitButton variant="outline" pendingText="Enregistrement...">
-          Enregistrer
-        </SubmitButton>
+      <ActionForm action={action}>
+        <FieldRow>
+          <label htmlFor={inputName} className="sr-only">
+            Secret {title}
+          </label>
+          <Input
+            id={inputName}
+            name={inputName}
+            type="password"
+            placeholder={configured ? "•••••••• (déjà configuré)" : "Secret"}
+            className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:border-transparent focus-visible:ring-0"
+          />
+          <FieldRowDivider />
+          <SubmitButton
+            variant="ghost"
+            className="shrink-0 rounded-none px-4"
+            pendingText="Enregistrement..."
+          >
+            Enregistrer
+          </SubmitButton>
+        </FieldRow>
       </ActionForm>
     </div>
   );
@@ -79,7 +87,7 @@ export function DeployHooksCard({
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <Webhook className="size-3.5" aria-hidden="true" />
+        <Webhook className="size-3.5 text-brand-2" aria-hidden="true" />
         Déploiement
       </h2>
       {!allowed && (

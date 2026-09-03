@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
+  Bell,
   Check,
   Image as ImageIcon,
   Sparkles,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { ApercuFrame } from "@/components/marketing/product-frame";
+import { Reveal } from "@/components/reveal";
 import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
 import { DemoForm } from "./demo-form";
 
@@ -75,6 +77,11 @@ const CHECKS = [
       "Aperçu réel dans le tableau de bord",
     ],
   },
+];
+
+const STACK_GROUPS = [
+  { label: "Déploiements", icon: Webhook, tools: ["Vercel", "Netlify", "Cloudflare Pages"] },
+  { label: "Alertes", icon: Bell, tools: ["Discord", "Slack", "Telegram", "Email"] },
 ];
 
 export default function MarketingHomePage() {
@@ -184,6 +191,40 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
+      <Reveal>
+        <section aria-labelledby="stack-heading" className="flex flex-col gap-6">
+          <h2
+            id="stack-heading"
+            className="text-center text-xl font-semibold tracking-tight sm:text-2xl"
+          >
+            Compatible avec votre stack
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {STACK_GROUPS.map((group) => (
+              <div
+                key={group.label}
+                className="flex flex-col gap-3 rounded-2xl border border-border p-5"
+              >
+                <span className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  <group.icon className="size-3.5 text-brand-2" aria-hidden="true" />
+                  {group.label}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {group.tools.map((tool) => (
+                    <span
+                      key={tool}
+                      className="rounded-full border border-border bg-secondary/50 px-3 py-1 text-sm"
+                    >
+                      {tool}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </Reveal>
+
       <section
         id="demo"
         aria-labelledby="demo-heading"
@@ -198,75 +239,78 @@ export default function MarketingHomePage() {
         <DemoForm />
       </section>
 
-      <section aria-labelledby="pricing-heading" className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <h2
-            id="pricing-heading"
-            className="text-xl font-semibold tracking-tight sm:text-2xl"
-          >
-            Tarifs
-          </h2>
-          <Link
-            href="/pricing"
-            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-brand-2"
-          >
-            Voir le détail des plans et la FAQ
-            <ArrowRight className="size-3" aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {PUBLIC_PLANS.map((plan, index) => (
-            <article
-              key={plan.id}
-              className={`relative flex flex-col gap-2 rounded-2xl border p-5 transition-colors duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 ${
-                plan.highlight
-                  ? "border-foreground/30 bg-card ring-1 ring-foreground/30"
-                  : "border-border hover:border-foreground/20"
-              }`}
-              style={{ animationDelay: `${index * 100}ms` }}
+      <Reveal>
+        <section aria-labelledby="pricing-heading" className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <h2
+              id="pricing-heading"
+              className="text-xl font-semibold tracking-tight sm:text-2xl"
             >
-              {plan.highlight && (
-                <span className="absolute -top-2.5 right-4 rounded-full bg-brand/15 px-2 py-0.5 text-[0.65rem] font-medium text-brand">
-                  Le plus choisi
-                </span>
-              )}
-              <h3 className="text-sm font-medium">{PLAN_LABEL[plan.id]}</h3>
-              <p className="font-mono text-lg">{plan.price}</p>
-              <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-                {plan.features.map((feature) => (
-                  <li key={feature}>{feature}</li>
-                ))}
-              </ul>
-              <Link
-                href={`/login?plan=${plan.id}`}
-                className={buttonVariants({
-                  variant: plan.highlight ? "default" : "outline",
-                  className: "mt-2",
-                })}
+              Tarifs
+            </h2>
+            <Link
+              href="/pricing"
+              className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-brand-2"
+            >
+              Voir le détail des plans et la FAQ
+              <ArrowRight className="size-3" aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {PUBLIC_PLANS.map((plan) => (
+              <article
+                key={plan.id}
+                className={`relative flex flex-col gap-2 rounded-2xl border p-5 transition-colors duration-200 ${
+                  plan.highlight
+                    ? "border-foreground/30 bg-card ring-1 ring-foreground/30"
+                    : "border-border hover:border-foreground/20"
+                }`}
               >
-                Choisir {PLAN_LABEL[plan.id]}
-              </Link>
-            </article>
-          ))}
-        </div>
-      </section>
+                {plan.highlight && (
+                  <span className="absolute -top-2.5 right-4 rounded-full bg-brand/15 px-2 py-0.5 text-[0.65rem] font-medium text-brand">
+                    Le plus choisi
+                  </span>
+                )}
+                <h3 className="text-sm font-medium">{PLAN_LABEL[plan.id]}</h3>
+                <p className="font-mono text-lg">{plan.price}</p>
+                <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  {plan.features.map((feature) => (
+                    <li key={feature}>{feature}</li>
+                  ))}
+                </ul>
+                <Link
+                  href={`/login?plan=${plan.id}`}
+                  className={buttonVariants({
+                    variant: plan.highlight ? "default" : "outline",
+                    className: "mt-2",
+                  })}
+                >
+                  Choisir {PLAN_LABEL[plan.id]}
+                </Link>
+              </article>
+            ))}
+          </div>
+        </section>
+      </Reveal>
 
-      <section className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card px-6 py-14 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
-        <Sparkles className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h2 className="text-2xl font-semibold tracking-tight">
-          Sachez avant vos utilisateurs, pas dans les commentaires
-        </h2>
-        <p className="max-w-md text-sm text-muted-foreground">
-          Un déploiement cassé coûte des clients avant que vous ne le
-          sachiez. PostShip vous le dit en premier.
-        </p>
-        <Link
-          href="/login?plan=free"
-          className={buttonVariants({ variant: "default" })}
-        >
-          Commencer gratuitement
-        </Link>
-      </section>
+      <Reveal>
+        <section className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card px-6 py-14 text-center">
+          <Sparkles className="size-5 text-brand-2" aria-hidden="true" />
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Sachez avant vos utilisateurs, pas dans les commentaires
+          </h2>
+          <p className="max-w-md text-sm text-muted-foreground">
+            Un déploiement cassé coûte des clients avant que vous ne le
+            sachiez. PostShip vous le dit en premier.
+          </p>
+          <Link
+            href="/login?plan=free"
+            className={buttonVariants({ variant: "default" })}
+          >
+            Commencer gratuitement
+          </Link>
+        </section>
+      </Reveal>
     </div>
   );
 }

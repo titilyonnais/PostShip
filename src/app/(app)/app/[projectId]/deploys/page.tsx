@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { Rocket } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
-import { getProject } from "@/lib/db/loaders";
+import { getProject, getViewerTimezone } from "@/lib/db/loaders";
+import { formatDateTime } from "@/lib/timezone";
 import {
   getDeployWatchesByEvent,
   getRecentDeployEvents,
@@ -44,6 +45,7 @@ export default async function DeploysPage({
 
   const project = await getProject(projectId);
   if (!project) notFound();
+  const timezone = await getViewerTimezone();
 
   const supabase = await createClient();
   const events = await getRecentDeployEvents(supabase, projectId);
@@ -126,7 +128,7 @@ export default async function DeploysPage({
                     )}
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {new Date(event.started_at).toLocaleString("fr-FR", {
+                    {formatDateTime(event.started_at, timezone, {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",

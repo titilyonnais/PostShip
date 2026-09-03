@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Moon, Siren } from "lucide-react";
 import { StatusDot } from "@/components/status-dot";
+import { TargetKindBadge, TARGET_KIND_LABEL } from "@/components/target-kind-badge";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { createClient } from "@/lib/db/server";
-import { getProject } from "@/lib/db/loaders";
+import { getProject, getViewerTimezone } from "@/lib/db/loaders";
 import { getIncidentLog, getOpenIncidents } from "@/lib/incidents";
 import { SilenceBar } from "./silence-bar";
 
@@ -38,6 +39,7 @@ export default async function IncidentsPage({
 
   const project = await getProject(projectId);
   if (!project) notFound();
+  const timezone = await getViewerTimezone();
 
   const supabase = await createClient();
   const since = new Date(
@@ -61,7 +63,11 @@ export default async function IncidentsPage({
         </p>
       </div>
 
-      <SilenceBar projectId={projectId} silencedUntil={project.alerts_silenced_until} />
+      <SilenceBar
+        projectId={projectId}
+        silencedUntil={project.alerts_silenced_until}
+        timezone={timezone}
+      />
 
       {hasQuietHours && (
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -83,25 +89,31 @@ export default async function IncidentsPage({
               <li key={incident.targetId}>
                 <Link
                   href={`/app/${projectId}/${incident.targetId}`}
-                  className="flex flex-col gap-1 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 transition-colors hover:border-destructive/50"
+                  className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 transition-colors hover:border-destructive/50"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <StatusDot status={incident.outcome} />
-                      <span className="min-w-0 truncate font-mono text-sm">
-                        {incident.url}
+                  <TargetKindBadge
+                    kind={incident.kind}
+                    className="size-8 bg-destructive/10 text-destructive"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <StatusDot status={incident.outcome} />
+                        <span className="min-w-0 truncate font-mono text-sm">
+                          {incident.url}
+                        </span>
                       </span>
-                    </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      [{incident.kind}]
-                    </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {TARGET_KIND_LABEL[incident.kind] ?? incident.kind}
+                      </span>
+                    </div>
+                    <p className="text-sm text-destructive">{incident.description}</p>
+                    {incident.since && (
+                      <p className="text-sm text-muted-foreground">
+                        Depuis {formatRelativeTime(incident.since)}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-sm text-destructive">{incident.description}</p>
-                  {incident.since && (
-                    <p className="text-sm text-muted-foreground">
-                      Depuis {formatRelativeTime(incident.since)}
-                    </p>
-                  )}
                 </Link>
               </li>
             ))}

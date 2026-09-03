@@ -4,7 +4,8 @@ import { Coins, ScanSearch } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { StatusDot } from "@/components/status-dot";
 import { createClient } from "@/lib/db/server";
-import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
+import { getAuthUser, getProfile, getProject, getViewerTimezone } from "@/lib/db/loaders";
+import { formatDateTime } from "@/lib/timezone";
 import { ScanLaunchForm } from "../scan-launch-form";
 
 export const metadata = {
@@ -27,9 +28,10 @@ export default async function ProjectScansPage({
 
   const supabase = await createClient();
 
-  const [project, user, { data: scans }] = await Promise.all([
+  const [project, user, timezone, { data: scans }] = await Promise.all([
     getProject(projectId),
     getAuthUser(),
+    getViewerTimezone(),
     supabase
       .from("site_scans")
       .select(
@@ -101,7 +103,7 @@ export default async function ProjectScansPage({
                       {scan.seed_url}
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {new Date(scan.created_at).toLocaleString("fr-FR", {
+                      {formatDateTime(scan.created_at, timezone, {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",

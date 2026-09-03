@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { Reveal } from "@/components/reveal";
 import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
 import { TOKEN_PACKS } from "@/lib/stripe";
 import { LEGAL } from "@/lib/legal";
@@ -97,6 +98,7 @@ export default function PricingPage() {
       </div>
       <p className="text-center text-xs text-muted-foreground">{TVA_ANSWER}</p>
 
+      <Reveal>
       <section
         id="tokens"
         aria-labelledby="tokens-heading"
@@ -133,7 +135,9 @@ export default function PricingPage() {
           connecté.
         </p>
       </section>
+      </Reveal>
 
+      <Reveal>
       <section aria-labelledby="faq-heading" className="flex flex-col gap-6">
         <h2
           id="faq-heading"
@@ -145,7 +149,7 @@ export default function PricingPage() {
           {FAQ.map((item) => (
             <details
               key={item.q}
-              className="group rounded-2xl border border-border p-4"
+              className="group rounded-2xl border border-border p-4 transition-colors open:border-foreground/20"
             >
               <summary className="cursor-pointer list-none text-sm font-medium marker:content-none [&::-webkit-details-marker]:hidden">
                 {item.q}
@@ -155,6 +159,7 @@ export default function PricingPage() {
           ))}
         </div>
       </section>
+      </Reveal>
     </div>
   );
 }

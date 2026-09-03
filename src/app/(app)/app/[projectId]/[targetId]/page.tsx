@@ -5,6 +5,8 @@ import { StatusDot } from "@/components/status-dot";
 import { FailureDetails, type CheckRunDetails } from "@/components/failure-details";
 import { OgCardPreview } from "@/components/og-card-preview";
 import { createClient } from "@/lib/db/server";
+import { getViewerTimezone } from "@/lib/db/loaders";
+import { formatDateTime } from "@/lib/timezone";
 
 export default async function TargetPage({
   params,
@@ -13,6 +15,7 @@ export default async function TargetPage({
 }) {
   const { projectId, targetId } = await params;
   const supabase = await createClient();
+  const timezone = await getViewerTimezone();
 
   const [{ data: target }, { data: runs }] = await Promise.all([
     supabase
@@ -81,7 +84,13 @@ export default async function TargetPage({
                 <div className="flex items-center justify-between">
                   <StatusDot status={run.outcome} />
                   <span className="text-xs text-muted-foreground">
-                    {new Date(run.started_at).toLocaleString("fr-FR")}
+                    {formatDateTime(run.started_at, timezone, {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </span>
                 </div>
                 <div className="mt-2 flex gap-4 text-xs text-muted-foreground">

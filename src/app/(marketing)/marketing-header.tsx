@@ -8,7 +8,8 @@ import { LogoMark } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/db/client";
 import { resolveAvatarUrl } from "@/lib/avatar";
-import { ANONYMOUS_ONLY_SLOT_LABELS, getHeaderConfig, SECTION_LINKS } from "./header-config";
+import { ANONYMOUS_ONLY_SLOT_LABELS, getHeaderConfig, MEGA_MENUS, SECTION_LINKS } from "./header-config";
+import { NavDropdown } from "./nav-dropdown";
 
 type AuthState =
   | { loaded: false; loggedIn: false; label: null; avatarUrl: null }
@@ -125,8 +126,21 @@ export function MarketingHeader() {
         </Link>
 
         <nav aria-label="Principale" className="hidden items-center gap-2 md:flex">
-          {SECTION_LINKS.map((link) =>
-            isCurrentSection(pathname, link.href) ? (
+          {SECTION_LINKS.map((link) => {
+            const active = isCurrentSection(pathname, link.href);
+            const megaMenu = MEGA_MENUS[link.href];
+            if (megaMenu) {
+              return (
+                <NavDropdown
+                  key={link.href}
+                  label={link.label}
+                  href={link.href}
+                  active={active}
+                  items={megaMenu}
+                />
+              );
+            }
+            return active ? (
               <span
                 key={link.href}
                 aria-current="page"
@@ -138,8 +152,8 @@ export function MarketingHeader() {
               <Link key={link.href} href={link.href} className={NAV_LINK_CLASS}>
                 {link.label}
               </Link>
-            ),
-          )}
+            );
+          })}
           {showAuthLink && (
             <Link href={authLinkHref} className={NAV_LINK_CLASS}>
               {auth.loggedIn && auth.avatarUrl ? (

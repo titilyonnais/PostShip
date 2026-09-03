@@ -9,6 +9,7 @@ import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
+import { FieldRow, FieldRowDivider } from "@/components/ui/field-row";
 import type { ActionResult } from "@/lib/use-toast-action";
 import {
   disableOutboundWebhook,
@@ -64,7 +65,7 @@ export function OutboundWebhookCard({
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
       <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <Webhook className="size-3.5" aria-hidden="true" />
+        <Webhook className="size-3.5 text-brand-2" aria-hidden="true" />
         Webhook sortant
       </h2>
       {!allowed && (
@@ -85,20 +86,23 @@ export function OutboundWebhookCard({
         autres canaux (silence, heures calmes, confirmation).
       </p>
       <fieldset disabled={!allowed} className="flex flex-col gap-3">
-        <ActionForm action={setOutboundWebhookUrl.bind(null, projectId)} className="flex gap-2">
-          <label htmlFor="outbound_webhook_url" className="sr-only">
-            URL du webhook sortant
-          </label>
-          <Input
-            id="outbound_webhook_url"
-            name="outbound_webhook_url"
-            type="url"
-            placeholder={configured ? "•••••••• (déjà configuré)" : "https://votre-site.fr/hooks/postship"}
-            className="flex-1"
-          />
-          <SubmitButton variant="outline" pendingText="...">
-            Enregistrer
-          </SubmitButton>
+        <ActionForm action={setOutboundWebhookUrl.bind(null, projectId)}>
+          <FieldRow>
+            <label htmlFor="outbound_webhook_url" className="sr-only">
+              URL du webhook sortant
+            </label>
+            <Input
+              id="outbound_webhook_url"
+              name="outbound_webhook_url"
+              type="url"
+              placeholder={configured ? "•••••••• (déjà configuré)" : "https://votre-site.fr/hooks/postship"}
+              className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:border-transparent focus-visible:ring-0"
+            />
+            <FieldRowDivider />
+            <SubmitButton variant="ghost" className="shrink-0 rounded-none px-4" pendingText="...">
+              Enregistrer
+            </SubmitButton>
+          </FieldRow>
         </ActionForm>
 
         <div className="flex flex-wrap items-center gap-2">

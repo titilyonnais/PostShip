@@ -1,8 +1,10 @@
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
+import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 import { IdentitySection } from "./identity-section";
 import { TeamSizeSelect } from "./team-size-select";
+import { TimezoneSelect } from "./timezone-select";
 import { updateDisplayName, updateProfile } from "./actions";
 
 export function ProfileTab({
@@ -17,6 +19,7 @@ export function ProfileTab({
     company_name: string | null;
     phone: string | null;
     team_size: string | null;
+    timezone: string | null;
   } | null;
 }) {
   return (
@@ -84,11 +87,23 @@ export function ProfileTab({
             />
           </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="team_size" className="text-xs text-muted-foreground">
-            Taille de l&apos;équipe
-          </label>
-          <TeamSizeSelect defaultValue={profile?.team_size ?? ""} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="team_size" className="text-xs text-muted-foreground">
+              Taille de l&apos;équipe
+            </label>
+            <TeamSizeSelect defaultValue={profile?.team_size ?? ""} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="timezone" className="text-xs text-muted-foreground">
+              Fuseau horaire
+            </label>
+            <TimezoneSelect defaultValue={profile?.timezone ?? DEFAULT_TIMEZONE} />
+            <p className="text-xs text-muted-foreground">
+              Utilisé pour afficher les dates de vérification à votre heure.
+              Détecté automatiquement depuis votre navigateur, modifiable ici.
+            </p>
+          </div>
         </div>
         <div>
           <SubmitButton pendingText="Enregistrement...">

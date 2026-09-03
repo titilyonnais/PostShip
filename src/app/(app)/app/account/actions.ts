@@ -6,6 +6,7 @@ import { findAccountProvidersByEmail } from "@/lib/auth-admin";
 import { createClient } from "@/lib/db/server";
 import { createServiceClient } from "@/lib/db/service";
 import { getStripe } from "@/lib/stripe";
+import { isValidTimezone } from "@/lib/timezone";
 import type { ActionResult } from "@/lib/use-toast-action";
 
 export async function updateDisplayName(
@@ -40,6 +41,12 @@ const profileSchema = z.object({
   company_name: z.string().trim().max(120).optional(),
   phone: z.string().trim().max(30).optional(),
   team_size: z.enum(["solo", "2-5", "6-20", "20+"]).optional(),
+  timezone: z
+    .string()
+    .trim()
+    .max(80)
+    .refine(isValidTimezone, "Fuseau horaire invalide.")
+    .optional(),
 });
 
 export async function updateProfile(
@@ -51,6 +58,7 @@ export async function updateProfile(
     company_name: formData.get("company_name") || undefined,
     phone: formData.get("phone") || undefined,
     team_size: formData.get("team_size") || undefined,
+    timezone: formData.get("timezone") || undefined,
   });
 
   if (!parsed.success) {
@@ -71,10 +79,33 @@ export async function updateProfile(
       company_name: parsed.data.company_name || null,
       phone: parsed.data.phone || null,
       team_size: parsed.data.team_size || null,
+      timezone: parsed.data.timezone || null,
     })
     .eq("id", user.id);
 
   return { success: "Profil mis à jour." };
+}
+
+// Silent, called directly from TimezoneCapture (not a form) — only ever
+// fires once per user, when profiles.timezone is still null, so it never
+// overwrites an explicit choice made from the Profil tab above.
+export async function captureTimezone(timezone: string): Promise<void> {
+  if (!isValidTimezone(timezone)) return;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("timezone")
+    .eq("id", user.id)
+    .single();
+  if (profile?.timezone) return;
+
+  await supabase.from("profiles").update({ timezone }).eq("id", user.id);
 }
 
 const billingAddressSchema = z.object({

@@ -16,10 +16,17 @@ import { LastChecked } from "@/components/last-checked";
 import { StatusDot } from "@/components/status-dot";
 import { type CheckRunDetails } from "@/components/failure-details";
 import { createClient } from "@/lib/db/server";
-import { getAuthUser, getProfile, getProject, getProjectOwnerPlan } from "@/lib/db/loaders";
+import {
+  getAuthUser,
+  getProfile,
+  getProject,
+  getProjectOwnerPlan,
+  getViewerTimezone,
+} from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { getUptimeStats } from "@/lib/uptime";
 import { getReliability } from "@/lib/reliability";
+import { formatDateTime } from "@/lib/timezone";
 import { ReliabilityHeatmap } from "./reliability-heatmap";
 import { ScanLaunchForm } from "./scan-launch-form";
 
@@ -78,6 +85,7 @@ export default async function ProjectOverviewPage({
 
   const project = await getProject(projectId);
   if (!project) notFound();
+  const timezone = await getViewerTimezone();
 
   const supabase = await createClient();
 
@@ -302,7 +310,7 @@ export default async function ProjectOverviewPage({
                 <li key={target.id}>
                   <Link
                     href={`/app/${projectId}/${target.id}`}
-                    className="flex min-w-0 items-center gap-2 text-sm hover:underline"
+                    className="flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 text-sm transition-colors hover:bg-secondary"
                   >
                     <StatusDot status={target.last_outcome} />
                     <span className="min-w-0 flex-1 truncate font-mono text-xs">
@@ -336,7 +344,7 @@ export default async function ProjectOverviewPage({
               <StatusDot status={lastDeploy.outcome ?? null} />
               <span className="text-muted-foreground">
                 {lastDeploy.provider} · {lastDeploy.kind === "preview" ? "preview" : "prod"} ·{" "}
-                {new Date(lastDeploy.started_at).toLocaleString("fr-FR", {
+                {formatDateTime(lastDeploy.started_at, timezone, {
                   day: "2-digit",
                   month: "2-digit",
                   hour: "2-digit",

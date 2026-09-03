@@ -4,6 +4,8 @@ import { ActionForm } from "@/components/action-form";
 import { SubmitButton } from "@/components/submit-button";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { createClient } from "@/lib/db/server";
+import { getViewerTimezone } from "@/lib/db/loaders";
+import { formatDateTime } from "@/lib/timezone";
 import { setAlertConfirmCount, setQuietHours, silenceTarget } from "../actions";
 import { ConfirmCountSelect } from "./confirm-count-select";
 import { QuietHourSelect } from "./quiet-hour-select";
@@ -22,6 +24,7 @@ export async function RulesTab({
 }) {
   const allowed = getPlanLimits(ownerPlan).chatWebhooks;
   const backTo = `/app/${projectId}/settings?tab=rules`;
+  const timezone = await getViewerTimezone();
 
   const supabase = await createClient();
   const { data: silencedTargets } = await supabase
@@ -36,7 +39,7 @@ export async function RulesTab({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <ListChecks className="size-3.5" aria-hidden="true" />
+          <ListChecks className="size-3.5 text-brand-2" aria-hidden="true" />
           Confirmation avant alerte
         </h2>
         {!allowed && (
@@ -80,7 +83,7 @@ export async function RulesTab({
 
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <BellOff className="size-3.5" aria-hidden="true" />
+          <BellOff className="size-3.5 text-brand-2" aria-hidden="true" />
           Heures calmes
         </h2>
         {!allowed && (
@@ -163,7 +166,7 @@ export async function RulesTab({
                 </span>
                 <span className="shrink-0 text-[0.7rem] text-muted-foreground">
                   jusqu&apos;à{" "}
-                  {new Date(target.silenced_until!).toLocaleString("fr-FR", {
+                  {formatDateTime(target.silenced_until!, timezone, {
                     day: "2-digit",
                     month: "2-digit",
                     hour: "2-digit",

@@ -37,7 +37,7 @@ export async function BotTab({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <Bot className="size-3.5" aria-hidden="true" />
+          <Bot className="size-3.5 text-brand-2" aria-hidden="true" />
           État
         </h2>
         <div className="flex flex-col gap-1 text-sm">
@@ -81,7 +81,7 @@ export async function BotTab({
 
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <MessageSquare className="size-3.5" aria-hidden="true" />
+          <MessageSquare className="size-3.5 text-brand-2" aria-hidden="true" />
           Commandes
         </h2>
         <p className="text-xs text-muted-foreground">

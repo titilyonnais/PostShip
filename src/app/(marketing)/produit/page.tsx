@@ -9,21 +9,25 @@ export const metadata = {
 
 const ARGUMENTS = [
   {
+    id: "deploy",
     icon: Webhook,
     title: "Vérifié à la seconde où ça déploie",
     body: "Le webhook Vercel, Netlify ou Cloudflare Pages déclenche une vérification immédiate. Puis un rappel à T+2 et T+8 minutes après le ship, pour attraper ce qui casse une fois le cache et le CDN stabilisés.",
   },
   {
+    id: "au-dela-200",
     icon: AlertTriangle,
     title: "Plus loin qu'un simple statut 200",
     body: "HTTP, JS et CSS chargés, prix toujours présents, image et titre Open Graph valides, sitemap qui répond, certificat SSL qui ne va pas expirer. Un radar de mutation détecte aussi un contenu remplacé par « coming soon » ou une erreur 5xx après un déploiement.",
   },
   {
+    id: "ship-score",
     icon: ShieldCheck,
     title: "Un score, pas juste vert ou rouge",
     body: "Chaque déploiement en production reçoit un Ship Score sur 100 — moins 40 si une page qui encaisse de l'argent échoue, moins 15 pour une carte sociale cassée, moins 10 pour un certificat qui expire bientôt. Une phrase explique la note.",
   },
   {
+    id: "alertes",
     icon: Rocket,
     title: "Alerté seulement si ça casse",
     body: "Email, Discord, Slack ou Telegram — groupés, jamais deux fois la même alerte en moins de 10 minutes. Rien n'est envoyé tant que tout est vert.",
@@ -46,8 +50,14 @@ export default function ProduitPage() {
 
       <div className="grid gap-6 sm:grid-cols-2">
         {ARGUMENTS.map((item) => (
-          <div key={item.title} className="flex flex-col gap-2 rounded-2xl border border-border p-5">
-            <item.icon className="size-4 text-muted-foreground" aria-hidden="true" />
+          <div
+            key={item.title}
+            id={item.id}
+            className="flex scroll-mt-24 flex-col gap-2 rounded-2xl border border-border p-5 transition-colors duration-200 hover:border-foreground/20"
+          >
+            <span className="inline-flex size-8 items-center justify-center rounded-lg bg-brand-2/10 text-brand-2">
+              <item.icon className="size-4" aria-hidden="true" />
+            </span>
             <h2 className="text-base font-medium">{item.title}</h2>
             <p className="text-sm text-muted-foreground">{item.body}</p>
           </div>

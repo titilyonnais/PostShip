@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -81,89 +82,85 @@ export function AddTargetForm({
       </div>
 
       {kind === "http" && (
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            className="self-start text-xs text-muted-foreground underline underline-offset-2"
-          >
-            {showAdvanced ? "Masquer les options avancées" : "Options avancées"}
-          </button>
-          {showAdvanced && (
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="expect-status" className="text-xs text-muted-foreground">
-                  Statut attendu
-                </label>
-                <Input
-                  id="expect-status"
-                  name="expect_status"
-                  type="number"
-                  min={100}
-                  max={599}
-                  defaultValue={200}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="expect-contains" className="text-xs text-muted-foreground">
-                  Doit contenir
-                </label>
-                <Input
-                  id="expect-contains"
-                  name="expect_contains"
-                  placeholder="ex: Ajouter au panier"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="expect-not-contains"
-                  className="text-xs text-muted-foreground"
-                >
-                  Ne doit pas contenir
-                </label>
-                <Input
-                  id="expect-not-contains"
-                  name="expect_not_contains"
-                  placeholder="ex: Erreur 500"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="request-header-name"
-                  className="text-xs text-muted-foreground"
-                >
-                  Nom du header (page privée)
-                </label>
-                <Input
-                  id="request-header-name"
-                  name="request_header_name"
-                  placeholder="ex: X-Monitoring-Key"
-                  list="request-header-names"
-                />
-                <datalist id="request-header-names">
-                  <option value="Authorization" />
-                  <option value="X-Monitoring-Key" />
-                  <option value="X-Health-Token" />
-                  <option value="X-Api-Key" />
-                </datalist>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="request-header-value"
-                  className="text-xs text-muted-foreground"
-                >
-                  Valeur du header
-                </label>
-                <Input
-                  id="request-header-value"
-                  name="request_header_value"
-                  type="password"
-                  placeholder="Secret envoyé avec chaque vérification"
-                />
-              </div>
+        <Disclosure
+          open={showAdvanced}
+          onOpenChange={setShowAdvanced}
+          label="Options avancées"
+          openLabel="Masquer les options avancées"
+        >
+          <div className="grid gap-2 pt-1 sm:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="expect-status" className="text-xs text-muted-foreground">
+                Statut attendu
+              </label>
+              <Input
+                id="expect-status"
+                name="expect_status"
+                type="number"
+                min={100}
+                max={599}
+                defaultValue={200}
+              />
             </div>
-          )}
-        </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="expect-contains" className="text-xs text-muted-foreground">
+                Doit contenir
+              </label>
+              <Input
+                id="expect-contains"
+                name="expect_contains"
+                placeholder="ex: Ajouter au panier"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="expect-not-contains"
+                className="text-xs text-muted-foreground"
+              >
+                Ne doit pas contenir
+              </label>
+              <Input
+                id="expect-not-contains"
+                name="expect_not_contains"
+                placeholder="ex: Erreur 500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="request-header-name"
+                className="text-xs text-muted-foreground"
+              >
+                Nom du header (page privée)
+              </label>
+              <Input
+                id="request-header-name"
+                name="request_header_name"
+                placeholder="ex: X-Monitoring-Key"
+                list="request-header-names"
+              />
+              <datalist id="request-header-names">
+                <option value="Authorization" />
+                <option value="X-Monitoring-Key" />
+                <option value="X-Health-Token" />
+                <option value="X-Api-Key" />
+              </datalist>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="request-header-value"
+                className="text-xs text-muted-foreground"
+              >
+                Valeur du header
+              </label>
+              <Input
+                id="request-header-value"
+                name="request_header_value"
+                type="password"
+                placeholder="Secret envoyé avec chaque vérification"
+              />
+            </div>
+          </div>
+        </Disclosure>
       )}
 
       {state.error && (

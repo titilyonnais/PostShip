@@ -1,3 +1,5 @@
+import { Reveal } from "@/components/reveal";
+
 export const metadata = {
   title: "Journal",
 };
@@ -67,15 +69,21 @@ export default function ChangelogPage() {
         </p>
       </div>
 
-      <ol className="flex flex-col gap-8">
-        {ENTRIES.map((entry) => (
-          <li key={entry.title} className="flex flex-col gap-1.5">
-            <time dateTime={entry.date} className="font-mono text-xs text-muted-foreground">
-              {formatDate(entry.date)}
-            </time>
-            <h2 className="text-base font-medium">{entry.title}</h2>
-            <p className="text-sm text-muted-foreground">{entry.body}</p>
-          </li>
+      <ol className="relative flex flex-col gap-8 border-l border-border pl-6">
+        {ENTRIES.map((entry, index) => (
+          <Reveal key={entry.title} delay={Math.min(index, 4) * 60}>
+            <li className="relative flex flex-col gap-1.5">
+              <span
+                className="absolute top-1.5 -left-[1.6rem] size-2.5 rounded-full border-2 border-background bg-brand-2"
+                aria-hidden="true"
+              />
+              <time dateTime={entry.date} className="font-mono text-xs text-muted-foreground">
+                {formatDate(entry.date)}
+              </time>
+              <h2 className="text-base font-medium">{entry.title}</h2>
+              <p className="text-sm text-muted-foreground">{entry.body}</p>
+            </li>
+          </Reveal>
         ))}
       </ol>
     </div>

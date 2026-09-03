@@ -145,7 +145,7 @@ export default async function SharePage({
 
       <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <BadgeCheck className="size-3.5" aria-hidden="true" />
+          <BadgeCheck className="size-3.5 text-brand-2" aria-hidden="true" />
           Badge public
         </h2>
         <p className="text-xs text-muted-foreground">

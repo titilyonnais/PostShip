@@ -1,3 +1,14 @@
+import {
+  AlertTriangle,
+  Bell,
+  CreditCard,
+  Radar,
+  Rocket,
+  ShieldCheck,
+  Webhook,
+  type LucideIcon,
+} from "lucide-react";
+
 export type HeaderLink = { label: string; href: string };
 export type HeaderSlot = { label: string; href: string } | null;
 export type HeaderConfig = { links: HeaderLink[]; slot: HeaderSlot };
@@ -11,6 +22,80 @@ export const SECTION_LINKS: HeaderLink[] = [
   { label: "Documentation", href: "/docs" },
   { label: "Journal", href: "/changelog" },
 ];
+
+export type MegaMenuItem = { href: string; label: string; description: string; icon: LucideIcon };
+
+// Hover mega menus for the two section links deep enough to deserve one —
+// Tarifs and Journal are single pages, nothing to fan out. Produit's 4
+// items anchor into that page's own #id sections (see produit/page.tsx);
+// Documentation's pick one representative page per DOC_CATEGORIES
+// (src/lib/docs.ts) rather than listing all 19 pages.
+export const MEGA_MENUS: Record<string, MegaMenuItem[]> = {
+  "/produit": [
+    {
+      href: "/produit#deploy",
+      label: "Vérifié à la seconde où ça déploie",
+      description: "Webhook Vercel/Netlify/Cloudflare + rappels T+2 et T+8.",
+      icon: Webhook,
+    },
+    {
+      href: "/produit#au-dela-200",
+      label: "Plus loin qu'un simple statut 200",
+      description: "JS, prix, Open Graph, sitemap, SSL, radar de mutation.",
+      icon: AlertTriangle,
+    },
+    {
+      href: "/produit#ship-score",
+      label: "Un score, pas juste vert ou rouge",
+      description: "Le Ship Score sur 100, avec la phrase qui l'explique.",
+      icon: ShieldCheck,
+    },
+    {
+      href: "/produit#alertes",
+      label: "Alerté seulement si ça casse",
+      description: "Email, Discord, Slack, Telegram — groupés, sans doublon.",
+      icon: Rocket,
+    },
+  ],
+  "/docs": [
+    {
+      href: "/docs/introduction",
+      label: "Démarrer",
+      description: "Ce que PostShip fait, en une phrase.",
+      icon: Rocket,
+    },
+    {
+      href: "/docs/http-assets",
+      label: "Vérifications",
+      description: "HTTP, Open Graph, sitemap, SSL, Stripe.",
+      icon: ShieldCheck,
+    },
+    {
+      href: "/docs/webhooks-deploy",
+      label: "Déploiements",
+      description: "Webhooks, T+2/T+8, Ship Score, radar de mutation.",
+      icon: Webhook,
+    },
+    {
+      href: "/docs/alertes-canaux",
+      label: "Alertes",
+      description: "Canaux, règles de confirmation, webhook sortant.",
+      icon: Bell,
+    },
+    {
+      href: "/docs/app-pages",
+      label: "App",
+      description: "Pages, bot, badge de partage, scans.",
+      icon: Radar,
+    },
+    {
+      href: "/docs/plans",
+      label: "Compte",
+      description: "Plans, limites, facturation.",
+      icon: CreditCard,
+    },
+  ],
+};
 
 const OUVRIR_APP: HeaderSlot = { label: "Ouvrir l'app", href: "/app" };
 

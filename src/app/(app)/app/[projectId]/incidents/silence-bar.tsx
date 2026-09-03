@@ -3,6 +3,7 @@
 import { BellOff } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { SubmitButton } from "@/components/submit-button";
+import { formatDateTime } from "@/lib/timezone";
 import { silenceAlerts } from "../actions";
 
 // B2 (app-bar backlog): "Couper 1 h" — and "Reprendre" once silenced —
@@ -17,9 +18,11 @@ const OPTIONS = [
 export function SilenceBar({
   projectId,
   silencedUntil,
+  timezone,
 }: {
   projectId: string;
   silencedUntil: string | null;
+  timezone: string;
 }) {
   const isSilenced = !!silencedUntil && new Date(silencedUntil).getTime() > Date.now();
 
@@ -28,7 +31,7 @@ export function SilenceBar({
       <span className="flex items-center gap-2 text-muted-foreground">
         <BellOff className="size-3.5" aria-hidden="true" />
         {isSilenced
-          ? `Alertes coupées jusqu'à ${new Date(silencedUntil!).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+          ? `Alertes coupées jusqu'à ${formatDateTime(silencedUntil!, timezone, { hour: "2-digit", minute: "2-digit" })}`
           : "Alertes actives"}
       </span>
       {!isSilenced && (

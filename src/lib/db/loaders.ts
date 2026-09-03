@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createClient } from "./server";
 import { createServiceClient } from "./service";
 import type { Plan } from "@/lib/entitlements";
+import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 
 // Wrapped in React's cache() so a value fetched once per request (e.g. by a
 // layout) is reused by every page/component that asks for the same thing
@@ -22,11 +23,21 @@ export const getProfile = cache(async (userId: string) => {
   const { data } = await supabase
     .from("profiles")
     .select(
-      "id, email, display_name, username, avatar_seed, avatar_url, full_name, company_name, phone, team_size, plan, billing_address, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, email_alerts_enabled, locale, token_balance",
+      "id, email, display_name, username, avatar_seed, avatar_url, full_name, company_name, phone, team_size, plan, billing_address, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, email_alerts_enabled, locale, token_balance, timezone",
     )
     .eq("id", userId)
     .single();
   return data;
+});
+
+// Server-side dates render in whatever zone this reads — the viewer's own
+// saved preference, defaulting to Europe/Paris until TimezoneCapture (see
+// src/components/timezone-capture.tsx) records their browser's zone.
+export const getViewerTimezone = cache(async (): Promise<string> => {
+  const user = await getAuthUser();
+  if (!user) return DEFAULT_TIMEZONE;
+  const profile = await getProfile(user.id);
+  return profile?.timezone || DEFAULT_TIMEZONE;
 });
 
 export const getUserProjects = cache(async () => {
