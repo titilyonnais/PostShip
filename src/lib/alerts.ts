@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import { buildAlertCopy, describeAlertItem } from "@/lib/alert-copy";
+import { escapeHtml, renderEmailShell } from "@/lib/email-template";
 import { isInQuietHours } from "@/lib/quiet-hours";
 import { sendOutboundWebhook } from "@/lib/outbound-webhook";
 
@@ -66,14 +67,6 @@ async function recordAlertEvents(
   );
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 // Dark, operational, no purple-AI gradient nonsense (CLAUDE.md) — a plain
 // list with a colored dot and the one-sentence, deterministically-written
 // description of what happened (src/lib/alert-copy.ts), same information
@@ -86,7 +79,7 @@ function buildFailEmailHtml(projectName: string, items: AlertItem[]): string {
       const label = isRecovered ? "Rétabli" : "En échec";
       return `
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #2a2f36;">
+          <td style="padding:10px 0;border-bottom:1px solid #21262d;">
             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:10px;"></span>
             <span style="color:#8b949e;font-size:12px;">${label}</span><br />
             <span style="font-size:13px;color:#e6edf3;">${escapeHtml(describeAlertItem(i))}</span>
@@ -95,22 +88,11 @@ function buildFailEmailHtml(projectName: string, items: AlertItem[]): string {
     })
     .join("");
 
-  return `
-    <div style="background:#0a0c0e;padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-      <table role="presentation" style="max-width:480px;margin:0 auto;width:100%;">
-        <tr>
-          <td style="padding-bottom:16px;">
-            <span style="color:#e6edf3;font-size:14px;font-weight:600;">PostShip — ${escapeHtml(projectName)}</span>
-          </td>
-        </tr>
-        ${rows}
-        <tr>
-          <td style="padding-top:20px;">
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/app" style="color:#8b949e;font-size:12px;">${process.env.NEXT_PUBLIC_APP_URL}/app</a>
-          </td>
-        </tr>
-      </table>
-    </div>`;
+  return renderEmailShell({
+    preheader: `${items.length} événement(s) sur ${projectName}`,
+    title: projectName,
+    bodyHtml: `<table role="presentation" style="width:100%;border-collapse:collapse;">${rows}</table>`,
+  });
 }
 
 async function sendFailEmail(

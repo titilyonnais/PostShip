@@ -8,7 +8,7 @@ import { LogoMark } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/db/client";
 import { resolveAvatarUrl } from "@/lib/avatar";
-import { ANONYMOUS_ONLY_SLOT_LABELS, getHeaderConfig, MEGA_MENUS, SECTION_LINKS } from "./header-config";
+import { getHeaderConfig, MEGA_MENUS, SECTION_LINKS } from "./header-config";
 import { NavDropdown } from "./nav-dropdown";
 
 type AuthState =
@@ -89,13 +89,14 @@ export function MarketingHeader() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const config = getHeaderConfig(pathname, auth.loggedIn);
 
-  // NavAuth's job, folded in: never show a second "Connexion" (or account
-  // link) next to a slot that already does the same job (Commencer /
-  // Prendre Solo / Ouvrir l'app) — see header-config's table. /login has
-  // no auth link at all, the form is the only action on that page.
+  // Connexion shows for every logged-out visitor on every marketing page
+  // now (see header-config.ts) — the only real duplicate is "Ouvrir
+  // l'app," which points at the exact same place the auth link would once
+  // logged in. /login and /signup are the auth pages themselves.
   const showAuthLink =
     pathname !== "/login" &&
-    !(config.slot && (ANONYMOUS_ONLY_SLOT_LABELS as readonly string[]).includes(config.slot.label));
+    pathname !== "/signup" &&
+    config.slot?.label !== "Ouvrir l'app";
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -120,7 +121,7 @@ export function MarketingHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 sm:px-10">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 sm:px-10">
         <Link href="/" aria-label="PostShip, accueil">
           <LogoMark className="size-9" />
         </Link>

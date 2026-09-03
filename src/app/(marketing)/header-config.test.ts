@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { getHeaderConfig, SECTION_LINKS } from "./header-config";
 
 describe("getHeaderConfig", () => {
-  it("/ (logged out): Commencer -> /login?plan=free", () => {
+  it("/ (logged out): Commencer -> /pricing", () => {
     expect(getHeaderConfig("/", false).slot).toEqual({
       label: "Commencer",
-      href: "/login?plan=free",
+      href: "/pricing",
     });
   });
 
@@ -16,11 +16,8 @@ describe("getHeaderConfig", () => {
     });
   });
 
-  it("/pricing (logged out): Prendre Solo -> /login?plan=solo", () => {
-    expect(getHeaderConfig("/pricing", false).slot).toEqual({
-      label: "Prendre Solo",
-      href: "/login?plan=solo",
-    });
+  it("/pricing (logged out): no slot, the page itself is the picker", () => {
+    expect(getHeaderConfig("/pricing", false).slot).toBeNull();
   });
 
   it("/changelog (logged out): Voir le produit -> /produit", () => {
@@ -30,20 +27,22 @@ describe("getHeaderConfig", () => {
     });
   });
 
-  it("/docs and /docs/* (logged out): Commencer -> /login?plan=free", () => {
+  it("/docs and /docs/* (logged out): Commencer -> /pricing", () => {
     expect(getHeaderConfig("/docs", false).slot).toEqual({
       label: "Commencer",
-      href: "/login?plan=free",
+      href: "/pricing",
     });
     expect(getHeaderConfig("/docs/premier-projet", false).slot).toEqual({
       label: "Commencer",
-      href: "/login?plan=free",
+      href: "/pricing",
     });
   });
 
-  it("/login: no slot at all, logged in or out", () => {
+  it("/login and /signup: no slot at all, logged in or out", () => {
     expect(getHeaderConfig("/login", false).slot).toBeNull();
     expect(getHeaderConfig("/login", true).slot).toBeNull();
+    expect(getHeaderConfig("/signup", false).slot).toBeNull();
+    expect(getHeaderConfig("/signup", true).slot).toBeNull();
   });
 
   it("legal pages and unmapped routes: Accueil -> /", () => {
@@ -52,7 +51,7 @@ describe("getHeaderConfig", () => {
     expect(getHeaderConfig("/privacy", true).slot).toEqual({ label: "Accueil", href: "/" });
   });
 
-  it("logged in: every anonymous-CTA page collapses to Ouvrir l'app -> /app", () => {
+  it("logged in: every page collapses to Ouvrir l'app -> /app", () => {
     for (const pathname of ["/", "/produit", "/pricing", "/changelog", "/docs"]) {
       expect(getHeaderConfig(pathname, true).slot).toEqual({
         label: "Ouvrir l'app",

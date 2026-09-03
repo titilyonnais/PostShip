@@ -10,59 +10,105 @@ import { CONSENT_ERROR } from "./messages";
 
 const emailSchema = z.string().email();
 const passwordSchema = z.string().min(8, "8 caractères minimum.");
+const codeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, "Le code doit contenir 6 chiffres.");
 
-export type MagicLinkState = { error: string | null; sent: boolean };
+export type EmailCodeState = {
+  error: string | null;
+  sent: boolean;
+  email: string | null;
+};
 
 function nextPathFor(plan: string | null): string {
   return plan ? `/onboarding?plan=${plan}` : "/onboarding";
 }
 
-function loginErrorRedirect(
-  plan: string | null,
-  mode: "password" | "signup",
-  message: string,
-): never {
-  const params = new URLSearchParams({ mode, error: message });
+function loginErrorRedirect(plan: string | null, message: string): never {
+  const params = new URLSearchParams({ error: message });
   if (plan) params.set("plan", plan);
   redirect(`/login?${params.toString()}`);
 }
 
-export async function signInWithMagicLink(
+function signupErrorRedirect(plan: string, message: string): never {
+  redirect(`/signup?${new URLSearchParams({ plan, error: message }).toString()}`);
+}
+
+function oauthErrorRedirect(origin: "login" | "signup", plan: string | null, provider: string): never {
+  const params = new URLSearchParams({ error: provider });
+  if (plan) params.set("plan", plan);
+  redirect(`/${origin}?${params.toString()}`);
+}
+
+// Feedback fix: magic link replaced by a 6-digit email code — same
+// Supabase call (signInWithOtp), but the app now shows a code-entry step
+// instead of relying on the visitor clicking a link. Requires the
+// Supabase project's "Magic Link" email template to include {{ .Token }}
+// (Authentication → Email Templates in the Supabase dashboard) — that's
+// dashboard config, not something this code can set.
+//
+// Always "succeeds" from the client's point of view regardless of whether
+// the email is already registered — Supabase's own non-enumeration
+// behavior for signInWithOtp — so there's no separate "if an account
+// exists" messaging needed here.
+export async function sendEmailCode(
   plan: string | null,
-  _prevState: MagicLinkState,
+  _prevState: EmailCodeState,
   formData: FormData,
-): Promise<MagicLinkState> {
+): Promise<EmailCodeState> {
   const parsed = emailSchema.safeParse(formData.get("email"));
   if (!parsed.success) {
-    return { error: "Adresse email invalide.", sent: false };
+    return { error: "Adresse email invalide.", sent: false, email: null };
   }
 
-  // Magic link can create an account (Supabase auto-signup on first OTP) —
-  // unlike password signup, there's no separate confirmation step to pair
-  // a checkbox with, and blocking *sign-in* behind one is bad UX for an
-  // existing user. Consent for a genuinely new account is still captured
-  // and enforced: middleware + /auth/callback redirect anyone without
-  // profiles.terms_accepted_at to /accept-terms before /app or
-  // /onboarding, whichever path got them a session.
   if (!(await checkAuthRateLimit())) {
-    return { error: AUTH_RATE_LIMIT_MESSAGE, sent: false };
+    return { error: AUTH_RATE_LIMIT_MESSAGE, sent: false, email: null };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email: parsed.data,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=${encodeURIComponent(nextPathFor(plan))}`,
-    },
-  });
+  const { error } = await supabase.auth.signInWithOtp({ email: parsed.data });
 
   if (error) {
     // Logged server-side for debugging; the client never sees Supabase's
     // actual error text here — same enumeration reasoning as signup below.
-    console.error("Échec envoi lien magique", error);
+    console.error("Échec envoi du code", error);
   }
 
-  return { error: null, sent: true };
+  return { error: null, sent: true, email: parsed.data };
+}
+
+export async function verifyEmailCode(
+  plan: string | null,
+  email: string,
+  _prevState: EmailCodeState,
+  formData: FormData,
+): Promise<EmailCodeState> {
+  const parsed = codeSchema.safeParse(formData.get("code"));
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Code invalide.",
+      sent: true,
+      email,
+    };
+  }
+
+  if (!(await checkAuthRateLimit())) {
+    return { error: AUTH_RATE_LIMIT_MESSAGE, sent: true, email };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: parsed.data,
+    type: "email",
+  });
+
+  if (error) {
+    return { error: "Code incorrect ou expiré.", sent: true, email };
+  }
+
+  redirect(nextPathFor(plan));
 }
 
 export async function signInWithPassword(plan: string | null, formData: FormData) {
@@ -70,11 +116,11 @@ export async function signInWithPassword(plan: string | null, formData: FormData
   const password = z.string().min(1).safeParse(formData.get("password"));
 
   if (!email.success || !password.success) {
-    loginErrorRedirect(plan, "password", "Email ou mot de passe invalide.");
+    loginErrorRedirect(plan, "Email ou mot de passe invalide.");
   }
 
   if (!(await checkAuthRateLimit())) {
-    loginErrorRedirect(plan, "password", AUTH_RATE_LIMIT_MESSAGE);
+    loginErrorRedirect(plan, AUTH_RATE_LIMIT_MESSAGE);
   }
 
   const supabase = await createClient();
@@ -89,7 +135,6 @@ export async function signInWithPassword(plan: string | null, formData: FormData
     // as-is, no further masking needed here.
     loginErrorRedirect(
       plan,
-      "password",
       error.message === "Invalid login credentials"
         ? "Email ou mot de passe incorrect."
         : error.message,
@@ -99,27 +144,26 @@ export async function signInWithPassword(plan: string | null, formData: FormData
   redirect(nextPathFor(plan));
 }
 
-export async function signUpWithPassword(plan: string | null, formData: FormData) {
+export async function signUpWithPassword(plan: string, formData: FormData) {
   const email = emailSchema.safeParse(formData.get("email"));
   const password = passwordSchema.safeParse(formData.get("password"));
   const termsAccepted = formData.get("terms_accepted") === "on";
 
   if (!email.success) {
-    loginErrorRedirect(plan, "signup", "Adresse email invalide.");
+    signupErrorRedirect(plan, "Adresse email invalide.");
   }
   if (!password.success) {
-    loginErrorRedirect(
+    signupErrorRedirect(
       plan,
-      "signup",
       password.error.issues[0]?.message ?? "Mot de passe invalide.",
     );
   }
   if (!termsAccepted) {
-    loginErrorRedirect(plan, "signup", CONSENT_ERROR);
+    signupErrorRedirect(plan, CONSENT_ERROR);
   }
 
   if (!(await checkAuthRateLimit())) {
-    loginErrorRedirect(plan, "signup", AUTH_RATE_LIMIT_MESSAGE);
+    signupErrorRedirect(plan, AUTH_RATE_LIMIT_MESSAGE);
   }
 
   const supabase = await createClient();
@@ -158,18 +202,20 @@ export async function signUpWithPassword(plan: string | null, formData: FormData
   // account, a retry against an already-registered email, or a Supabase
   // error — see GENERIC_AUTH_MESSAGE.
   if (!data.session) {
-    const params = new URLSearchParams({ mode: "signup", confirm: "1" });
-    if (plan) params.set("plan", plan);
-    redirect(`/login?${params.toString()}`);
+    redirect(`/signup?${new URLSearchParams({ plan, confirm: "1" }).toString()}`);
   }
 
   redirect(nextPathFor(plan));
 }
 
-export async function signInWithGithub(plan: string | null, _formData: FormData) {
+export async function signInWithGithub(
+  plan: string | null,
+  origin: "login" | "signup",
+  _formData: FormData,
+) {
   // OAuth can create an account on first login — consent for a genuinely
-  // new one is still captured and enforced post-auth (see the comment on
-  // signInWithMagicLink above), not gated here.
+  // new one is still captured and enforced post-auth (see sendEmailCode's
+  // comment above), not gated here.
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "github",
@@ -179,13 +225,17 @@ export async function signInWithGithub(plan: string | null, _formData: FormData)
   });
 
   if (error || !data.url) {
-    redirect("/login?error=github");
+    oauthErrorRedirect(origin, plan, "github");
   }
 
   redirect(data.url);
 }
 
-export async function signInWithGoogle(plan: string | null, _formData: FormData) {
+export async function signInWithGoogle(
+  plan: string | null,
+  origin: "login" | "signup",
+  _formData: FormData,
+) {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -195,7 +245,7 @@ export async function signInWithGoogle(plan: string | null, _formData: FormData)
   });
 
   if (error || !data.url) {
-    redirect("/login?error=google");
+    oauthErrorRedirect(origin, plan, "google");
   }
 
   redirect(data.url);

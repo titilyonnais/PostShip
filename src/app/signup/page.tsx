@@ -1,6 +1,7 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LogoMark } from "@/components/logo";
-import { LoginForm } from "./login-form";
+import { SignupForm } from "./signup-form";
 
 const PLAN_LABEL: Record<string, string> = {
   free: "Free",
@@ -9,26 +10,30 @@ const PLAN_LABEL: Record<string, string> = {
 };
 
 export const metadata = {
-  title: "Connexion",
+  title: "Créer un compte",
 };
 
-export default async function LoginPage({
+export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; plan?: string }>;
+  searchParams: Promise<{ error?: string; plan?: string; confirm?: string }>;
 }) {
-  const { error, plan } = await searchParams;
-  const normalizedPlan =
-    plan && plan in PLAN_LABEL ? (plan as keyof typeof PLAN_LABEL) : null;
+  const { error, plan, confirm } = await searchParams;
+  const normalizedPlan = plan && plan in PLAN_LABEL ? (plan as keyof typeof PLAN_LABEL) : null;
+
+  // Feedback fix: "Commencer" used to jump straight to plan=free without
+  // ever showing the plan comparison — now every entry into signup has to
+  // go through /pricing first (its "Choisir {plan}" buttons are what set
+  // ?plan=), so a bare /signup visit (typed URL, old bookmark) redirects
+  // there instead of silently defaulting to Free.
+  if (!normalizedPlan) {
+    redirect("/pricing");
+  }
 
   const genericErrors: Record<string, string> = {
     github: "La connexion GitHub a échoué. Réessayez.",
     google: "La connexion Google a échoué. Réessayez.",
-    auth: "La connexion a échoué. Réessayez.",
   };
-  // OAuth failures show as a banner above the whole form (no single field
-  // to anchor to); a password sign-in error shows inline in that tab
-  // instead (see LoginForm's error prop) — never both at once.
   const errorMessage = error && genericErrors[error] ? genericErrors[error] : null;
 
   return (
@@ -48,10 +53,11 @@ export default async function LoginPage({
             {errorMessage}
           </p>
         )}
-        <LoginForm
+        <SignupForm
           plan={normalizedPlan}
-          planLabel={normalizedPlan ? PLAN_LABEL[normalizedPlan] : null}
+          planLabel={PLAN_LABEL[normalizedPlan]}
           error={error && !genericErrors[error] ? error : null}
+          confirm={confirm === "1"}
         />
       </div>
     </main>

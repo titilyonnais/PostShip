@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/db/service";
+import { escapeHtml, renderEmailShell } from "@/lib/email-template";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 
 // F8a (features backlog): a Monday-morning "here's how last week went"
@@ -76,31 +77,24 @@ function buildDigestEmailHtml(
   stats: ProjectDigestStats,
   projectUrl: string,
 ): string {
-  return `
-    <div style="background:#0a0c0e;padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-      <table role="presentation" style="max-width:480px;margin:0 auto;width:100%;">
-        <tr>
-          <td style="padding-bottom:16px;">
-            <span style="color:#e6edf3;font-size:14px;font-weight:600;">PostShip — ${projectName}</span>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #2a2f36;color:#e6edf3;font-size:13px;">
-            7 jours : ${formatUptime(stats.uptimePct)} · ${stats.runs} vérification(s) · ${stats.fails} échec(s)
-          </td>
-        </tr>
-        ${
-          stats.sslDaysRemaining !== null
-            ? `<tr><td style="padding:10px 0;border-bottom:1px solid #2a2f36;color:#e6edf3;font-size:13px;">SSL : ${stats.sslDaysRemaining} jour(s) restant(s)</td></tr>`
-            : ""
-        }
-        <tr>
-          <td style="padding-top:20px;">
-            <a href="${projectUrl}" style="color:#8b949e;font-size:12px;">${projectUrl}</a>
-          </td>
-        </tr>
-      </table>
-    </div>`;
+  const rows = [
+    `7 jours : ${formatUptime(stats.uptimePct)} &middot; ${stats.runs} vérification(s) &middot; ${stats.fails} échec(s)`,
+    ...(stats.sslDaysRemaining !== null
+      ? [`SSL : ${stats.sslDaysRemaining} jour(s) restant(s)`]
+      : []),
+  ]
+    .map(
+      (line) =>
+        `<tr><td style="padding:10px 0;border-bottom:1px solid #21262d;color:#e6edf3;font-size:13px;">${line}</td></tr>`,
+    )
+    .join("");
+
+  return renderEmailShell({
+    preheader: `Résumé hebdomadaire — ${projectName}`,
+    title: `${escapeHtml(projectName)} — résumé de la semaine`,
+    bodyHtml: `<table role="presentation" style="width:100%;border-collapse:collapse;">${rows}</table>
+      <p style="margin:16px 0 0;"><a href="${projectUrl}" style="color:#8b949e;font-size:12px;">${projectUrl}</a></p>`,
+  });
 }
 
 async function sendDigestEmail(

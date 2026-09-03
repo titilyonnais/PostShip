@@ -36,7 +36,7 @@ const ARGUMENTS = [
 
 export default function ProduitPage() {
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-16 px-6 py-16 sm:px-10">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-16 px-6 py-16 sm:px-10">
       <div className="flex flex-col gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           Ce que PostShip vérifie après un ship

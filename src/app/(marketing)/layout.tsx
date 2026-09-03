@@ -1,8 +1,24 @@
 import Link from "next/link";
+import { LogoMark } from "@/components/logo";
 import { MarketingHeader } from "./marketing-header";
 
 const FOOTER_LINK_CLASS =
-  "w-fit rounded-full text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "w-fit rounded-full text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+function FooterColumn({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <nav aria-label={label} className="flex flex-col gap-2.5">
+      <p className="text-xs font-medium tracking-wide text-foreground uppercase">{label}</p>
+      {children}
+    </nav>
+  );
+}
 
 export default function MarketingLayout({
   children,
@@ -23,10 +39,22 @@ export default function MarketingLayout({
         {children}
       </main>
 
-      <footer className="border-t border-border">
-        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-10 text-xs text-muted-foreground sm:grid-cols-3 sm:px-10">
-          <nav aria-label="Produit" className="flex flex-col gap-2">
-            <p className="font-medium text-foreground">Produit</p>
+      <footer className="border-t border-border bg-card/40">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-14 sm:grid-cols-[1.3fr_1fr_1fr_1fr] sm:px-10">
+          <div className="flex flex-col gap-3">
+            <Link href="/" aria-label="PostShip, accueil" className="flex items-center gap-2">
+              <LogoMark className="size-7" />
+              <span className="text-sm font-semibold tracking-tight text-foreground">
+                PostShip
+              </span>
+            </Link>
+            <p className="max-w-56 text-sm text-muted-foreground">
+              Surveillance post-déploiement pour sites et SaaS indie. Vérifié
+              comme un vrai visiteur, alerté seulement si ça casse.
+            </p>
+          </div>
+
+          <FooterColumn label="Produit">
             <Link href="/produit" className={FOOTER_LINK_CLASS}>
               Produit
             </Link>
@@ -39,9 +67,18 @@ export default function MarketingLayout({
             <Link href="/changelog" className={FOOTER_LINK_CLASS}>
               Journal
             </Link>
-          </nav>
-          <nav aria-label="Légal" className="flex flex-col gap-2">
-            <p className="font-medium text-foreground">Légal</p>
+          </FooterColumn>
+
+          <FooterColumn label="Compte">
+            <Link href="/login" className={FOOTER_LINK_CLASS}>
+              Connexion
+            </Link>
+            <Link href="/pricing" className={FOOTER_LINK_CLASS}>
+              Créer un compte
+            </Link>
+          </FooterColumn>
+
+          <FooterColumn label="Légal">
             <Link href="/mentions-legales" className={FOOTER_LINK_CLASS}>
               Mentions légales
             </Link>
@@ -54,9 +91,13 @@ export default function MarketingLayout({
             <Link href="/cgv" className={FOOTER_LINK_CLASS}>
               CGV
             </Link>
-          </nav>
-          <div className="flex items-end sm:justify-end">
-            <span>© {new Date().getFullYear()} PostShip</span>
+          </FooterColumn>
+        </div>
+
+        <div className="border-t border-border">
+          <div className="mx-auto flex max-w-7xl flex-col-reverse items-center justify-between gap-2 px-6 py-4 text-xs text-muted-foreground sm:flex-row sm:px-10">
+            <span>© {new Date().getFullYear()} PostShip. Tous droits réservés.</span>
+            <span>Fait pour les indie hackers et les petites équipes.</span>
           </div>
         </div>
       </footer>

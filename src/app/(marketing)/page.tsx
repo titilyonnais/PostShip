@@ -86,18 +86,14 @@ const STACK_GROUPS = [
 
 export default function MarketingHomePage() {
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-24 px-6 py-16 sm:px-10">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-24 px-6 py-16 sm:px-10">
       {/* Static, hardcoded JSON-LD — no user input reaches this. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
 
-      <section className="relative grid gap-10 overflow-hidden sm:grid-cols-2 sm:items-center motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -inset-x-6 -top-16 -bottom-16 -z-10 bg-gradient-to-b from-background via-[#0d1510] to-background sm:-inset-x-10"
-        />
+      <section className="grid gap-10 sm:grid-cols-2 sm:items-center motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
             PostShip vérifie votre site après chaque déploiement
@@ -109,7 +105,7 @@ export default function MarketingHomePage() {
           </p>
           <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             <Link
-              href="/login?plan=free"
+              href="/signup?plan=free"
               className={buttonVariants({ variant: "default" })}
             >
               Commencer gratuitement
@@ -129,7 +125,17 @@ export default function MarketingHomePage() {
           </p>
         </div>
 
-        <ApercuFrame />
+        {/* Feedback fix: the ambient glow used to span the whole hero
+            (text column included) via an absolutely-positioned div at
+            the section level — read as a background bug, not a design
+            choice. Scoped to just behind this card instead. */}
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -inset-8 -z-10 rounded-[3rem] bg-[#3fb950]/10 blur-3xl"
+          />
+          <ApercuFrame />
+        </div>
       </section>
 
       <section aria-labelledby="steps-heading" className="flex flex-col gap-8">
@@ -273,13 +279,18 @@ export default function MarketingHomePage() {
                 )}
                 <h3 className="text-sm font-medium">{PLAN_LABEL[plan.id]}</h3>
                 <p className="font-mono text-lg">{plan.price}</p>
-                <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+                {/* flex-1: pushes the button to the bottom of the card,
+                    aligned across the row regardless of feature-list
+                    length — grid's default align-items:stretch equalizes
+                    the article heights, but without this the button just
+                    trailed the shortest content instead of the bottom. */}
+                <ul className="flex flex-1 flex-col gap-1 text-xs text-muted-foreground">
                   {plan.features.map((feature) => (
                     <li key={feature}>{feature}</li>
                   ))}
                 </ul>
                 <Link
-                  href={`/login?plan=${plan.id}`}
+                  href={`/signup?plan=${plan.id}`}
                   className={buttonVariants({
                     variant: plan.highlight ? "default" : "outline",
                     className: "mt-2",
@@ -304,7 +315,7 @@ export default function MarketingHomePage() {
             sachiez. PostShip vous le dit en premier.
           </p>
           <Link
-            href="/login?plan=free"
+            href="/signup?plan=free"
             className={buttonVariants({ variant: "default" })}
           >
             Commencer gratuitement

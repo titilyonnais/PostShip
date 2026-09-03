@@ -99,39 +99,42 @@ export const MEGA_MENUS: Record<string, MegaMenuItem[]> = {
 
 const OUVRIR_APP: HeaderSlot = { label: "Ouvrir l'app", href: "/app" };
 
-// A slot label that gets replaced by "Ouvrir l'app" once the visitor is
-// signed in — used both here and by the header to decide whether the
-// separate Connexion/account link should render alongside it (never two
-// controls for the same action).
-export const ANONYMOUS_ONLY_SLOT_LABELS = [
-  "Commencer",
-  "Prendre Solo",
-  "Ouvrir l'app",
-] as const;
-
-// Pure pathname (+auth) → header config mapper. No JSX, no routing
-// side-effects — the header component only renders what this returns.
+// Feedback fix: previously any anonymous CTA slot ("Commencer", "Prendre
+// Solo") also hid the separate "Connexion" link, on the theory that they
+// competed — they don't, Connexion is for a *returning* visitor and the
+// CTA is for a new one, so hiding it made login impossible from the header
+// on some pages (/, /pricing, /docs) while leaving it visible on others
+// (/produit, /changelog). The header now shows Connexion for every logged-
+// out visitor on every marketing page; only OUVRIR_APP (a real duplicate
+// of the auth link once logged in) still suppresses it — see
+// marketing-header.tsx's showAuthLink.
+//
+// Also: every CTA that meant "create an account" used to jump straight to
+// /login?plan=free without ever showing the plan comparison — they now
+// point at /pricing, whose own "Choisir {plan}" buttons carry the visitor
+// into /signup?plan=X with an explicit choice already made.
 export function getHeaderConfig(pathname: string, isLoggedIn: boolean): HeaderConfig {
   const links = SECTION_LINKS;
 
   if (pathname === "/") {
-    return { links, slot: isLoggedIn ? OUVRIR_APP : { label: "Commencer", href: "/login?plan=free" } };
+    return { links, slot: isLoggedIn ? OUVRIR_APP : { label: "Commencer", href: "/pricing" } };
   }
   if (pathname === "/produit") {
     return { links, slot: isLoggedIn ? OUVRIR_APP : { label: "Voir les tarifs", href: "/pricing" } };
   }
   if (pathname === "/pricing") {
-    return { links, slot: isLoggedIn ? OUVRIR_APP : { label: "Prendre Solo", href: "/login?plan=solo" } };
+    // The page itself is the plan picker — no separate CTA needed here.
+    return { links, slot: isLoggedIn ? OUVRIR_APP : null };
   }
   if (pathname === "/changelog") {
     return { links, slot: isLoggedIn ? OUVRIR_APP : { label: "Voir le produit", href: "/produit" } };
   }
   if (pathname === "/docs" || pathname.startsWith("/docs/")) {
-    return { links, slot: isLoggedIn ? OUVRIR_APP : { label: "Commencer", href: "/login?plan=free" } };
+    return { links, slot: isLoggedIn ? OUVRIR_APP : { label: "Commencer", href: "/pricing" } };
   }
-  if (pathname === "/login") {
-    // The form itself is the action — no competing CTA, no NavAuth either
-    // (the header hides its auth link separately for this one route).
+  if (pathname === "/login" || pathname === "/signup") {
+    // The form itself is the action — no competing CTA, no separate
+    // Connexion link either (the header hides it for these two routes).
     return { links, slot: null };
   }
   // Legal pages, and anything else not explicitly mapped above.

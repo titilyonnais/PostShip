@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
 import Link from "next/link";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
@@ -10,10 +10,11 @@ import {
   sendEmailCode,
   signInWithGithub,
   signInWithGoogle,
-  signInWithPassword,
+  signUpWithPassword,
   verifyEmailCode,
   type EmailCodeState,
-} from "./actions";
+} from "@/app/login/actions";
+import { GENERIC_AUTH_MESSAGE } from "@/app/login/messages";
 
 const initialCodeState: EmailCodeState = { error: null, sent: false, email: null };
 
@@ -51,14 +52,11 @@ function GitHubIcon() {
   );
 }
 
-function EmailCodeTab({ plan }: { plan: string | null }) {
+function EmailCodeTab({ plan }: { plan: string }) {
   const [state, sendAction, sendPending] = useActionState(
     sendEmailCode.bind(null, plan),
     initialCodeState,
   );
-  // Bound with "" until a code has actually been sent — the verify form
-  // only ever renders once state.email is set, so this placeholder bind
-  // is never invoked, just needed to keep the hook call unconditional.
   const [verifyState, verifyAction, verifyPending] = useActionState(
     verifyEmailCode.bind(null, plan, state.email ?? ""),
     initialCodeState,
@@ -71,11 +69,11 @@ function EmailCodeTab({ plan }: { plan: string | null }) {
           <p className="text-xs text-muted-foreground">
             Code envoyé à <span className="text-foreground">{state.email}</span>.
           </p>
-          <label htmlFor="code" className="sr-only">
+          <label htmlFor="signup-code" className="sr-only">
             Code de vérification
           </label>
           <Input
-            id="code"
+            id="signup-code"
             name="code"
             inputMode="numeric"
             maxLength={6}
@@ -86,7 +84,7 @@ function EmailCodeTab({ plan }: { plan: string | null }) {
             className="text-center font-mono text-lg tracking-[0.3em]"
           />
           <SubmitButton disabled={verifyPending} pendingText="Vérification...">
-            Vérifier
+            Créer mon compte
           </SubmitButton>
           {verifyState.error && (
             <p role="alert" className="text-sm text-destructive">
@@ -94,7 +92,6 @@ function EmailCodeTab({ plan }: { plan: string | null }) {
             </p>
           )}
         </form>
-        {/* Sibling, not nested inside the verify form — forms can't nest. */}
         <form action={sendAction} className="self-start">
           <input type="hidden" name="email" value={state.email} />
           <button
@@ -110,11 +107,11 @@ function EmailCodeTab({ plan }: { plan: string | null }) {
 
   return (
     <form action={sendAction} className="flex flex-col gap-3">
-      <label htmlFor="email" className="text-xs text-muted-foreground">
+      <label htmlFor="signup-email" className="text-xs text-muted-foreground">
         Email
       </label>
       <Input
-        id="email"
+        id="signup-email"
         type="email"
         name="email"
         autoComplete="email"
@@ -133,23 +130,27 @@ function EmailCodeTab({ plan }: { plan: string | null }) {
   );
 }
 
-export function LoginForm({
+export function SignupForm({
   plan,
   planLabel,
   error,
+  confirm,
 }: {
-  plan: string | null;
-  planLabel: string | null;
+  plan: string;
+  planLabel: string;
   error: string | null;
+  confirm: boolean;
 }) {
   return (
     <div className="flex w-full max-w-sm flex-col gap-5">
       <div className="flex flex-col items-center gap-1 text-center">
-        <h1 className="text-lg font-semibold">Connexion</h1>
+        <h1 className="text-lg font-semibold">Créer un compte</h1>
         <p className="text-xs text-muted-foreground">
-          {planLabel
-            ? `Plan sélectionné : ${planLabel}`
-            : "Configurez la surveillance de votre site en moins de 2 minutes."}
+          Plan sélectionné : {planLabel}
+          {" — "}
+          <Link href="/pricing" className="underline underline-offset-2 hover:text-foreground">
+            changer
+          </Link>
         </p>
       </div>
 
@@ -168,39 +169,64 @@ export function LoginForm({
         </TabsContent>
 
         <TabsContent value="password" className="pt-4">
-          <form
-            action={signInWithPassword.bind(null, plan)}
-            className="flex flex-col gap-3"
-          >
-            <label htmlFor="password-email" className="text-xs text-muted-foreground">
-              Email
-            </label>
-            <Input
-              id="password-email"
-              type="email"
-              name="email"
-              autoComplete="email"
-              placeholder="vous@exemple.com"
-              required
-            />
-            <label htmlFor="password" className="sr-only">
-              Mot de passe
-            </label>
-            <Input
-              id="password"
-              type="password"
-              name="password"
-              placeholder="Mot de passe"
-              autoComplete="current-password"
-              required
-            />
-            <SubmitButton pendingText="Connexion...">Se connecter</SubmitButton>
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-          </form>
+          {confirm ? (
+            <p className="text-sm text-muted-foreground">{GENERIC_AUTH_MESSAGE}</p>
+          ) : (
+            <form action={signUpWithPassword.bind(null, plan)} className="flex flex-col gap-3">
+              <label htmlFor="signup-password-email" className="text-xs text-muted-foreground">
+                Email
+              </label>
+              <Input
+                id="signup-password-email"
+                type="email"
+                name="email"
+                autoComplete="email"
+                placeholder="vous@exemple.com"
+                required
+              />
+              <label htmlFor="signup-password" className="sr-only">
+                Mot de passe
+              </label>
+              <Input
+                id="signup-password"
+                type="password"
+                name="password"
+                placeholder="8 caractères minimum"
+                minLength={8}
+                autoComplete="new-password"
+                required
+              />
+              <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  name="terms_accepted"
+                  required
+                  className="mt-0.5 size-3.5 rounded border-input accent-foreground"
+                />
+                <span>
+                  J&apos;accepte les{" "}
+                  <a href="/terms" target="_blank" rel="noreferrer" className="text-foreground underline underline-offset-2">
+                    CGU
+                  </a>
+                  , les{" "}
+                  <a href="/cgv" target="_blank" rel="noreferrer" className="text-foreground underline underline-offset-2">
+                    CGV
+                  </a>{" "}
+                  et la{" "}
+                  <a href="/privacy" target="_blank" rel="noreferrer" className="text-foreground underline underline-offset-2">
+                    politique de confidentialité
+                  </a>
+                  .
+                </span>
+              </label>
+              <SubmitButton pendingText="Création...">Créer mon compte</SubmitButton>
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+            </form>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -211,13 +237,13 @@ export function LoginForm({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <form action={signInWithGoogle.bind(null, plan, "login")}>
+        <form action={signInWithGoogle.bind(null, plan, "signup")}>
           <Button type="submit" variant="outline" className="w-full gap-1.5">
             <GoogleIcon />
             Google
           </Button>
         </form>
-        <form action={signInWithGithub.bind(null, plan, "login")}>
+        <form action={signInWithGithub.bind(null, plan, "signup")}>
           <Button type="submit" variant="outline" className="w-full gap-1.5">
             <GitHubIcon />
             GitHub
@@ -226,9 +252,9 @@ export function LoginForm({
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Pas encore de compte ?{" "}
-        <Link href="/pricing" className="text-foreground underline underline-offset-2">
-          Voir les tarifs
+        Déjà un compte ?{" "}
+        <Link href="/login" className="text-foreground underline underline-offset-2">
+          Se connecter
         </Link>
       </p>
 
