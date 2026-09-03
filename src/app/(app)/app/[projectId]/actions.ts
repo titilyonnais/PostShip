@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/db/server";
+import { fetchDomainExpiry } from "@/lib/checks/rdap";
+import { resolveDnsSnapshot } from "@/lib/checks/dns";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { assertSameSiteHost } from "@/lib/host-match";
 import { applyMoneyPath } from "@/lib/money-path";
@@ -375,6 +377,51 @@ export async function runTargetNow(
         ? `OK — ${target.url}`
         : `Échec détecté — ${target.url}`,
   };
+}
+
+// B2 (app-bar backlog): the app-bar's "Recalculer" action on Santé —
+// bypasses getHealthSnapshot's 6h cache (src/lib/health.ts) by inserting a
+// fresh row directly, same DNS/RDAP fetches the cache-miss path already
+// does.
+export async function recomputeHealthNow(
+  projectId: string,
+  _prevState: ActionResult,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id, base_url")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) return { error: "Projet introuvable." };
+
+  let hostname: string;
+  try {
+    hostname = new URL(project.base_url).hostname;
+  } catch {
+    return { error: "URL de base invalide." };
+  }
+
+  const [dns, domainExpiry] = await Promise.all([
+    resolveDnsSnapshot(hostname),
+    fetchDomainExpiry(hostname),
+  ]);
+
+  const { error } = await createServiceClient()
+    .from("health_snapshots")
+    .insert({ project_id: projectId, payload: { dns, domainExpiry } });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/health`);
+  return { success: "Santé recalculée." };
 }
 
 async function setDeployHookSecret(

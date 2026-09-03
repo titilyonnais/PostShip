@@ -4,16 +4,19 @@ import {
   AlertTriangle,
   Bot,
   Coins,
+  PauseCircle,
   Rocket,
   ScanSearch,
   ShieldAlert,
   Siren,
 } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { Badge } from "@/components/ui/badge";
+import { LastChecked } from "@/components/last-checked";
 import { StatusDot } from "@/components/status-dot";
 import { type CheckRunDetails } from "@/components/failure-details";
 import { createClient } from "@/lib/db/server";
-import { getAuthUser, getProfile, getProject } from "@/lib/db/loaders";
+import { getAuthUser, getProfile, getProject, getProjectOwnerPlan } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { getUptimeStats } from "@/lib/uptime";
 import { getReliability } from "@/lib/reliability";
@@ -97,6 +100,12 @@ export default async function ProjectOverviewPage({
   const limits = getPlanLimits(plan);
   const tokenBalance = profile?.token_balance ?? 0;
 
+  // The project's OWNER's plan, not the current viewer's — see the
+  // comment on getProjectOwnerPlan.
+  const intervalMinutes = getPlanLimits(
+    await getProjectOwnerPlan(project.user_id),
+  ).intervalMinutes;
+
   const latestRunByTarget = new Map<string, RunRow>();
   for (const run of (recentRuns ?? []) as RunRow[]) {
     if (!latestRunByTarget.has(run.target_id)) {
@@ -126,7 +135,27 @@ export default async function ProjectOverviewPage({
   const botConnected = project.telegram_configured || project.discord_webhook_configured;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-3">
+    <div className="flex flex-col gap-6">
+      {/* B4 (app-bar backlog): base_url, pause badge and LastChecked used
+          to repeat on every project page's shared layout header — now
+          Aperçu-only, the app-bar's switcher already carries name + status
+          dot everywhere else. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-mono text-sm text-muted-foreground">{project.base_url}</p>
+        {project.paused && (
+          <Badge variant="outline" className="gap-1 text-amber-600 dark:text-amber-400">
+            <PauseCircle className="size-3" aria-hidden="true" />
+            En pause
+          </Badge>
+        )}
+        <LastChecked
+          lastCheckedAt={project.last_checked_at}
+          paused={project.paused}
+          intervalMinutes={intervalMinutes}
+        />
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-3">
       <div className="flex flex-col gap-6 lg:col-span-2">
         <div className="flex flex-wrap gap-2">
           <Link
@@ -367,6 +396,7 @@ export default async function ProjectOverviewPage({
             </Link>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

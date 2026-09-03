@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { ChevronDown, Menu, Plus, X, type LucideIcon } from "lucide-react";
+import { ChevronDown, Plus, X, type LucideIcon } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { statusDotClass, statusLabel } from "@/lib/status";
+import { useActiveProject, type Project } from "@/lib/use-active-project";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -22,36 +21,14 @@ import {
   PROJECT_NAV_BOTTOM,
   PROJECT_NAV_OBSERVABILITE,
   PROJECT_NAV_TOP,
-  RESERVED_APP_SEGMENTS,
   type NavItem,
 } from "./nav-config";
-
-type Project = {
-  id: string;
-  name: string;
-  base_url: string;
-  last_status: string | null;
-};
 
 type Profile = {
   displayName: string;
   email: string;
   avatarUrl: string;
 };
-
-function useActiveProject(projects: Project[]) {
-  const pathname = usePathname();
-  return useMemo(() => {
-    const segments = pathname.split("/").filter(Boolean);
-    // segments[0] === "app"
-    const candidate = segments[1];
-    if (!candidate || RESERVED_APP_SEGMENTS.has(candidate)) {
-      return { project: null, subSegment: undefined as string | undefined, pathname };
-    }
-    const project = projects.find((p) => p.id === candidate) ?? null;
-    return { project, subSegment: segments[2], pathname };
-  }, [pathname, projects]);
-}
 
 function NavLink({
   href,
@@ -137,12 +114,6 @@ function SidebarContent({
       <nav className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4">
         {activeProject ? (
           <div className="flex flex-col gap-4">
-            <ProjectSwitcher
-              projects={projects}
-              activeProject={activeProject}
-              onNavigate={onNavigate}
-            />
-
             <div className="flex flex-col gap-0.5">
               {PROJECT_NAV_TOP.map((item) => (
                 <NavLink
@@ -305,89 +276,29 @@ function SidebarContent({
   );
 }
 
-function ProjectSwitcher({
-  projects,
-  activeProject,
-  onNavigate,
-}: {
-  projects: Project[];
-  activeProject: Project;
-  onNavigate?: () => void;
-}) {
-  const others = projects.filter((p) => p.id !== activeProject.id);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            aria-label="Projet actif, changer de projet"
-            className="flex w-full min-w-0 items-center gap-2 rounded-2xl border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        }
-      >
-        <span
-          className={cn(
-            "size-1.5 shrink-0 rounded-full",
-            statusDotClass(activeProject.last_status),
-          )}
-          aria-hidden="true"
-        />
-        <span className="sr-only">{statusLabel(activeProject.last_status)}</span>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-          {activeProject.name}
-        </span>
-        <ChevronDown
-          className="size-3.5 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-(--anchor-width) min-w-56">
-        {others.length > 0 && (
-          <>
-            {others.map((p) => (
-              <DropdownMenuItem
-                key={p.id}
-                render={<Link href={`/app/${p.id}`} onClick={onNavigate} />}
-              >
-                <span
-                  className={cn(
-                    "size-1.5 shrink-0 rounded-full",
-                    statusDotClass(p.last_status),
-                  )}
-                  aria-hidden="true"
-                />
-                <span className="sr-only">{statusLabel(p.last_status)}</span>
-                <span className="truncate">{p.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-          </>
-        )}
-        <DropdownMenuItem render={<Link href="/app" onClick={onNavigate} />}>
-          Tous les projets
-        </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/app" onClick={onNavigate} />}>
-          <Plus className="size-3.5" aria-hidden="true" />
-          Nouveau projet
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
+// B1 (app-bar backlog): the project switcher used to live here, at the top
+// of the nav list — it now lives in ProjectBar instead (see
+// components/app-bar/project-bar.tsx), which is why it isn't rendered in
+// SidebarContent above any more.
+//
+// Mobile chrome also moved: this component no longer owns its own
+// hamburger/logo header or open state — ProjectBar renders the single
+// mobile bar (logo | switcher | menu) and AppShell (components/app-bar/
+// app-shell.tsx) holds the shared `mobileOpen` state, passing it down here
+// only to drive the drawer itself.
 export function AppSidebar({
   projects,
   profile,
   openIncidentCounts = {},
+  mobileOpen,
+  onCloseMobile,
 }: {
   projects: Project[];
   profile: Profile;
   openIncidentCounts?: Record<string, number>;
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
 }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 overflow-hidden border-r border-border bg-card md:flex">
@@ -398,21 +309,7 @@ export function AppSidebar({
         />
       </aside>
 
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:hidden">
-        <Link href="/app" aria-label="PostShip, accueil de l'app" className="flex items-center">
-          <LogoMark className="size-7" />
-        </Link>
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Ouvrir le menu"
-        >
-          <Menu className="size-5" aria-hidden="true" />
-        </button>
-      </header>
-
-      <DialogPrimitive.Root open={mobileOpen} onOpenChange={setMobileOpen}>
+      <DialogPrimitive.Root open={mobileOpen} onOpenChange={(open) => !open && onCloseMobile()}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Backdrop className="fixed inset-0 z-40 bg-black/40 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 md:hidden" />
           <DialogPrimitive.Popup className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[80vw] flex-col overflow-hidden bg-card outline-none data-open:animate-in data-open:slide-in-from-left data-closed:animate-out data-closed:slide-out-to-left md:hidden">
@@ -434,7 +331,7 @@ export function AppSidebar({
                 projects={projects}
                 profile={profile}
                 openIncidentCounts={openIncidentCounts}
-                onNavigate={() => setMobileOpen(false)}
+                onNavigate={onCloseMobile}
                 mobile
               />
             </div>

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { AppShell } from "@/components/app-bar/app-shell";
 import { avatarUrl } from "@/lib/avatar";
 import {
   getAuthUser,
@@ -31,7 +31,7 @@ export default async function AppLayout({
         Aller au contenu
       </a>
 
-      <AppSidebar
+      <AppShell
         projects={projects}
         openIncidentCounts={openIncidentCounts}
         profile={{
@@ -42,7 +42,7 @@ export default async function AppLayout({
         }}
       />
 
-      <main id="app-main" className="min-w-0 overflow-x-hidden p-6 md:ml-60">
+      <main id="app-main" className="min-w-0 overflow-x-hidden px-6 pt-14 pb-6 md:ml-60">
         {children}
       </main>
     </div>

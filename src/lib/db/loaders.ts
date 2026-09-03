@@ -33,7 +33,9 @@ export const getUserProjects = cache(async () => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("projects")
-    .select("id, name, base_url, last_status, last_checked_at, paused, user_id")
+    .select(
+      "id, name, base_url, last_status, last_checked_at, paused, user_id, alerts_silenced_until",
+    )
     .order("created_at");
   return data ?? [];
 });

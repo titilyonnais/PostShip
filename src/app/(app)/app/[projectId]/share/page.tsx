@@ -7,7 +7,6 @@ import { OgCardPreview } from "@/components/og-card-preview";
 import { createClient } from "@/lib/db/server";
 import { getProject } from "@/lib/db/loaders";
 import { toggleBadgePublic } from "../../actions";
-import { CopyStatusButton } from "./copy-status-button";
 
 export const metadata = {
   title: "Partage",
@@ -180,10 +179,13 @@ export default async function SharePage({
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Statut en une ligne
         </h2>
-        <p className="font-mono text-xs text-muted-foreground">{statusText}</p>
-        <div>
-          <CopyStatusButton text={statusText} />
-        </div>
+        {/* B2 (app-bar backlog): "Copier le statut" now lives in the
+            app-bar's action slot on this page — it reads this exact string
+            back out of the DOM via data-copy-status-text, so the button
+            isn't duplicated here. */}
+        <p className="font-mono text-xs text-muted-foreground" data-copy-status-text={statusText}>
+          {statusText}
+        </p>
       </section>
     </div>
   );

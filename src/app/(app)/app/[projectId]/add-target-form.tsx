@@ -22,7 +22,13 @@ const KIND_OPTIONS: { value: string; label: string }[] = [
   { value: "stripe_health", label: "Stripe health (Team)" },
 ];
 
-export function AddTargetForm({ projectId }: { projectId: string }) {
+export function AddTargetForm({
+  projectId,
+  autoFocus,
+}: {
+  projectId: string;
+  autoFocus?: boolean;
+}) {
   const [state, formAction, pending] = useActionState(
     addTarget.bind(null, projectId),
     initialState,
@@ -43,6 +49,7 @@ export function AddTargetForm({ projectId }: { projectId: string }) {
           pattern="https://.*"
           placeholder="https://example.com/checkout"
           required
+          autoFocus={autoFocus}
           className="flex-1"
         />
         <label htmlFor="target-kind" className="sr-only">

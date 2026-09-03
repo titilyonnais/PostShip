@@ -55,10 +55,10 @@ export default async function UrlsPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ kind?: string; status?: string }>;
+  searchParams: Promise<{ kind?: string; status?: string; add?: string }>;
 }) {
   const { projectId } = await params;
-  const { kind: kindFilter, status: statusFilter } = await searchParams;
+  const { kind: kindFilter, status: statusFilter, add } = await searchParams;
 
   const project = await getProject(projectId);
   if (!project) notFound();
@@ -148,7 +148,7 @@ export default async function UrlsPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <AddTargetForm projectId={projectId} />
+          <AddTargetForm projectId={projectId} autoFocus={add === "1"} />
           <MoneyPathDialog projectId={projectId} baseUrl={project.base_url} />
         </div>
       </div>
