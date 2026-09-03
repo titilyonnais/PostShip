@@ -30,7 +30,7 @@ export function SilenceBar({
       </span>
       {isSilenced ? (
         <ActionForm action={silenceAlerts.bind(null, projectId, 0)}>
-          <SubmitButton variant="outline" size="sm" pendingText="...">
+          <SubmitButton variant="outline" size="sm" pendingText="..." className="h-10 md:h-7">
             Reprendre
           </SubmitButton>
         </ActionForm>
@@ -38,7 +38,7 @@ export function SilenceBar({
         <div className="flex gap-1.5">
           {OPTIONS.map((opt) => (
             <ActionForm key={opt.hours} action={silenceAlerts.bind(null, projectId, opt.hours)}>
-              <SubmitButton variant="outline" size="sm" pendingText="...">
+              <SubmitButton variant="outline" size="sm" pendingText="..." className="h-10 md:h-7">
                 Couper {opt.label}
               </SubmitButton>
             </ActionForm>

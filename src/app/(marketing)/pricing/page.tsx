@@ -60,7 +60,7 @@ export default function PricingPage() {
             style={{ animationDelay: `${index * 100}ms` }}
           >
             {plan.highlight && (
-              <span className="absolute -top-2.5 right-4 rounded-full bg-foreground px-2 py-0.5 text-[0.65rem] font-medium text-background">
+              <span className="absolute -top-2.5 right-4 rounded-full bg-brand/15 px-2 py-0.5 text-[0.65rem] font-medium text-brand">
                 Le plus choisi
               </span>
             )}

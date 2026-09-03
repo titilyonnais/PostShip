@@ -8,6 +8,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { ApercuFrame } from "@/components/marketing/product-frame";
 import { PLAN_LABEL, PUBLIC_PLANS } from "@/lib/pricing";
 import { DemoForm } from "./demo-form";
 
@@ -27,13 +28,6 @@ const JSON_LD = {
     { "@type": "Offer", name: "Team", price: "29", priceCurrency: "EUR" },
   ],
 };
-
-const LOG_LINES = [
-  { ok: true, path: "/", status: 200, meta: "142 ms" },
-  { ok: true, path: "/checkout", status: 200, meta: "310 ms" },
-  { ok: false, path: "og:image", status: 404, meta: null },
-  { ok: true, path: "sitemap.xml", status: null, meta: "10 URLs" },
-];
 
 const STEPS = [
   {
@@ -92,7 +86,11 @@ export default function MarketingHomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
 
-      <section className="grid gap-10 sm:grid-cols-2 sm:items-center motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
+      <section className="relative grid gap-10 overflow-hidden sm:grid-cols-2 sm:items-center motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-x-6 -top-16 -bottom-16 -z-10 bg-gradient-to-b from-background via-[#0d1510] to-background sm:-inset-x-10"
+        />
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
             PostShip vérifie votre site après chaque déploiement
@@ -124,55 +122,7 @@ export default function MarketingHomePage() {
           </p>
         </div>
 
-        <div
-          className="rounded-2xl border border-border bg-card font-mono text-xs shadow-[0_0_0_1px_rgba(255,255,255,0.02)]"
-          role="img"
-          aria-label="Exemple de résultat de vérification : deux pages en 200, l'image Open Graph en échec 404, sitemap valide avec 10 URLs, un échec détecté déclenche une alerte"
-        >
-          <div className="flex items-center gap-1.5 border-b border-border px-3 py-2">
-            <span className="size-2 rounded-full bg-[#f85149]" />
-            <span className="size-2 rounded-full bg-[#d29922]" />
-            <span className="size-2 rounded-full bg-[#3fb950]" />
-            <span className="ml-2 text-muted-foreground">
-              postship check --project acme
-            </span>
-          </div>
-          <div className="flex flex-col gap-1.5 px-3 py-3">
-            {LOG_LINES.map((line, index) => (
-              <div
-                key={line.path}
-                className="flex items-center gap-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1"
-                style={{ animationDelay: `${400 + index * 120}ms` }}
-              >
-                <span
-                  className={line.ok ? "text-[#3fb950]" : "text-[#f85149]"}
-                  aria-hidden="true"
-                >
-                  {line.ok ? "✓" : "✗"}
-                </span>
-                <span className="flex-1 truncate text-foreground">
-                  {line.path}
-                </span>
-                {line.status && (
-                  <span className="text-muted-foreground">{line.status}</span>
-                )}
-                {line.meta && (
-                  <span className="text-muted-foreground">{line.meta}</span>
-                )}
-              </div>
-            ))}
-            <div
-              className="mt-1 flex items-center gap-2 border-t border-border pt-2 text-[#d29922] motion-safe:animate-in motion-safe:fade-in"
-              style={{ animationDelay: "900ms" }}
-            >
-              <span
-                className="size-1.5 shrink-0 rounded-full bg-[#d29922] motion-safe:animate-pulse"
-                aria-hidden="true"
-              />
-              1 échec détecté → Discord + email envoyés
-            </div>
-          </div>
-        </div>
+        <ApercuFrame />
       </section>
 
       <section aria-labelledby="steps-heading" className="flex flex-col gap-8">
@@ -258,7 +208,7 @@ export default function MarketingHomePage() {
           </h2>
           <Link
             href="/pricing"
-            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-brand-2"
           >
             Voir le détail des plans et la FAQ
             <ArrowRight className="size-3" aria-hidden="true" />
@@ -276,7 +226,7 @@ export default function MarketingHomePage() {
               style={{ animationDelay: `${index * 100}ms` }}
             >
               {plan.highlight && (
-                <span className="absolute -top-2.5 right-4 rounded-full bg-foreground px-2 py-0.5 text-[0.65rem] font-medium text-background">
+                <span className="absolute -top-2.5 right-4 rounded-full bg-brand/15 px-2 py-0.5 text-[0.65rem] font-medium text-brand">
                   Le plus choisi
                 </span>
               )}

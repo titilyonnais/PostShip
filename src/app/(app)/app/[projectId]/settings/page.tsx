@@ -8,7 +8,7 @@ import {
 import { BotTab } from "./bot-tab";
 import { GeneralTab } from "./general-tab";
 import { RulesTab } from "./rules-tab";
-import { SettingsTabs, type SettingsTab } from "./settings-tabs";
+import { SettingsTabsHub, type SettingsTab } from "./settings-tabs";
 import { TeamTab } from "./team-tab";
 
 export const metadata = {
@@ -51,21 +51,18 @@ export default async function ProjectSettingsPage({
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <SettingsTabs projectId={projectId} active={tab} isOwner={isOwner} />
-
-      {tab === "general" && (
-        <GeneralTab projectId={projectId} project={project} isOwner={isOwner} />
-      )}
-      {tab === "rules" && (
-        <RulesTab projectId={projectId} project={project} ownerPlan={ownerPlan} />
-      )}
-      {tab === "bot" && (
-        <BotTab projectId={projectId} project={project} ownerPlan={ownerPlan} />
-      )}
-      {tab === "team" && (
-        <TeamTab projectId={projectId} members={members} ownerPlan={ownerPlan} />
-      )}
-    </div>
+    <SettingsTabsHub
+      projectId={projectId}
+      initialTab={tab}
+      isOwner={isOwner}
+      panels={{
+        general: <GeneralTab projectId={projectId} project={project} isOwner={isOwner} />,
+        rules: <RulesTab projectId={projectId} project={project} ownerPlan={ownerPlan} />,
+        bot: <BotTab projectId={projectId} project={project} ownerPlan={ownerPlan} />,
+        team: isOwner ? (
+          <TeamTab projectId={projectId} members={members} ownerPlan={ownerPlan} />
+        ) : null,
+      }}
+    />
   );
 }

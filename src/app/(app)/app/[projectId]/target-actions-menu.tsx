@@ -88,6 +88,10 @@ export function TargetActionsMenu({
             size="icon-sm"
             disabled={pending}
             aria-label={`Actions pour ${url}`}
+            // S7 (site backlog): a bare 16px icon button fails the 40px
+            // mobile tap-target rule — bigger on touch, back to the
+            // tighter desktop size at md+.
+            className="size-10 md:size-7"
           >
             <MoreHorizontal className="size-4" aria-hidden="true" />
           </Button>

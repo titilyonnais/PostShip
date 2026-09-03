@@ -60,6 +60,7 @@ function NavLink({
   isActive,
   badge,
   onNavigate,
+  mobile,
 }: {
   href: string;
   label: string;
@@ -67,6 +68,7 @@ function NavLink({
   isActive: boolean;
   badge?: number;
   onNavigate?: () => void;
+  mobile?: boolean;
 }) {
   return (
     <Link
@@ -74,7 +76,10 @@ function NavLink({
       onClick={onNavigate}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex min-w-0 items-center gap-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        // S7 (site backlog): bigger tap targets in the mobile drawer only —
+        // the desktop sidebar keeps its tighter, mouse-driven density.
+        mobile ? "px-3 py-2.5 text-base" : "px-2.5 py-1.5 text-sm",
         isActive
           ? "bg-secondary font-medium text-foreground"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -104,11 +109,13 @@ function SidebarContent({
   profile,
   openIncidentCounts,
   onNavigate,
+  mobile,
 }: {
   projects: Project[];
   profile: Profile;
   openIncidentCounts: Record<string, number>;
   onNavigate?: () => void;
+  mobile?: boolean;
 }) {
   const { project: activeProject, subSegment } = useActiveProject(projects);
 
@@ -121,6 +128,7 @@ function SidebarContent({
       <Link
         href="/app"
         onClick={onNavigate}
+        aria-label="PostShip, accueil de l'app"
         className="flex shrink-0 items-center px-4 py-4"
       >
         <LogoMark className="size-8" />
@@ -149,6 +157,7 @@ function SidebarContent({
                       : 0
                   }
                   onNavigate={onNavigate}
+                  mobile={mobile}
                 />
               ))}
             </div>
@@ -164,6 +173,7 @@ function SidebarContent({
                     Icon={item.icon}
                     isActive={isItemActive(item)}
                     onNavigate={onNavigate}
+                    mobile={mobile}
                   />
                 ))}
               </div>
@@ -178,6 +188,7 @@ function SidebarContent({
                   Icon={item.icon}
                   isActive={isItemActive(item)}
                   onNavigate={onNavigate}
+                  mobile={mobile}
                 />
               ))}
             </div>
@@ -193,7 +204,10 @@ function SidebarContent({
                   key={p.id}
                   href={`/app/${p.id}`}
                   onClick={onNavigate}
-                  className="flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className={cn(
+                    "flex min-w-0 items-center gap-2 rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    mobile ? "px-3 py-2.5 text-base" : "px-2.5 py-1.5 text-sm",
+                  )}
                 >
                   <span
                     className={cn(
@@ -214,7 +228,10 @@ function SidebarContent({
               <Link
                 href="/app"
                 onClick={onNavigate}
-                className="flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={cn(
+                    "flex min-w-0 items-center gap-2 rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    mobile ? "px-3 py-2.5 text-base" : "px-2.5 py-1.5 text-sm",
+                  )}
               >
                 <Plus className="size-4 shrink-0" aria-hidden="true" />
                 <span className="truncate">Nouveau projet</span>
@@ -382,7 +399,7 @@ export function AppSidebar({
       </aside>
 
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:hidden">
-        <Link href="/app" className="flex items-center">
+        <Link href="/app" aria-label="PostShip, accueil de l'app" className="flex items-center">
           <LogoMark className="size-7" />
         </Link>
         <button
@@ -418,6 +435,7 @@ export function AppSidebar({
                 profile={profile}
                 openIncidentCounts={openIncidentCounts}
                 onNavigate={() => setMobileOpen(false)}
+                mobile
               />
             </div>
           </DialogPrimitive.Popup>

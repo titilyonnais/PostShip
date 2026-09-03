@@ -153,19 +153,19 @@ export default async function DeploysPage({
                     href={commitUrl}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="self-start font-mono text-xs underline underline-offset-2 hover:text-foreground"
+                    className="self-start font-mono text-sm underline underline-offset-2 hover:text-foreground"
                   >
                     Voir le commit {shortSha}
                   </a>
                 )}
 
                 {diff && diff.addedFails.length > 0 && (
-                  <p className="text-xs text-destructive">
+                  <p className="text-sm text-destructive">
                     Cassé depuis : {diff.addedFails.map((i) => i.url).join(", ")}
                   </p>
                 )}
                 {diff && diff.recovered.length > 0 && (
-                  <p className="text-xs text-emerald-500">
+                  <p className="text-sm text-emerald-500">
                     Rétabli depuis : {diff.recovered.map((i) => i.url).join(", ")}
                   </p>
                 )}
@@ -173,7 +173,7 @@ export default async function DeploysPage({
                 {event.fail_count > 0 && (
                   <Link
                     href={`/app/${projectId}/incidents`}
-                    className="self-start text-xs text-destructive underline underline-offset-2"
+                    className="self-start text-sm text-destructive underline underline-offset-2"
                   >
                     Voir les incidents →
                   </Link>
@@ -184,7 +184,7 @@ export default async function DeploysPage({
                     {event.snapshot.map((item) => (
                       <li
                         key={item.targetId}
-                        className="flex items-center gap-2 text-xs"
+                        className="flex items-center gap-2 text-sm"
                       >
                         <StatusDot status={item.outcome} />
                         <span className="min-w-0 truncate font-mono">
@@ -194,7 +194,7 @@ export default async function DeploysPage({
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Détail par URL indisponible pour ce déploiement (antérieur
                     à cette fonctionnalité).
                   </p>

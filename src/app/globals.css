@@ -39,6 +39,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -85,6 +87,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* S3 (site backlog): marketing-only accent — see .dark below for the
+     actual values used (the app forces dark mode site-wide). */
+  --brand: #3fb950;
+  --brand-2: #58a6ff;
 }
 
 .dark {
@@ -122,6 +128,11 @@
   --sidebar-accent-foreground: #e6e8eb;
   --sidebar-border: #21262d;
   --sidebar-ring: #58a6ff;
+  /* S3 (site backlog): marketing-only accent — never used in /app, which
+     stays dark-neutral. Same hues as --chart-1/--ring on purpose (one
+     green, one blue, nothing new introduced). */
+  --brand: #3fb950;
+  --brand-2: #58a6ff;
 }
 
 @layer base {

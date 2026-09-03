@@ -168,9 +168,13 @@ export default async function UrlsPage({
       </div>
 
       {filteredTargets.length > 0 ? (
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
+        // S7 (site backlog): stacked cards below md, a real table from md
+        // up (native <table>/<td> so colSpan on the failure-details row
+        // still works at md+) — a 6-column table doesn't survive a 390px
+        // viewport.
+        <div className="md:overflow-x-auto md:rounded-xl md:border md:border-border">
+          <table className="flex flex-col gap-3 md:table md:w-full md:min-w-[640px] md:border-collapse">
+            <thead className="hidden md:table-header-group">
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="px-3 py-2 font-medium">État</th>
                 <th className="px-3 py-2 font-medium">URL</th>
@@ -180,7 +184,7 @@ export default async function UrlsPage({
                 <th className="px-3 py-2" />
               </tr>
             </thead>
-            <tbody>
+            <tbody className="flex flex-col gap-3 md:table-row-group">
               {filteredTargets.map((target) => {
                 const run = latestRunByTarget.get(target.id);
                 const isFailing =
@@ -194,15 +198,27 @@ export default async function UrlsPage({
 
                 return (
                   <Fragment key={target.id}>
-                    <tr className="border-b border-border last:border-0">
-                      <td className="px-3 py-2">
+                    <tr className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 md:table-row md:rounded-none md:border-0 md:border-b md:border-border md:bg-transparent md:p-0">
+                      <td className="flex items-center justify-between gap-2 md:table-cell md:px-3 md:py-2 md:align-middle">
                         <StatusDot status={run?.outcome ?? null} />
+                        <div className="md:hidden">
+                          <TargetActionsMenu
+                            projectId={projectId}
+                            targetId={target.id}
+                            url={target.url}
+                            enabled={target.enabled}
+                            silenced={
+                              !!target.silenced_until &&
+                              new Date(target.silenced_until).getTime() > Date.now()
+                            }
+                          />
+                        </div>
                       </td>
-                      <td className="min-w-0 px-3 py-2">
+                      <td className="min-w-0 md:table-cell md:px-3 md:py-2 md:align-middle">
                         <div className="flex min-w-0 items-center gap-1.5">
                           <Link
                             href={`/app/${projectId}/${target.id}`}
-                            className="truncate font-mono text-xs hover:underline"
+                            className="truncate font-mono text-sm hover:underline"
                           >
                             {target.url}
                           </Link>
@@ -224,15 +240,17 @@ export default async function UrlsPage({
                           )}
                         </div>
                         {surface?.h1 && (
-                          <p className="mt-0.5 truncate text-[0.7rem] text-muted-foreground">
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             « {surface.h1} »
                           </p>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">
+                      <td className="flex items-center justify-between text-sm text-muted-foreground md:table-cell md:px-3 md:py-2 md:align-middle">
+                        <span className="text-xs text-muted-foreground md:hidden">Type</span>
                         {target.kind}
                       </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">
+                      <td className="flex items-center justify-between text-sm text-muted-foreground md:table-cell md:px-3 md:py-2 md:align-middle">
+                        <span className="text-xs text-muted-foreground md:hidden">Dernière vérif</span>
                         {run
                           ? new Date(run.started_at).toLocaleString("fr-FR", {
                               day: "2-digit",
@@ -242,10 +260,11 @@ export default async function UrlsPage({
                             })
                           : "Jamais vérifié"}
                       </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">
+                      <td className="flex items-center justify-between text-sm text-muted-foreground md:table-cell md:px-3 md:py-2 md:align-middle">
+                        <span className="text-xs text-muted-foreground md:hidden">TTFB</span>
                         {run?.ttfb_ms != null ? `${run.ttfb_ms} ms` : "—"}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="hidden md:table-cell md:px-3 md:py-2 md:align-middle">
                         <TargetActionsMenu
                           projectId={projectId}
                           targetId={target.id}
@@ -259,8 +278,8 @@ export default async function UrlsPage({
                       </td>
                     </tr>
                     {isFailing && run?.details && (
-                      <tr className="border-b border-border last:border-0">
-                        <td colSpan={6} className="px-3 pb-3">
+                      <tr className="block md:table-row">
+                        <td colSpan={6} className="block pb-1 md:table-cell md:px-3 md:pb-3">
                           <FailureDetails
                             details={run.details}
                             httpStatus={run.http_status}

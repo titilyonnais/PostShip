@@ -96,9 +96,9 @@ export default async function IncidentsPage({
                       [{incident.kind}]
                     </span>
                   </div>
-                  <p className="text-xs text-destructive">{incident.description}</p>
+                  <p className="text-sm text-destructive">{incident.description}</p>
                   {incident.since && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       Depuis {formatRelativeTime(incident.since)}
                     </p>
                   )}
@@ -143,7 +143,7 @@ export default async function IncidentsPage({
             {log.map((entry) => (
               <li
                 key={entry.id}
-                className="flex items-center justify-between gap-3 rounded-sm bg-secondary px-3 py-2 text-xs"
+                className="flex flex-col gap-1.5 rounded-xl bg-secondary px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3"
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <StatusDot status={entry.kind === "recovered" ? "pass" : "fail"} />

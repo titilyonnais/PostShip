@@ -1,279 +1,38 @@
 import Link from "next/link";
-import {
-  Bot,
-  Clock,
-  Globe,
-  HeartPulse,
-  Link2,
-  MessageSquare,
-  Rocket,
-  ShieldCheck,
-  Siren,
-  Webhook,
-} from "lucide-react";
+import { DOC_CATEGORIES, DOCS } from "@/lib/docs";
 
 export const metadata = {
   title: "Documentation",
 };
 
-const CHECK_TYPES = [
-  {
-    icon: Link2,
-    title: "HTTP",
-    body: "Suit jusqu'à 5 redirections, mesure le TTFB, vérifie le statut attendu (200 par défaut, configurable) et peut exiger la présence — ou l'absence — d'un texte précis dans la réponse (champs « Doit contenir » / « Ne doit pas contenir » à l'ajout d'une URL).",
-  },
-  {
-    icon: Globe,
-    title: "OG / Twitter",
-    body: "Vérifie que l'image og:image répond en HEAD (200). Utile pour les pages de partage — un lien Slack ou X sans preview cassée.",
-  },
-  {
-    icon: Globe,
-    title: "Sitemap",
-    body: "Parse sitemap.xml (y compris un sitemapindex, en suivant jusqu'à 3 sitemaps enfants), échantillonne jusqu'à 10 URLs et vérifie qu'elles répondent.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "SSL",
-    body: "Contrôle l'expiration du certificat TLS. Alertes graduées à J-30, J-7 et J-1, puis certificat expiré — une seule alerte par palier franchi, pas de spam quotidien.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Stripe health (plan Team)",
-    body: "Vérifie que votre page de succès Stripe (success_url) répond en 2xx après un paiement. Ne rejoue pas d'événements webhook — c'est un contrôle HTTP simple sur l'URL de succès.",
-  },
-];
-
-const TOC = [
-  { href: "#cycle", label: "Cycle de vérification" },
-  { href: "#pages-protegees", label: "Pages protégées" },
-  { href: "#types-de-verification", label: "Types de vérification" },
-  { href: "#integrations", label: "Intégrations" },
-  { href: "#alertes", label: "Alertes" },
-  { href: "#collaborateurs", label: "Collaborateurs" },
-  { href: "#bot-telegram", label: "Bot Telegram" },
-  { href: "#incidents-deplois-sante", label: "Incidents, déplois, santé" },
-  { href: "#scan-de-site", label: "Scan de site" },
-];
-
-const INTEGRATIONS = [
-  {
-    icon: Webhook,
-    title: "Webhook de déploiement — Vercel, Netlify, Cloudflare Pages (plans Solo et Team)",
-    body: "Chaque hébergeur pointe vers sa propre URL dans Paramètres du projet → Vérification au déploiement. Vercel : Project Settings → Webhooks, événement deployment.ready. Netlify : Notifications → Deploy notifications → Outgoing webhook, événement « Deploy succeeded ». Cloudflare Pages : Notifications → Destinations → Webhooks, puis une Notification sur « Pages Deployment Success ». Dans les trois cas, un déploiement réussi déclenche une vérification immédiate, en plus du cycle automatique.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Alertes Discord (plans Solo et Team)",
-    body: "Dans Discord : Paramètres du salon → Intégrations → Webhooks → Nouveau webhook. Collez l'URL générée dans Paramètres du projet → Alertes Discord. Les alertes Discord viennent en complément de l'email, jamais à sa place.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Alertes Telegram (plans Solo et Team)",
-    body: "Créez un bot via @BotFather sur Telegram pour obtenir un token, puis récupérez le chat ID du salon ou de la conversation à alerter (envoyez-lui un message, puis consultez api.telegram.org/bot<token>/getUpdates). Collez les deux dans Paramètres du projet → Telegram.",
-  },
-];
-
-export default function DocsPage() {
+export default function DocsIndexPage() {
   return (
-    <div className="mx-auto flex w-full max-w-5xl gap-12 px-6 py-16 sm:px-10">
-      <nav
-        aria-label="Sommaire"
-        className="sticky top-24 hidden h-fit w-48 shrink-0 flex-col gap-1 lg:flex"
-      >
-        {TOC.map((item) => (
-          <a
-            key={item.href}
-            href={item.href}
-            className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {item.label}
-          </a>
-        ))}
-      </nav>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-16">
+    <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
         <h1 className="text-3xl font-semibold tracking-tight">Documentation</h1>
         <p className="text-sm text-muted-foreground">
-          Comment PostShip vérifie votre site, et comment brancher Discord et
-          Vercel.
+          Comment PostShip vérifie votre site, se branche à vos outils, et
+          alerte seulement quand ça casse.
         </p>
       </div>
 
-      <section className="flex flex-col gap-6">
-        <h2 id="cycle" className="scroll-mt-24 text-xl font-semibold tracking-tight">
-          Cycle de vérification
-        </h2>
-        <div className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4">
-          <Clock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">
-            Free : toutes les 30 min. Solo et Team : toutes les 5 min, plus une
-            vérification immédiate à chaque déploiement via le webhook Vercel.
-            L&apos;heure de la dernière vérification est visible en haut de
-            chaque projet dans le tableau de bord — si elle prend plus de deux
-            fois l&apos;intervalle attendu, un avertissement s&apos;affiche.
-          </p>
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 id="pages-protegees" className="scroll-mt-24 text-xl font-semibold tracking-tight">
-          Pages protégées
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Pour surveiller une page derrière un secret partagé — un tableau de
-          bord interne, un endpoint /api/health — ajoutez un header (nom et
-          valeur) à une cible HTTP depuis les options avancées. La valeur
-          n&apos;est jamais réaffichée une fois enregistrée. Le header ne
-          s&apos;applique qu&apos;à cette URL, jamais aux fichiers JS/CSS
-          vérifiés en plus (voir plus bas).
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-6">
-        <h2 id="types-de-verification" className="scroll-mt-24 text-xl font-semibold tracking-tight">
-          Types de vérification
-        </h2>
-        <div className="flex flex-col gap-4">
-          {CHECK_TYPES.map((check) => (
-            <div
-              key={check.title}
-              className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"
-            >
-              <check.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <div>
-                <h3 className="text-sm font-medium">{check.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{check.body}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-6">
-        <h2 id="integrations" className="scroll-mt-24 text-xl font-semibold tracking-tight">
-          Intégrations
-        </h2>
-        <div className="flex flex-col gap-4">
-          {INTEGRATIONS.map((integration) => (
-            <div
-              key={integration.title}
-              className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"
-            >
-              <integration.icon
-                className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <div>
-                <h3 className="text-sm font-medium">{integration.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {integration.body}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 id="alertes" className="scroll-mt-24 text-xl font-semibold tracking-tight">
-          Alertes
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Un email est envoyé au premier échec détecté, puis à chaque
-          rétablissement — jamais deux alertes identiques en moins de 10
-          minutes. Discord et Slack reçoivent la même chose en plus de
-          l&apos;email, si configurés. Rien n&apos;est envoyé tant que tout
-          est vert.
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 id="collaborateurs" className="scroll-mt-24 text-xl font-semibold tracking-tight">
-          Collaborateurs (plan Team)
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Depuis Paramètres du projet → Collaborateurs, invitez quelqu&apos;un
-          par email — pas besoin qu&apos;il ait déjà un compte PostShip. Un
-          collaborateur accède aux URLs, alertes et webhooks de ce projet
-          précis, mais jamais à votre facturation ni aux autres projets. Vous
-          restez seul à pouvoir inviter, retirer un collaborateur ou
-          supprimer le projet.
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2
-          id="bot-telegram"
-          className="flex scroll-mt-24 items-center gap-2 text-xl font-semibold tracking-tight"
-        >
-          <Bot className="size-4" aria-hidden="true" />
-          Bot Telegram (plans Solo et Team)
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Une fois le bot Telegram configuré (Paramètres du projet →
-          Telegram), activez les commandes depuis l&apos;onglet Bot du
-          projet : PostShip appelle l&apos;API{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">
-            setWebhook
-          </code>{" "}
-          de Telegram avec un secret dédié. Le bot ne répond qu&apos;au
-          salon configuré — un message venu d&apos;ailleurs est ignoré.
-          Commandes disponibles :{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">/status</code>,{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">/check</code>,{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">/uptime</code>,{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">/ssl</code>,{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">
-            /silence 1h|4h|24h|off
-          </code>{" "}
-          et{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">/help</code>.
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 id="incidents-deplois-sante" className="scroll-mt-24 text-xl font-semibold tracking-tight">
-          Incidents, déplois, santé
-        </h2>
-        <div className="flex flex-col gap-3">
-          <p className="flex items-start gap-2 text-sm text-muted-foreground">
-            <Siren className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            Incidents liste ce qui est en échec en ce moment et le journal
-            des alertes envoyées.
-          </p>
-          <p className="flex items-start gap-2 text-sm text-muted-foreground">
-            <Rocket className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            Déplois garde l&apos;historique de chaque déclenchement Vercel,
-            Netlify ou Cloudflare Pages, avec le résultat des checks.
-          </p>
-          <p className="flex items-start gap-2 text-sm text-muted-foreground">
-            <HeartPulse className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            Santé regroupe le certificat SSL, les enregistrements DNS,
-            l&apos;expiration du domaine et l&apos;indexation de la page
-            d&apos;accueil.
-          </p>
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 id="scan-de-site" className="scroll-mt-24 text-xl font-semibold tracking-tight">
-          Scan de site
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          En plus de la surveillance continue, un scan ponctuel explore votre
-          sitemap (y compris un sitemapindex) puis suit les liens internes en
-          largeur depuis la page de départ, jusqu&apos;à 500 pages, en
-          respectant les règles Disallow de votre robots.txt. Consomme des
-          tokens achetés séparément — voir{" "}
-          <Link href="/pricing#tokens" className="text-foreground underline underline-offset-2">
-            les tarifs
-          </Link>
-          .
-        </p>
-      </section>
-      </div>
+      {DOC_CATEGORIES.map((category) => (
+        <section key={category.label} className="flex flex-col gap-3">
+          <h2 className="text-xl font-semibold tracking-tight">{category.label}</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {category.slugs.map((slug) => (
+              <Link
+                key={slug}
+                href={`/docs/${slug}`}
+                className="flex flex-col gap-1 rounded-2xl border border-border p-4 transition-colors hover:border-foreground/25 focus-visible:border-foreground/25 focus-visible:outline-none"
+              >
+                <span className="text-sm font-medium">{DOCS[slug].title}</span>
+                <span className="text-xs text-muted-foreground">{DOCS[slug].summary}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
