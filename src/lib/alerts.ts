@@ -81,7 +81,7 @@ const KIND_STYLE: Record<AlertItem["kind"], { color: string; bg: string; label: 
 // instead of the single deterministic sentence used for Discord/Slack/
 // the plain-text fallback — an email is read away from the dashboard, so
 // it has to carry the same detail on its own.
-export function buildFailEmailHtml(
+function buildFailEmailHtml(
   projectId: string,
   projectName: string,
   items: AlertItem[],
@@ -104,32 +104,34 @@ export function buildFailEmailHtml(
       if (i.ttfbMs != null) meta.push(`TTFB ${i.ttfbMs} ms`);
 
       return `
-        <tr>
-          <td style="padding:14px 0;border-bottom:1px solid #21262d;">
-            <table role="presentation" style="width:100%;border-collapse:collapse;">
-              <tr>
-                <td>
-                  <span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${style.bg};color:${style.color};font-size:11px;font-weight:600;">${style.label}</span>
-                </td>
-                <td style="text-align:right;">
-                  <a href="${APP_URL}/app/${projectId}/${i.targetId}" style="color:#58a6ff;font-size:12px;text-decoration:none;">Voir le détail &rarr;</a>
-                </td>
-              </tr>
-            </table>
-            <p style="margin:8px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#e6edf3;word-break:break-all;">${escapeHtml(i.url)}</p>
-            ${detailLines
-              .map(
-                (line) =>
-                  `<p style="margin:4px 0 0;font-size:12px;color:#8b949e;">${escapeHtml(line)}</p>`,
-              )
-              .join("")}
-            ${
-              meta.length > 0
-                ? `<p style="margin:6px 0 0;font-size:11px;color:#484f58;">${escapeHtml(meta.join(" · "))}</p>`
-                : ""
-            }
-          </td>
-        </tr>`;
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">
+          <tr>
+            <td bgcolor="#161b1f" style="background:#161b1f;border:1px solid #21262d;border-left:3px solid ${style.color};border-radius:12px;padding:16px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                <tr>
+                  <td>
+                    <span style="display:inline-block;padding:3px 9px;border-radius:999px;background:${style.bg};color:${style.color};font-size:11px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${style.label}</span>
+                  </td>
+                  <td style="text-align:right;">
+                    <a href="${APP_URL}/app/${projectId}/${i.targetId}" style="color:#58a6ff;font-size:12px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Voir le d&eacute;tail &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:10px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#e6e8eb;word-break:break-all;">${escapeHtml(i.url)}</p>
+              ${detailLines
+                .map(
+                  (line) =>
+                    `<p style="margin:5px 0 0;font-size:12px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(line)}</p>`,
+                )
+                .join("")}
+              ${
+                meta.length > 0
+                  ? `<p style="margin:8px 0 0;font-size:11px;color:#565d66;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(meta.join(" · "))}</p>`
+                  : ""
+              }
+            </td>
+          </tr>
+        </table>`;
     })
     .join("");
 
@@ -146,7 +148,7 @@ export function buildFailEmailHtml(
     preheader: `${projectName} — ${introParts.join(", ")}`,
     title: projectName,
     intro: `${introParts.join(", ")} depuis la dernière vérification.`,
-    bodyHtml: `<table role="presentation" style="width:100%;border-collapse:collapse;">${rows}</table>`,
+    bodyHtml: rows,
   });
 }
 

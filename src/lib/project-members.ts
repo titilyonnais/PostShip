@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
-import { escapeHtml, renderEmailShell } from "@/lib/email-template";
+import { emailButton, renderEmailShell } from "@/lib/email-template";
 
 // Called right after a profile row is created/updated on both signup
 // paths (src/app/auth/callback/route.ts for OAuth/magic-link,
@@ -45,7 +45,7 @@ export async function sendProjectInviteEmail(params: {
       preheader: `${params.inviterEmail} vous a invité sur ${params.projectName}`,
       title: `Invitation — ${params.projectName}`,
       intro: `${params.inviterEmail} vous a ajouté comme collaborateur sur ce projet. Vous recevrez ses alertes et pourrez consulter son état depuis le tableau de bord.`,
-      bodyHtml: `<a href="${actionUrl}" style="display:inline-block;background:#3fb950;color:#0a0c0e;font-size:13px;font-weight:600;text-decoration:none;padding:10px 18px;border-radius:10px;">${escapeHtml(actionLabel)}</a>`,
+      bodyHtml: emailButton(actionUrl, actionLabel),
     }),
   });
 }

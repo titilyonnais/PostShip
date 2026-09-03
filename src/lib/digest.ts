@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/db/service";
-import { escapeHtml, renderEmailShell } from "@/lib/email-template";
+import { emailButton, escapeHtml, renderEmailShell } from "@/lib/email-template";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 
 // F8a (features backlog): a Monday-morning "here's how last week went"
@@ -86,33 +86,38 @@ function buildDigestEmailHtml(
   stats: ProjectDigestStats,
   projectUrl: string,
 ): string {
-  const statRow = (label: string, value: string, color = "#e6edf3") => `
-    <tr>
-      <td style="padding:12px 0;border-bottom:1px solid #21262d;">
-        <table role="presentation" style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#8b949e;">${escapeHtml(label)}</td>
-            <td style="text-align:right;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;font-weight:600;color:${color};">${value}</td>
-          </tr>
-        </table>
-      </td>
-    </tr>`;
+  const statCard = (label: string, value: string, color = "#e6e8eb") => `
+    <td width="50%" valign="top" style="padding:4px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <tr>
+          <td bgcolor="#161b1f" style="background:#161b1f;border:1px solid #21262d;border-radius:12px;padding:14px 16px;">
+            <p style="margin:0 0 4px;font-size:11px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(label)}</p>
+            <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;font-weight:600;color:${color};">${value}</p>
+          </td>
+        </tr>
+      </table>
+    </td>`;
 
-  const rows = [
-    statRow("Disponibilité — 7 jours", formatUptime(stats.uptimePct), uptimeColor(stats.uptimePct)),
-    statRow("Vérifications", String(stats.runs)),
-    statRow("Échecs", String(stats.fails), stats.fails > 0 ? "#f85149" : "#e6edf3"),
+  const cards = [
+    statCard("Disponibilité — 7 j", formatUptime(stats.uptimePct), uptimeColor(stats.uptimePct)),
+    statCard("Vérifications", String(stats.runs)),
+    statCard("Échecs", String(stats.fails), stats.fails > 0 ? "#f85149" : "#e6e8eb"),
     ...(stats.sslDaysRemaining !== null
-      ? [statRow("Certificat SSL", `${stats.sslDaysRemaining} j`, stats.sslDaysRemaining <= 7 ? "#f85149" : "#e6edf3")]
+      ? [statCard("Certificat SSL", `${stats.sslDaysRemaining} j`, stats.sslDaysRemaining <= 7 ? "#f85149" : "#e6e8eb")]
       : []),
-  ].join("");
+  ];
+  // Pair up into 2-column rows — email-safe grid via nested tables.
+  const rows: string[] = [];
+  for (let i = 0; i < cards.length; i += 2) {
+    rows.push(`<tr>${cards[i]}${cards[i + 1] ?? '<td width="50%"></td>'}</tr>`);
+  }
 
   return renderEmailShell({
     preheader: `Résumé hebdomadaire — ${projectName}`,
     title: `${projectName} — résumé de la semaine`,
     intro: "Voici comment votre site s'est comporté ces 7 derniers jours.",
-    bodyHtml: `<table role="presentation" style="width:100%;border-collapse:collapse;">${rows}</table>
-      <p style="margin:20px 0 0;"><a href="${projectUrl}" style="display:inline-block;background:#3fb950;color:#0a0c0e;font-size:13px;font-weight:600;text-decoration:none;padding:9px 16px;border-radius:10px;">Voir le projet</a></p>`,
+    bodyHtml: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows.join("")}</table>
+      <div style="margin-top:20px;">${emailButton(projectUrl, "Voir le projet")}</div>`,
   });
 }
 
