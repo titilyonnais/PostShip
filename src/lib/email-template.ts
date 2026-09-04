@@ -31,7 +31,10 @@
 // Borders are gone throughout: separation comes from flat background
 // steps and whitespace instead (they read as hard outlines once
 // inverted, which is what "le contour dégueulasse" was).
-import { LEGAL } from "@/lib/legal";
+//
+// The footer carries links only — no editor name, no postal address.
+// /mentions-legales holds those, so linking it satisfies the legal
+// obligation without printing a home address into every inbox.
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr";
 const LOGO_URL = `${APP_URL}/apple-icon.png`;
@@ -84,8 +87,11 @@ export function renderEmailShell(opts: {
   title: string;
   intro?: string;
   bodyHtml: string;
-  /** Shown in the footer as "Envoyé à …". Omit for pre-account emails. */
-  recipientEmail?: string;
+  /** Primary action, rendered at the foot of the card. */
+  cta?: { href: string; label: string };
+  /** Adds the "Gérer mes emails" footer link — notification emails only
+   * (alerts, digest), not auth or invite mail. */
+  manageEmails?: boolean;
 }): string {
   return `<!doctype html>
 <html lang="fr">
@@ -138,24 +144,28 @@ export function renderEmailShell(opts: {
                     : ""
                 }
                 ${opts.bodyHtml}
+                ${
+                  opts.cta
+                    ? `<div style="margin-top:24px;">${emailButton(opts.cta.href, opts.cta.label)}</div>`
+                    : ""
+                }
               </td>
             </tr>
             <tr>
               <td style="padding-top:22px;">
                 <p style="margin:0;text-align:center;color:${TEXT_FAINT};font-size:11px;line-height:1.8;font-family:${FONT};">
                   ${
-                    opts.recipientEmail
-                      ? `Envoy&eacute; &agrave; ${escapeHtml(opts.recipientEmail)} &middot; <a href="${APP_URL}/app/account?tab=notifications" style="color:${TEXT_FAINT};text-decoration:underline;">g&eacute;rer mes emails</a><br />`
+                    opts.manageEmails
+                      ? `<a href="${APP_URL}/app/account?tab=notifications" style="color:${TEXT_FAINT};text-decoration:underline;">G&eacute;rer mes emails</a><br />`
                       : ""
                   }
-                  PostShip &mdash; ${escapeHtml(LEGAL.editorName)} &mdash; ${escapeHtml(LEGAL.address)}<br />
-                  <a href="${APP_URL}/terms" style="color:${TEXT_FAINT};text-decoration:underline;">CGU</a>
+                  <a href="${APP_URL}/mentions-legales" style="color:${TEXT_FAINT};text-decoration:underline;">Mentions l&eacute;gales</a>
                   &middot;
                   <a href="${APP_URL}/privacy" style="color:${TEXT_FAINT};text-decoration:underline;">Confidentialit&eacute;</a>
                   &middot;
-                  <a href="${APP_URL}/cgv" style="color:${TEXT_FAINT};text-decoration:underline;">CGV</a>
+                  <a href="${APP_URL}/terms" style="color:${TEXT_FAINT};text-decoration:underline;">CGU</a>
                   &middot;
-                  <a href="mailto:${LEGAL.publicEmailFallback}" style="color:${TEXT_FAINT};text-decoration:underline;">Aide</a>
+                  <a href="${APP_URL}/cgv" style="color:${TEXT_FAINT};text-decoration:underline;">CGV</a>
                 </p>
               </td>
             </tr>

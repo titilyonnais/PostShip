@@ -3,7 +3,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/db/service";
 import {
   AMBER,
-  emailButton,
   escapeHtml,
   GREEN,
   INSET_BG,
@@ -135,9 +134,9 @@ function buildDigestEmailHtml(
     eyebrow: `Du ${periodStart} au ${periodEnd}`,
     title: `${projectName} — résumé de la semaine`,
     intro: "Voici comment votre site s'est comporté ces 7 derniers jours.",
-    bodyHtml: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows.join("")}</table>
-      <div style="margin-top:20px;">${emailButton(projectUrl, "Voir le projet")}</div>`,
-    recipientEmail: to,
+    bodyHtml: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows.join("")}</table>`,
+    cta: { href: projectUrl, label: "Ouvrir le tableau de bord" },
+    manageEmails: true,
   });
 }
 

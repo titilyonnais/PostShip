@@ -1,11 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
-import { buildAlertCopy, describeAlertItem } from "@/lib/alert-copy";
+import { buildAlertCopy, describeAlertItemShort } from "@/lib/alert-copy";
 import { describeMissingCode } from "@/lib/check-labels";
 import {
   escapeHtml,
-  LINK,
   renderEmailShell,
   TEXT,
   TEXT_FAINT,
@@ -128,7 +127,6 @@ const DEFAULT_CHECK_KIND: NonNullable<AlertItem["checkKind"]> = "http";
 // plain-text fallback — an email is read away from the dashboard, so it
 // has to carry the same detail on its own.
 function buildFailEmailHtml(
-  to: string,
   projectId: string,
   projectName: string,
   items: AlertItem[],
@@ -146,7 +144,10 @@ function buildFailEmailHtml(
         detailLines.push(i.mutationSummary ?? "Contenu modifié après déploiement.");
       }
       if (detailLines.length === 0) {
-        detailLines.push(describeAlertItem(i));
+        // Short form, and only when it says something the status label and
+        // the HTTP/TTFB line below don't already carry.
+        const short = describeAlertItemShort(i);
+        if (short) detailLines.push(short);
       }
       const meta: string[] = [];
       if (i.httpStatus != null) meta.push(`HTTP ${i.httpStatus}`);
@@ -168,18 +169,10 @@ function buildFailEmailHtml(
                     </table>
                   </td>
                   <td valign="top">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                      <tr>
-                        <td>
-                          <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:${style.color};margin-right:6px;"></span>
-                          <span style="font-size:12px;color:${TEXT_MUTED};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${style.label}</span>
-                        </td>
-                        <td style="text-align:right;">
-                          <a href="${APP_URL}/app/${projectId}/${i.targetId}" style="color:${LINK};font-size:12px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Voir le d&eacute;tail &rarr;</a>
-                        </td>
-                      </tr>
-                    </table>
-                    <a href="${escapeHtml(i.url)}" style="display:block;margin:8px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:${TEXT};text-decoration:none;word-break:break-all;">${escapeHtml(i.url)}</a>
+                    <p style="margin:0;font-size:12px;color:${TEXT_MUTED};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+                      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:${style.color};margin-right:6px;"></span>${style.label}
+                    </p>
+                    <a href="${APP_URL}/app/${projectId}/${i.targetId}" style="display:block;margin:7px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:${TEXT};text-decoration:none;word-break:break-all;">${escapeHtml(i.url)}</a>
                     ${detailLines
                       .map(
                         (line) =>
@@ -222,7 +215,8 @@ function buildFailEmailHtml(
     title: projectName,
     intro: `${introParts.join(", ")} depuis la dernière vérification.`,
     bodyHtml: rows,
-    recipientEmail: to,
+    cta: { href: `${APP_URL}/app/${projectId}`, label: "Ouvrir le tableau de bord" },
+    manageEmails: true,
   });
 }
 
@@ -240,7 +234,7 @@ async function sendFailEmail(
     to,
     subject: copy.subject,
     text: copy.text,
-    html: buildFailEmailHtml(to, projectId, projectName, items),
+    html: buildFailEmailHtml(projectId, projectName, items),
   });
 }
 

@@ -57,6 +57,41 @@ export function describeAlertItem(item: AlertCopyItem): string {
   return `${item.url} répond ${item.httpStatus ?? "—"}.`;
 }
 
+// Same rules as describeAlertItem, minus the URL — the email card already
+// prints it on its own line directly above, so repeating it there reads as
+// noise ("https://x" followed by "https://x répond 404."). Returns null when
+// the only thing left to say is the HTTP status, which the card's own
+// "HTTP 404 · TTFB 115 ms" line already carries.
+export function describeAlertItemShort(item: AlertCopyItem): string | null {
+  if (item.kind === "recovered") return null;
+
+  if (item.kind === "mutated") {
+    return item.mutationSummary ?? "Contenu modifié après déploiement.";
+  }
+
+  const missing = item.missing ?? [];
+
+  const assetMissing = missing.find((m) => m.startsWith("asset:"));
+  if (assetMissing) {
+    const path = assetMissing.split(":").slice(2).join(":");
+    return `La page répond 200 mais un fichier statique est introuvable : ${path}.`;
+  }
+  if (missing.includes("stripe_js")) {
+    return "Stripe.js n'est plus chargé.";
+  }
+  if (missing.includes("login_form")) {
+    return "Le formulaire de connexion est introuvable.";
+  }
+  if (missing.includes("price_token")) {
+    return "Le prix n'apparaît plus.";
+  }
+  if (missing.some((m) => m === "og:image" || m.includes("reachable"))) {
+    return "La carte sociale n'a plus d'image valide.";
+  }
+
+  return null;
+}
+
 export function buildAlertCopy(
   projectName: string,
   items: AlertCopyItem[],
