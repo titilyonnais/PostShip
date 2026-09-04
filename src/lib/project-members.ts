@@ -43,9 +43,11 @@ export async function sendProjectInviteEmail(params: {
     text: `${params.inviterEmail} vous a ajouté comme collaborateur sur le projet « ${params.projectName} » dans PostShip.\n\n${actionLabel} : ${actionUrl}`,
     html: renderEmailShell({
       preheader: `${params.inviterEmail} vous a invité sur ${params.projectName}`,
+      eyebrow: "Invitation collaborateur",
       title: `Invitation — ${params.projectName}`,
       intro: `${params.inviterEmail} vous a ajouté comme collaborateur sur ce projet. Vous recevrez ses alertes et pourrez consulter son état depuis le tableau de bord.`,
       bodyHtml: emailButton(actionUrl, actionLabel),
+      recipientEmail: params.to,
     }),
   });
 }

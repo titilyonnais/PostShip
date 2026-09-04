@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/db/service";
 import { emailButton, escapeHtml, renderEmailShell } from "@/lib/email-template";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { formatDateTime } from "@/lib/timezone";
 
 // F8a (features backlog): a Monday-morning "here's how last week went"
 // email — one per project, not a multi-project wall of text. Solo/Team
@@ -82,6 +83,7 @@ function uptimeColor(pct: number | null): string {
 }
 
 function buildDigestEmailHtml(
+  to: string,
   projectName: string,
   stats: ProjectDigestStats,
   projectUrl: string,
@@ -90,8 +92,8 @@ function buildDigestEmailHtml(
     <td width="50%" valign="top" style="padding:4px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
         <tr>
-          <td bgcolor="#161b1f" style="background:#161b1f;border:1px solid #21262d;border-radius:12px;padding:14px 16px;">
-            <p style="margin:0 0 4px;font-size:11px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(label)}</p>
+          <td bgcolor="#161b1f" class="bg-stat border-card" style="background-color:#161b1f;border:1px solid #21262d;border-radius:12px;padding:14px 16px;">
+            <p class="fg-muted" style="margin:0 0 4px;font-size:11px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(label)}</p>
             <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;font-weight:600;color:${color};">${value}</p>
           </td>
         </tr>
@@ -112,12 +114,21 @@ function buildDigestEmailHtml(
     rows.push(`<tr>${cards[i]}${cards[i + 1] ?? '<td width="50%"></td>'}</tr>`);
   }
 
+  const periodStart = formatDateTime(new Date(Date.now() - 7 * DAY_MS), null, {
+    day: "numeric",
+    month: "short",
+  });
+  const periodEnd = formatDateTime(new Date(), null, { day: "numeric", month: "short" });
+
   return renderEmailShell({
     preheader: `Résumé hebdomadaire — ${projectName}`,
+    eyebrow: `Du ${periodStart} au ${periodEnd}`,
     title: `${projectName} — résumé de la semaine`,
     intro: "Voici comment votre site s'est comporté ces 7 derniers jours.",
     bodyHtml: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows.join("")}</table>
       <div style="margin-top:20px;">${emailButton(projectUrl, "Voir le projet")}</div>`,
+    recipientEmail: to,
+    footerReason: "Recevoir moins d'emails",
   });
 }
 
@@ -141,7 +152,7 @@ async function sendDigestEmail(
     to,
     subject: `[PostShip] ${projectName} — résumé de la semaine`,
     text: lines.join("\n"),
-    html: buildDigestEmailHtml(projectName, stats, projectUrl),
+    html: buildDigestEmailHtml(to, projectName, stats, projectUrl),
   });
 }
 
