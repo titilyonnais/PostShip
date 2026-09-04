@@ -81,30 +81,34 @@ async function recordAlertEvents(
 // (border-destructive/30, bg-destructive/5 — see
 // src/app/(app)/app/[projectId]/incidents/page.tsx), extended to
 // recovered/mutated for the two kinds that don't have their own
-// dedicated in-app card style.
+// dedicated in-app card style. Pre-blended to SOLID hex (not rgba) —
+// alpha colors are exactly the kind of ambiguous value Gmail's dark-mode
+// contrast heuristic is most likely to "correct"; a flat hex is a value
+// it has less reason to touch, and it also works as a `bgcolor`
+// attribute fallback, which rgba cannot.
 const KIND_STYLE: Record<
   AlertItem["kind"],
   { color: string; cardBg: string; cardBorder: string; iconBg: string; label: string }
 > = {
   fail: {
     color: "#f85149",
-    cardBg: "rgba(248,81,73,0.05)",
-    cardBorder: "rgba(248,81,73,0.3)",
-    iconBg: "rgba(248,81,73,0.1)",
+    cardBg: "#1c161a",
+    cardBorder: "#562626",
+    iconBg: "#27191c",
     label: "En échec",
   },
   recovered: {
     color: "#3fb950",
-    cardBg: "rgba(63,185,80,0.05)",
-    cardBorder: "rgba(63,185,80,0.3)",
-    iconBg: "rgba(63,185,80,0.1)",
+    cardBg: "#121b1a",
+    cardBorder: "#1e4528",
+    iconBg: "#15241d",
     label: "Rétabli",
   },
   mutated: {
     color: "#d29922",
-    cardBg: "rgba(210,153,34,0.05)",
-    cardBorder: "rgba(210,153,34,0.3)",
-    iconBg: "rgba(210,153,34,0.1)",
+    cardBg: "#1a1a18",
+    cardBorder: "#4a3b1a",
+    iconBg: "#232018",
     label: "Contenu modifié",
   },
 };
@@ -152,13 +156,13 @@ function buildFailEmailHtml(
       return `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">
           <tr>
-            <td bgcolor="#101317" class="item-${i.kind}" style="background-color:${style.cardBg};border:1px solid ${style.cardBorder};border-radius:20px;padding:16px;">
+            <td bgcolor="${style.cardBg}" class="item-${i.kind}" style="background-color:${style.cardBg} !important;border:1px solid ${style.cardBorder};border-radius:20px;padding:16px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                 <tr>
                   <td width="44" valign="top">
                     <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                       <tr>
-                        <td width="32" height="32" bgcolor="#101317" class="icon-${i.kind}" style="background-color:${style.iconBg};border-radius:16px;text-align:center;vertical-align:middle;">
+                        <td width="32" height="32" bgcolor="${style.iconBg}" class="icon-${i.kind}" style="background-color:${style.iconBg} !important;border-radius:16px;text-align:center;vertical-align:middle;">
                           <img src="${iconUrl}" width="18" height="18" alt="" style="display:inline-block;vertical-align:middle;" />
                         </td>
                       </tr>
@@ -168,11 +172,11 @@ function buildFailEmailHtml(
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                       <tr>
                         <td>
-                          <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:${style.color};margin-right:6px;"></span>
-                          <span class="fg-muted" style="font-size:12px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${style.label}</span>
+                          <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:${style.color} !important;margin-right:6px;"></span>
+                          <span class="fg-muted" style="font-size:12px;color:#8b949e !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${style.label}</span>
                         </td>
                         <td style="text-align:right;">
-                          <a href="${APP_URL}/app/${projectId}/${i.targetId}" class="link" style="color:#58a6ff;font-size:12px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Voir le d&eacute;tail &rarr;</a>
+                          <a href="${APP_URL}/app/${projectId}/${i.targetId}" class="link" style="color:#58a6ff !important;font-size:12px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Voir le d&eacute;tail &rarr;</a>
                         </td>
                       </tr>
                     </table>
@@ -180,12 +184,12 @@ function buildFailEmailHtml(
                     ${detailLines
                       .map(
                         (line) =>
-                          `<p class="fg-muted" style="margin:5px 0 0;font-size:12px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(line)}</p>`,
+                          `<p class="fg-muted" style="margin:5px 0 0;font-size:12px;color:#8b949e !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(line)}</p>`,
                       )
                       .join("")}
                     ${
                       meta.length > 0
-                        ? `<p class="fg-footnote" style="margin:8px 0 0;font-size:11px;color:#565d66;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(meta.join(" · "))}</p>`
+                        ? `<p class="fg-footnote" style="margin:8px 0 0;font-size:11px;color:#565d66 !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(meta.join(" · "))}</p>`
                         : ""
                     }
                   </td>

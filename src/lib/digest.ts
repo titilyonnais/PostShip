@@ -92,9 +92,9 @@ function buildDigestEmailHtml(
     <td width="50%" valign="top" style="padding:4px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
         <tr>
-          <td bgcolor="#161b1f" class="bg-stat border-card" style="background-color:#161b1f;border:1px solid #21262d;border-radius:12px;padding:14px 16px;">
-            <p class="fg-muted" style="margin:0 0 4px;font-size:11px;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(label)}</p>
-            <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;font-weight:600;color:${color};">${value}</p>
+          <td bgcolor="#161b1f" class="bg-stat border-card" style="background-color:#161b1f !important;border:1px solid #21262d;border-radius:12px;padding:14px 16px;">
+            <p class="fg-muted" style="margin:0 0 4px;font-size:11px;color:#8b949e !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(label)}</p>
+            <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;font-weight:600;color:${color} !important;">${value}</p>
           </td>
         </tr>
       </table>

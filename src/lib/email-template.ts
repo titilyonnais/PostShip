@@ -1,18 +1,23 @@
-// Feedback fix (round 3): round 2's bulletproof-table approach still
-// rendered as a plain white card with dark text in real Gmail apps (iOS
-// screenshots from the user) — Gmail's own automatic "dark theme"
-// conversion inspects emails that don't unambiguously opt out and can
-// rewrite backgrounds it doesn't recognize, even when they're already
-// painted via bgcolor/style on tables. The one thing that reliably
-// survives that pass, per every major bulletproof-dark-email writeup, is
-// a real <style> block in <head> using !important on classed selectors —
-// Gmail's injected dark-mode CSS has lower priority than an author
-// stylesheet's !important rule. So every color in this file is now
-// declared BOTH inline (for clients that strip <style>, e.g. old
-// Outlook) AND as a class hooked into that stylesheet (to beat Gmail).
-// We never offer a light variant — the product itself is dark-only
-// (CLAUDE.md), so colors are forced regardless of the client's
-// prefers-color-scheme instead of branching on it.
+// Feedback fix (round 4): round 3's !important class strategy still
+// rendered light in the real Gmail iOS APP (screenshots) — and crucially
+// the TEXT stayed dark too, not just the background. That's the tell:
+// the Gmail mobile app (unlike Gmail webmail) does not reliably parse a
+// <style> block placed in <head> at all, so none of round 3's class
+// rules ever reached the DOM — only bgcolor/inline style survive there,
+// and Gmail's own auto-dark pass still overrides those. This round:
+//   - every color-bearing inline style gets its own !important (not just
+//     the <head> stylesheet) — the one thing left to try against raw
+//     inline-style overriding
+//   - the same stylesheet is ALSO duplicated as a <style> block placed
+//     right inside <body>, since some Gmail app builds keep body content
+//     largely as-is while stripping <head> aggressively
+//   - rgba() tints (ambiguous alpha values Gmail's contrast heuristic is
+//     more likely to "correct") are gone from the shared shell — kind
+//     tints for alert cards move to solid hex in alerts.ts
+// None of this is a Resend/Supabase problem — neither service touches
+// the HTML bytes, this is entirely how Gmail's own app renders whatever
+// arrives. If the Gmail app still relights after this, that's the
+// documented ceiling of what HTML/CSS can force there today.
 import { LEGAL } from "@/lib/legal";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr";
@@ -43,15 +48,16 @@ export function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-// Shared <style> block, injected once per email — the forced-dark
-// !important layer described above. Kept as a standalone export so the
-// 4 hand-written Supabase-native templates (pushed via the Management
-// API, not through renderEmailShell) can inline the exact same rules.
+// Shared <style> block — printed TWICE per email (head + body, see
+// renderEmailShell) since we can't know which one a given Gmail app
+// build will actually parse. Kept as a standalone export so the 3
+// hand-written Supabase-native templates (pushed via the Management
+// API, not through renderEmailShell) inline the exact same rules.
 export const EMAIL_DARK_STYLE = `:root { color-scheme: dark; supported-color-schemes: dark; }
     body, .bg-page { background-color:${BG} !important; }
     .bg-card { background-color:${CARD} !important; }
     .bg-stat { background-color:${STAT_CARD} !important; }
-    .fg-primary, h1, h2, p, span, td { color:${FG}; }
+    .fg-primary, h1, h2 { color:${FG} !important; }
     .fg-muted { color:${MUTED} !important; }
     .fg-footnote { color:${FOOTNOTE} !important; }
     .border-card { border-color:${BORDER} !important; }
@@ -62,6 +68,9 @@ export const EMAIL_DARK_STYLE = `:root { color-scheme: dark; supported-color-sch
       body, .bg-page { background-color:${BG} !important; }
       .bg-card { background-color:${CARD} !important; }
       .bg-stat { background-color:${STAT_CARD} !important; }
+      .fg-primary, h1, h2 { color:${FG} !important; }
+      .fg-muted { color:${MUTED} !important; }
+      .fg-footnote { color:${FOOTNOTE} !important; }
     }`;
 
 // A real (light, dark-text) button matching buttonVariants({variant:
@@ -70,8 +79,8 @@ export const EMAIL_DARK_STYLE = `:root { color-scheme: dark; supported-color-sch
 export function emailButton(href: string, label: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
   <tr>
-    <td bgcolor="${PRIMARY_BG}" class="btn-bg" style="background-color:${PRIMARY_BG};border-radius:16px;">
-      <a href="${href}" class="btn-fg" style="display:inline-block;padding:12px 24px;color:${PRIMARY_FG};font-size:13px;font-weight:600;text-decoration:none;font-family:${FONT};">${escapeHtml(label)}</a>
+    <td bgcolor="${PRIMARY_BG}" class="btn-bg" style="background-color:${PRIMARY_BG} !important;border-radius:16px;">
+      <a href="${href}" class="btn-fg" style="display:inline-block;padding:12px 24px;color:${PRIMARY_FG} !important;font-size:13px;font-weight:600;text-decoration:none;font-family:${FONT};">${escapeHtml(label)}</a>
     </td>
   </tr>
 </table>`;
@@ -102,15 +111,16 @@ export function renderEmailShell(opts: {
     <title>${escapeHtml(opts.title)}</title>
     <style>${EMAIL_DARK_STYLE}</style>
   </head>
-  <body class="bg-page" style="margin:0;padding:0;background-color:${BG};">
+  <body class="bg-page" style="margin:0;padding:0;background-color:${BG} !important;">
+    <style>${EMAIL_DARK_STYLE}</style>
     ${
       opts.preheader
         ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(opts.preheader)}</div>`
         : ""
     }
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BG}" class="bg-page" style="background-color:${BG};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BG}" class="bg-page" style="background-color:${BG} !important;">
       <tr>
-        <td align="center" style="padding:44px 16px;">
+        <td align="center" style="padding:44px 16px;background-color:${BG} !important;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;border-collapse:collapse;">
             <tr>
               <td style="padding-bottom:28px;">
@@ -126,10 +136,10 @@ export function renderEmailShell(opts: {
                       />
                     </td>
                     <td style="padding-left:12px;" valign="middle">
-                      <span class="fg-primary" style="color:${FG};font-size:17px;font-weight:600;letter-spacing:-0.01em;font-family:${FONT};">PostShip</span>
+                      <span class="fg-primary" style="color:${FG} !important;font-size:17px;font-weight:600;letter-spacing:-0.01em;font-family:${FONT};">PostShip</span>
                       ${
                         opts.eyebrow
-                          ? `<br /><span class="fg-muted" style="color:${MUTED};font-size:11px;font-family:${MONO};letter-spacing:0.02em;">${escapeHtml(opts.eyebrow)}</span>`
+                          ? `<br /><span class="fg-muted" style="color:${MUTED} !important;font-size:11px;font-family:${MONO};letter-spacing:0.02em;">${escapeHtml(opts.eyebrow)}</span>`
                           : ""
                       }
                     </td>
@@ -138,11 +148,11 @@ export function renderEmailShell(opts: {
               </td>
             </tr>
             <tr>
-              <td bgcolor="${CARD}" class="bg-card border-card" style="background-color:${CARD};border:1px solid ${BORDER};border-top:3px solid ${BRAND_GREEN};border-radius:24px;padding:32px;">
-                <h1 class="fg-primary" style="margin:0 0 10px;color:${FG};font-size:19px;font-weight:600;font-family:${FONT};">${escapeHtml(opts.title)}</h1>
+              <td bgcolor="${CARD}" class="bg-card border-card" style="background-color:${CARD} !important;border:1px solid ${BORDER};border-top:3px solid ${BRAND_GREEN};border-radius:24px;padding:32px;">
+                <h1 class="fg-primary" style="margin:0 0 10px;color:${FG} !important;font-size:19px;font-weight:600;font-family:${FONT};">${escapeHtml(opts.title)}</h1>
                 ${
                   opts.intro
-                    ? `<p class="fg-muted" style="margin:0 0 24px;color:${MUTED};font-size:13px;line-height:1.6;font-family:${FONT};">${escapeHtml(opts.intro)}</p>`
+                    ? `<p class="fg-muted" style="margin:0 0 24px;color:${MUTED} !important;font-size:13px;line-height:1.6;font-family:${FONT};">${escapeHtml(opts.intro)}</p>`
                     : ""
                 }
                 ${opts.bodyHtml}
@@ -150,27 +160,27 @@ export function renderEmailShell(opts: {
             </tr>
             <tr>
               <td style="padding-top:24px;text-align:center;">
-                <a href="${APP_URL}/app" class="link" style="color:${MUTED};font-size:12px;text-decoration:none;font-family:${FONT};">Ouvrir PostShip</a>
+                <a href="${APP_URL}/app" class="link" style="color:${MUTED} !important;font-size:12px;text-decoration:none;font-family:${FONT};">Ouvrir PostShip</a>
                 <span style="color:${BORDER};"> &middot; </span>
-                <a href="${APP_URL}/app/account?tab=notifications" class="link" style="color:${MUTED};font-size:12px;text-decoration:none;font-family:${FONT};">${escapeHtml(opts.footerReason ?? "Gérer les notifications")}</a>
+                <a href="${APP_URL}/app/account?tab=notifications" class="link" style="color:${MUTED} !important;font-size:12px;text-decoration:none;font-family:${FONT};">${escapeHtml(opts.footerReason ?? "Gérer les notifications")}</a>
               </td>
             </tr>
             <tr>
               <td style="padding-top:18px;">
-                <p class="fg-footnote" style="margin:0;text-align:center;color:${FOOTNOTE};font-size:11px;line-height:1.7;font-family:${FONT};">
+                <p class="fg-footnote" style="margin:0;text-align:center;color:${FOOTNOTE} !important;font-size:11px;line-height:1.7;font-family:${FONT};">
                   Surveillance post-d&eacute;ploiement pour sites et SaaS indie.<br />
                   ${
                     opts.recipientEmail
-                      ? `Envoy&eacute; &agrave; ${escapeHtml(opts.recipientEmail)} &mdash; <a href="${APP_URL}/app/account?tab=notifications" class="link" style="color:${FOOTNOTE};text-decoration:underline;">g&eacute;rer mes emails</a><br />`
+                      ? `Envoy&eacute; &agrave; ${escapeHtml(opts.recipientEmail)} &mdash; <a href="${APP_URL}/app/account?tab=notifications" class="link" style="color:${FOOTNOTE} !important;text-decoration:underline;">g&eacute;rer mes emails</a><br />`
                       : ""
                   }
                   PostShip &mdash; ${escapeHtml(LEGAL.editorName)} &mdash; ${escapeHtml(LEGAL.address)}<br />
-                  Besoin d'aide&nbsp;? <a href="mailto:${LEGAL.publicEmailFallback}" class="link" style="color:${FOOTNOTE};text-decoration:underline;">${LEGAL.publicEmailFallback}</a><br />
-                  <a href="${APP_URL}/terms" class="link" style="color:${FOOTNOTE};text-decoration:underline;">CGU</a>
+                  Besoin d'aide&nbsp;? <a href="mailto:${LEGAL.publicEmailFallback}" class="link" style="color:${FOOTNOTE} !important;text-decoration:underline;">${LEGAL.publicEmailFallback}</a><br />
+                  <a href="${APP_URL}/terms" class="link" style="color:${FOOTNOTE} !important;text-decoration:underline;">CGU</a>
                   &middot;
-                  <a href="${APP_URL}/privacy" class="link" style="color:${FOOTNOTE};text-decoration:underline;">Confidentialit&eacute;</a>
+                  <a href="${APP_URL}/privacy" class="link" style="color:${FOOTNOTE} !important;text-decoration:underline;">Confidentialit&eacute;</a>
                   &middot;
-                  <a href="${APP_URL}/cgv" class="link" style="color:${FOOTNOTE};text-decoration:underline;">CGV</a>
+                  <a href="${APP_URL}/cgv" class="link" style="color:${FOOTNOTE} !important;text-decoration:underline;">CGV</a>
                 </p>
               </td>
             </tr>
