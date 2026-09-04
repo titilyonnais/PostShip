@@ -1,7 +1,17 @@
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/db/service";
-import { emailButton, escapeHtml, renderEmailShell } from "@/lib/email-template";
+import {
+  AMBER,
+  emailButton,
+  escapeHtml,
+  GREEN,
+  INSET_BG,
+  RED,
+  renderEmailShell,
+  TEXT,
+  TEXT_MUTED,
+} from "@/lib/email-template";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { formatDateTime } from "@/lib/timezone";
 
@@ -76,10 +86,10 @@ function formatUptime(pct: number | null): string {
 // Same red/amber/green thresholds as the app's own UptimeStatCard
 // (src/app/(app)/app/[projectId]/page.tsx) — 99% and 95%.
 function uptimeColor(pct: number | null): string {
-  if (pct === null) return "#8b949e";
-  if (pct >= 99) return "#3fb950";
-  if (pct >= 95) return "#d29922";
-  return "#f85149";
+  if (pct === null) return TEXT_MUTED;
+  if (pct >= 99) return GREEN;
+  if (pct >= 95) return AMBER;
+  return RED;
 }
 
 function buildDigestEmailHtml(
@@ -88,13 +98,13 @@ function buildDigestEmailHtml(
   stats: ProjectDigestStats,
   projectUrl: string,
 ): string {
-  const statCard = (label: string, value: string, color = "#e6e8eb") => `
+  const statCard = (label: string, value: string, color = TEXT) => `
     <td width="50%" valign="top" style="padding:4px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
         <tr>
-          <td bgcolor="#161b1f" class="bg-stat border-card" style="background-color:#161b1f !important;border:1px solid #21262d;border-radius:12px;padding:14px 16px;">
-            <p class="fg-muted" style="margin:0 0 4px;font-size:11px;color:#8b949e !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(label)}</p>
-            <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;font-weight:600;color:${color} !important;">${value}</p>
+          <td bgcolor="${INSET_BG}" style="background-color:${INSET_BG};border-radius:12px;padding:14px 16px;">
+            <p style="margin:0 0 4px;font-size:11px;color:${TEXT_MUTED};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(label)}</p>
+            <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;font-weight:600;color:${color};">${value}</p>
           </td>
         </tr>
       </table>
@@ -103,9 +113,9 @@ function buildDigestEmailHtml(
   const cards = [
     statCard("Disponibilité — 7 j", formatUptime(stats.uptimePct), uptimeColor(stats.uptimePct)),
     statCard("Vérifications", String(stats.runs)),
-    statCard("Échecs", String(stats.fails), stats.fails > 0 ? "#f85149" : "#e6e8eb"),
+    statCard("Échecs", String(stats.fails), stats.fails > 0 ? RED : TEXT),
     ...(stats.sslDaysRemaining !== null
-      ? [statCard("Certificat SSL", `${stats.sslDaysRemaining} j`, stats.sslDaysRemaining <= 7 ? "#f85149" : "#e6e8eb")]
+      ? [statCard("Certificat SSL", `${stats.sslDaysRemaining} j`, stats.sslDaysRemaining <= 7 ? RED : TEXT)]
       : []),
   ];
   // Pair up into 2-column rows — email-safe grid via nested tables.
@@ -128,7 +138,6 @@ function buildDigestEmailHtml(
     bodyHtml: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows.join("")}</table>
       <div style="margin-top:20px;">${emailButton(projectUrl, "Voir le projet")}</div>`,
     recipientEmail: to,
-    footerReason: "Recevoir moins d'emails",
   });
 }
 

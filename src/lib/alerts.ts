@@ -3,7 +3,14 @@ import { Resend } from "resend";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import { buildAlertCopy, describeAlertItem } from "@/lib/alert-copy";
 import { describeMissingCode } from "@/lib/check-labels";
-import { escapeHtml, renderEmailShell } from "@/lib/email-template";
+import {
+  escapeHtml,
+  LINK,
+  renderEmailShell,
+  TEXT,
+  TEXT_FAINT,
+  TEXT_MUTED,
+} from "@/lib/email-template";
 import { formatDateTime } from "@/lib/timezone";
 import { isInQuietHours } from "@/lib/quiet-hours";
 import { sendOutboundWebhook } from "@/lib/outbound-webhook";
@@ -77,38 +84,35 @@ async function recordAlertEvents(
   );
 }
 
-// Exact tint/border ratios as the app's own incident card
-// (border-destructive/30, bg-destructive/5 — see
-// src/app/(app)/app/[projectId]/incidents/page.tsx), extended to
-// recovered/mutated for the two kinds that don't have their own
-// dedicated in-app card style. Pre-blended to SOLID hex (not rgba) —
-// alpha colors are exactly the kind of ambiguous value Gmail's dark-mode
-// contrast heuristic is most likely to "correct"; a flat hex is a value
-// it has less reason to touch, and it also works as a `bgcolor`
-// attribute fallback, which rgba cannot.
+// Authored light, tuned so Gmail's inversion lands on the app's own
+// incident-card tints (bg-destructive/5 over a dark card — see
+// src/app/(app)/app/[projectId]/incidents/page.tsx). See the long
+// comment in src/lib/email-template.ts for why light-authored is the
+// only thing that renders dark in the Gmail app.
+//
+// No borders: an outline that reads as subtle on white becomes a hard
+// bright line once inverted, which is what looked so bad. Separation is
+// the flat tint step alone.
 const KIND_STYLE: Record<
   AlertItem["kind"],
-  { color: string; cardBg: string; cardBorder: string; iconBg: string; label: string }
+  { color: string; cardBg: string; iconBg: string; label: string }
 > = {
   fail: {
     color: "#f85149",
-    cardBg: "#1c161a",
-    cardBorder: "#562626",
-    iconBg: "#27191c",
+    cardBg: "#fdf0ef",
+    iconBg: "#fbe0de",
     label: "En échec",
   },
   recovered: {
     color: "#3fb950",
-    cardBg: "#121b1a",
-    cardBorder: "#1e4528",
-    iconBg: "#15241d",
+    cardBg: "#eff9f1",
+    iconBg: "#dcf2e1",
     label: "Rétabli",
   },
   mutated: {
     color: "#d29922",
-    cardBg: "#1a1a18",
-    cardBorder: "#4a3b1a",
-    iconBg: "#232018",
+    cardBg: "#fdf7ea",
+    iconBg: "#faedd0",
     label: "Contenu modifié",
   },
 };
@@ -148,21 +152,16 @@ function buildFailEmailHtml(
       if (i.httpStatus != null) meta.push(`HTTP ${i.httpStatus}`);
       if (i.ttfbMs != null) meta.push(`TTFB ${i.ttfbMs} ms`);
 
-      // Item cards get their own kind-scoped classes (declared once below,
-      // ahead of the rows) instead of relying only on inline style — the
-      // rgba tint is what Gmail's dark-mode pass is most likely to touch,
-      // so it needs the same !important defense as the shell's own colors
-      // (see email-template.ts's EMAIL_DARK_STYLE for why).
       return `
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:10px;">
           <tr>
-            <td bgcolor="${style.cardBg}" class="item-${i.kind}" style="background-color:${style.cardBg} !important;border:1px solid ${style.cardBorder};border-radius:20px;padding:16px;">
+            <td bgcolor="${style.cardBg}" style="background-color:${style.cardBg};border-radius:16px;padding:16px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                 <tr>
                   <td width="44" valign="top">
                     <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                       <tr>
-                        <td width="32" height="32" bgcolor="${style.iconBg}" class="icon-${i.kind}" style="background-color:${style.iconBg} !important;border-radius:16px;text-align:center;vertical-align:middle;">
+                        <td width="32" height="32" bgcolor="${style.iconBg}" style="background-color:${style.iconBg};border-radius:16px;text-align:center;vertical-align:middle;">
                           <img src="${iconUrl}" width="18" height="18" alt="" style="display:inline-block;vertical-align:middle;" />
                         </td>
                       </tr>
@@ -172,24 +171,24 @@ function buildFailEmailHtml(
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                       <tr>
                         <td>
-                          <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:${style.color} !important;margin-right:6px;"></span>
-                          <span class="fg-muted" style="font-size:12px;color:#8b949e !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${style.label}</span>
+                          <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:${style.color};margin-right:6px;"></span>
+                          <span style="font-size:12px;color:${TEXT_MUTED};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${style.label}</span>
                         </td>
                         <td style="text-align:right;">
-                          <a href="${APP_URL}/app/${projectId}/${i.targetId}" class="link" style="color:#58a6ff !important;font-size:12px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Voir le d&eacute;tail &rarr;</a>
+                          <a href="${APP_URL}/app/${projectId}/${i.targetId}" style="color:${LINK};font-size:12px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Voir le d&eacute;tail &rarr;</a>
                         </td>
                       </tr>
                     </table>
-                    <a href="${escapeHtml(i.url)}" class="fg-primary" style="display:block;margin:8px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#e6e8eb !important;text-decoration:none !important;word-break:break-all;">${escapeHtml(i.url)}</a>
+                    <a href="${escapeHtml(i.url)}" style="display:block;margin:8px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:${TEXT};text-decoration:none;word-break:break-all;">${escapeHtml(i.url)}</a>
                     ${detailLines
                       .map(
                         (line) =>
-                          `<p class="fg-muted" style="margin:5px 0 0;font-size:12px;color:#8b949e !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(line)}</p>`,
+                          `<p style="margin:5px 0 0;font-size:12px;color:${TEXT_MUTED};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(line)}</p>`,
                       )
                       .join("")}
                     ${
                       meta.length > 0
-                        ? `<p class="fg-footnote" style="margin:8px 0 0;font-size:11px;color:#565d66 !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${escapeHtml(meta.join(" · "))}</p>`
+                        ? `<p style="margin:8px 0 0;font-size:11px;color:${TEXT_FAINT};font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">${escapeHtml(meta.join(" · "))}</p>`
                         : ""
                     }
                   </td>
@@ -210,18 +209,6 @@ function buildFailEmailHtml(
     nMutated > 0 ? `${nMutated} modifié(s)` : null,
   ].filter(Boolean);
 
-  // Kind-scoped color classes, !important-forced same as the shell's own
-  // — see the comment on the row builder above. Declared inline (not in
-  // the shared EMAIL_DARK_STYLE) since only alert emails have "kind" cards.
-  const kindStyleBlock = `<style>
-    .item-fail { background-color:${KIND_STYLE.fail.cardBg} !important; }
-    .item-recovered { background-color:${KIND_STYLE.recovered.cardBg} !important; }
-    .item-mutated { background-color:${KIND_STYLE.mutated.cardBg} !important; }
-    .icon-fail { background-color:${KIND_STYLE.fail.iconBg} !important; }
-    .icon-recovered { background-color:${KIND_STYLE.recovered.iconBg} !important; }
-    .icon-mutated { background-color:${KIND_STYLE.mutated.iconBg} !important; }
-  </style>`;
-
   const checkedAt = formatDateTime(new Date(), null, {
     day: "numeric",
     month: "short",
@@ -234,7 +221,7 @@ function buildFailEmailHtml(
     eyebrow: `Vérifié le ${checkedAt}`,
     title: projectName,
     intro: `${introParts.join(", ")} depuis la dernière vérification.`,
-    bodyHtml: `${kindStyleBlock}${rows}`,
+    bodyHtml: rows,
     recipientEmail: to,
   });
 }
