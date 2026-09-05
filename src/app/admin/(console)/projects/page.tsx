@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Cell, Panel, Row, Table, Tag } from "@/components/admin/console-ui";
 import { getAdminProjects } from "@/lib/admin";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -22,7 +23,12 @@ export default async function ConsoleProjects() {
           {projects.map((p) => (
             <Row key={p.id}>
               <Cell>
-                <span className="text-neutral-200">{p.name}</span>
+                <Link
+                  href={`/admin/projects/${p.id}`}
+                  className="text-neutral-200 underline-offset-2 hover:underline"
+                >
+                  {p.name}
+                </Link>
                 <span className="block text-[0.65rem] break-all text-neutral-600">
                   {p.base_url ?? "—"}
                 </span>

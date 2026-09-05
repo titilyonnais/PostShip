@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MetricChart } from "@/components/admin/metric-chart";
 import { Metric, Panel, Row, Cell, Table, Tag } from "@/components/admin/console-ui";
-import { getAdminOverview } from "@/lib/admin";
+import { getAdminOverview, getStripeSnapshot } from "@/lib/admin";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 
 export const metadata = { title: "Vue d'ensemble" };
@@ -19,7 +19,11 @@ export default async function ConsoleOverview({
     ? Number(range)
     : 30;
 
-  const overview = await getAdminOverview(days);
+  const [overview, stripe] = await Promise.all([
+    getAdminOverview(days),
+    getStripeSnapshot(),
+  ]);
+  const pastDue = stripe?.pastDueSubscriptions ?? 0;
   if (!overview) {
     return (
       <p className="font-mono text-xs text-[#f85149]">
@@ -89,6 +93,12 @@ export default async function ConsoleOverview({
           value={overview.checks_24h.total.toLocaleString("fr-FR")}
           hint={`${failRate.toFixed(1)}% en échec`}
           tone={failRate > 20 ? "bad" : failRate > 5 ? "warn" : "good"}
+        />
+        <Metric
+          label="Abonnements impayés"
+          value={String(pastDue)}
+          tone={pastDue > 0 ? "bad" : "good"}
+          hint="Stripe past_due / unpaid"
         />
         <Metric
           label="Incidents ouverts"

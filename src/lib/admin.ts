@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/db/service";
 import { getStripe } from "@/lib/stripe";
+import { assessRisk } from "@/lib/admin-risk";
 
 // Access is an env allowlist, not a column: a database flag needs a write
 // path, and any write path to "is admin" is a privilege-escalation
@@ -182,6 +183,8 @@ export type AdminUserRow = {
   projects: number;
   targets: number;
   last_seen_at: string | null;
+  /** Partial: database signals plus past_due, no Stripe round-trip. */
+  riskScore?: number;
 };
 
 // Deliberately no impersonation anywhere in this console: "log in as this
@@ -189,14 +192,57 @@ export type AdminUserRow = {
 // have, and everything the support case actually needs — plan, quota,
 // project state, last activity — is on this row already.
 export async function getAdminUsers(limit = 200): Promise<AdminUserRow[]> {
-  const { data, error } = await createServiceClient().rpc("admin_users", {
-    p_limit: limit,
-  });
+  const supabase = createServiceClient();
+
+  const [{ data, error }, { data: signals }] = await Promise.all([
+    supabase.rpc("admin_users", { p_limit: limit }),
+    supabase.rpc("admin_user_risk_signals"),
+  ]);
+
   if (error) {
     console.error("Échec admin_users", error.message);
     return [];
   }
-  return (data ?? []) as AdminUserRow[];
+
+  // Only the signals that live in our own database. The Stripe-derived
+  // ones — disputes, failed invoices, past due — would cost one API round
+  // trip per row, which is why this list had no risk column at all. It
+  // flags who is worth opening; the detail page does the full score.
+  const byUser = new Map(
+    ((signals ?? []) as {
+      user_id: string;
+      failed_logins_24h: number;
+      accounts_sharing_customer: number;
+      tokens_purchased: boolean;
+      project_count: number;
+    }[]).map((row) => [row.user_id, row]),
+  );
+
+  return ((data ?? []) as AdminUserRow[]).map((user) => {
+    const signal = byUser.get(user.id);
+    const risk = signal
+      ? assessRisk({
+          hasDispute: false,
+          pastDueDays: 0,
+          failedInvoices30d: 0,
+          failedLogins24h: Number(signal.failed_logins_24h),
+          accountsSharingCustomer: Number(signal.accounts_sharing_customer),
+          tokensPurchased: signal.tokens_purchased,
+          projectCount: Number(signal.project_count),
+        })
+      : null;
+
+    // past_due on the profile is free and materially changes the picture,
+    // so it is folded in without calling Stripe.
+    const pastDue =
+      user.stripe_subscription_status === "past_due" ||
+      user.stripe_subscription_status === "unpaid";
+
+    return {
+      ...user,
+      riskScore: (risk?.score ?? 0) + (pastDue ? 25 : 0),
+    };
+  });
 }
 
 export type AdminProjectRow = {
@@ -239,4 +285,74 @@ export async function getAuditLog(limit = 150): Promise<AuditEntry[]> {
     .order("created_at", { ascending: false })
     .limit(limit);
   return (data ?? []) as AuditEntry[];
+}
+
+export type OutstandingInvoice = {
+  id: string;
+  customerId: string | null;
+  customerEmail: string | null;
+  amount: number;
+  currency: string;
+  created: number;
+  ageDays: number;
+  nextAttempt: number | null;
+  attemptCount: number;
+  hostedUrl: string | null;
+};
+
+// Money that was billed and hasn't arrived. Stripe knows the invoices;
+// only we can put a customer email next to them, which is what turns a
+// list of cus_… into something an operator can act on.
+export async function getOutstandingInvoices(): Promise<OutstandingInvoice[]> {
+  if (!process.env.STRIPE_SECRET_KEY) return [];
+
+  try {
+    const stripe = getStripe();
+    const open = await stripe.invoices.list({ status: "open", limit: 50 });
+    if (open.data.length === 0) return [];
+
+    const customerIds = [
+      ...new Set(
+        open.data
+          .map((i) => (typeof i.customer === "string" ? i.customer : (i.customer?.id ?? null)))
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+
+    const { data: profiles } = await createServiceClient()
+      .from("profiles")
+      .select("email, stripe_customer_id")
+      .in("stripe_customer_id", customerIds);
+
+    const emailByCustomer = new Map(
+      (profiles ?? []).map((p) => [p.stripe_customer_id, p.email]),
+    );
+
+    const now = Date.now();
+    return open.data
+      .map((invoice) => {
+        const customerId =
+          typeof invoice.customer === "string"
+            ? invoice.customer
+            : (invoice.customer?.id ?? null);
+        return {
+          id: invoice.id ?? "",
+          customerId,
+          customerEmail: customerId ? (emailByCustomer.get(customerId) ?? null) : null,
+          amount: invoice.amount_due,
+          currency: invoice.currency,
+          created: invoice.created,
+          ageDays: Math.floor((now - invoice.created * 1000) / (24 * 60 * 60 * 1000)),
+          nextAttempt: invoice.next_payment_attempt ?? null,
+          attemptCount: invoice.attempt_count ?? 0,
+          hostedUrl: invoice.hosted_invoice_url ?? null,
+        };
+      })
+      // Oldest first: the one that has been unpaid longest is the one
+      // closest to being written off.
+      .sort((a, b) => a.created - b.created);
+  } catch (err) {
+    console.error("Échec lecture des impayés", err);
+    return [];
+  }
 }

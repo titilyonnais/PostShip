@@ -1,13 +1,17 @@
 import { MetricChart } from "@/components/admin/metric-chart";
 import { Cell, Metric, Panel, Row, Table } from "@/components/admin/console-ui";
-import { getStripeSnapshot } from "@/lib/admin";
+import { getOutstandingInvoices, getStripeSnapshot } from "@/lib/admin";
 import { formatAmount } from "@/lib/billing-history";
+import { OutstandingActions } from "./outstanding-row";
 
 export const metadata = { title: "Revenu" };
 export const dynamic = "force-dynamic";
 
 export default async function ConsoleRevenue() {
-  const stripe = await getStripeSnapshot();
+  const [stripe, outstanding] = await Promise.all([
+    getStripeSnapshot(),
+    getOutstandingInvoices(),
+  ]);
 
   if (!stripe) {
     return (
@@ -21,6 +25,48 @@ export default async function ConsoleRevenue() {
     <div className="flex flex-col gap-6">
       <h1 className="font-mono text-sm text-neutral-100">Revenu</h1>
 
+      <Panel title={`Impayés (${outstanding.length})`}>
+        <Table
+          head={["Client", "Montant", "Âge", "Tentatives", "Prochaine", "Facture", "Action"]}
+          empty={outstanding.length === 0}
+        >
+          {outstanding.map((invoice) => (
+            <Row key={invoice.id}>
+              <Cell className="break-all">
+                {invoice.customerEmail ?? invoice.customerId ?? invoice.id}
+              </Cell>
+              <Cell className="text-[#d29922]">
+                {formatAmount(invoice.amount, invoice.currency)}
+              </Cell>
+              <Cell className={invoice.ageDays > 7 ? "text-[#f85149]" : "text-neutral-500"}>
+                {invoice.ageDays} j
+              </Cell>
+              <Cell className="text-neutral-500">{invoice.attemptCount}</Cell>
+              <Cell className="text-neutral-500">
+                {invoice.nextAttempt
+                  ? new Date(invoice.nextAttempt * 1000).toLocaleDateString("fr-FR")
+                  : "—"}
+              </Cell>
+              <Cell>
+                {invoice.hostedUrl && (
+                  <a
+                    href={invoice.hostedUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-neutral-500 underline underline-offset-2 hover:text-neutral-200"
+                  >
+                    payer ↗
+                  </a>
+                )}
+              </Cell>
+              <Cell>
+                <OutstandingActions invoiceId={invoice.id} />
+              </Cell>
+            </Row>
+          ))}
+        </Table>
+      </Panel>
+
       <div className="grid gap-px bg-neutral-900 sm:grid-cols-2 lg:grid-cols-4">
         <Metric
           label="MRR"
@@ -32,6 +78,12 @@ export default async function ConsoleRevenue() {
           label="Impayés"
           value={String(stripe.pastDueSubscriptions)}
           tone={stripe.pastDueSubscriptions > 0 ? "bad" : "good"}
+        />
+        <Metric
+          label="Impayés en attente"
+          value={String(outstanding.length)}
+          tone={outstanding.length > 0 ? "bad" : "good"}
+          hint="factures ouvertes chez Stripe"
         />
         <Metric
           label="Résiliations ce mois"
