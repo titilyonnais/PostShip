@@ -13,6 +13,7 @@ import { toast } from "sonner";
 const CONNECTED: Record<string, string> = {
   discord: "Discord connecté.",
   slack: "Slack connecté.",
+  github: "App GitHub installée — indiquez maintenant le dépôt.",
 };
 
 const OAUTH_ERROR: Record<string, string> = {
@@ -21,6 +22,9 @@ const OAUTH_ERROR: Record<string, string> = {
   slack: "Échec de la connexion à Slack — réessayez ou collez l'URL manuellement.",
   discord_not_configured: "Connexion Discord pas encore activée sur ce site.",
   slack_not_configured: "Connexion Slack pas encore activée sur ce site.",
+  github: "Échec de l'installation GitHub — réessayez ou collez un token.",
+  github_not_configured: "App GitHub pas encore activée sur ce site.",
+  github_pending: "Installation GitHub en attente d'approbation par un propriétaire de l'organisation.",
 };
 
 export function OAuthReturnToast() {

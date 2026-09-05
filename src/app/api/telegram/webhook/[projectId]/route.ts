@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
 import { parseBotCommand, runBotCommand, sendBotMessage } from "@/lib/bot-commands";
+import { sendTelegramText } from "@/lib/telegram";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 
 // M3b (menu backlog): the real, interactive Telegram bot. Commands land
@@ -49,9 +50,50 @@ export async function POST(
   const chatId = body.message?.chat?.id;
   const text = body.message?.text;
 
+  if (chatId === undefined || !text) {
+    return NextResponse.json({ ok: true });
+  }
+
+  // First /start after the token is saved supplies the chat ID, so nobody
+  // has to go read it out of a getUpdates JSON dump. The window is
+  // narrow by construction: it only opens while telegram_chat_id is null,
+  // and only this project's bot token can reach this route at all — the
+  // secret_token checked above was handed to Telegram by
+  // registerTelegramWebhook for this bot alone. Whoever holds that bot
+  // token already controls the channel; adopting the first chat that
+  // greets it is the same trust boundary, not a wider one.
+  if (!project.telegram_chat_id) {
+    if (!text.startsWith("/start")) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const { error } = await supabase
+      .from("projects")
+      .update({ telegram_chat_id: String(chatId) })
+      .eq("id", projectId)
+      // Losing a race with a second /start must not overwrite the chat
+      // that got there first.
+      .is("telegram_chat_id", null);
+
+    if (error) {
+      console.error("Échec adoption du chat Telegram", error);
+      return NextResponse.json({ ok: true });
+    }
+
+    after(async () => {
+      await sendTelegramText(
+        project.telegram_bot_token!,
+        chatId,
+        "PostShip est connecté à ce salon. Vous recevrez les alertes ici. Essayez /status.",
+      );
+    });
+
+    return NextResponse.json({ ok: true, adopted: true });
+  }
+
   // A stranger talking to the bot (wrong chat) is a silent no-op — the bot
   // is only ever meant to answer in the one chat the owner configured.
-  if (chatId === undefined || String(chatId) !== project.telegram_chat_id || !text) {
+  if (String(chatId) !== project.telegram_chat_id) {
     return NextResponse.json({ ok: true });
   }
 

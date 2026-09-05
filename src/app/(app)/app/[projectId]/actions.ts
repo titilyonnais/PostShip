@@ -9,6 +9,7 @@ import { fetchDomainExpiry } from "@/lib/checks/rdap";
 import { resolveDnsSnapshot } from "@/lib/checks/dns";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { assertSameSiteHost } from "@/lib/host-match";
+import { registerTelegramWebhook } from "@/lib/telegram";
 import { applyMoneyPath } from "@/lib/money-path";
 import { runOneTarget, runProjectChecks } from "@/lib/runner";
 import { createServiceClient } from "@/lib/db/service";
@@ -410,7 +411,7 @@ export async function recomputeHealthNow(
 }
 
 async function setDeployHookSecret(
-  column: "vercel_hook_secret" | "netlify_hook_secret" | "cloudflare_hook_secret",
+  column: "vercel_hook_secret" | "cloudflare_hook_secret",
   providerLabel: string,
   projectId: string,
   formData: FormData,
@@ -471,7 +472,7 @@ export async function disableGithubCheck(
 
   const { error } = await createServiceClient()
     .from("projects")
-    .update({ github_repo: null, github_token_enc: null })
+    .update({ github_repo: null, github_token_enc: null, github_installation_id: null })
     .eq("id", projectId);
 
   if (error) return { error: error.message };
@@ -487,18 +488,32 @@ export async function setGithubCheck(
 ): Promise<ActionResult> {
   const rawRepo = formData.get("github_repo");
   const rawToken = formData.get("github_token");
+  const hasRepo = typeof rawRepo === "string" && rawRepo.trim() !== "";
+  const hasToken = typeof rawToken === "string" && rawToken.trim() !== "";
 
-  if ((rawRepo === "" || rawRepo === null) && (rawToken === "" || rawToken === null)) {
+  if (!hasRepo && !hasToken) {
     return { success: "Aucun changement." };
   }
 
-  const parsedRepo = githubRepoSchema.safeParse(rawRepo);
-  if (!parsedRepo.success) {
-    return { error: parsedRepo.error.issues[0]?.message ?? "Dépôt invalide." };
+  const update: Record<string, string> = {};
+
+  if (hasRepo) {
+    const parsed = githubRepoSchema.safeParse(rawRepo);
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Dépôt invalide." };
+    }
+    update.github_repo = parsed.data;
   }
-  const parsedToken = z.string().trim().min(1, "Token invalide.").safeParse(rawToken);
-  if (!parsedToken.success) {
-    return { error: "Token invalide." };
+
+  // Optional since the GitHub App landed: an installation mints its own
+  // per-run token, so the only people who still paste one here are those
+  // set up before it existed, or who prefer a PAT they control.
+  if (hasToken) {
+    const parsed = z.string().trim().min(1, "Token invalide.").safeParse(rawToken);
+    if (!parsed.success) {
+      return { error: "Token invalide." };
+    }
+    update.github_token_enc = parsed.data;
   }
 
   const supabase = await createClient();
@@ -512,7 +527,8 @@ export async function setGithubCheck(
     return { error: "Projet introuvable." };
   }
 
-  const { data: ownerProfile } = await createServiceClient()
+  const service = createServiceClient();
+  const { data: ownerProfile } = await service
     .from("profiles")
     .select("plan")
     .eq("id", project.user_id)
@@ -522,14 +538,27 @@ export async function setGithubCheck(
     return { error: "Le check GitHub n'est disponible qu'avec un plan payant." };
   }
 
-  const { error } = await createServiceClient()
-    .from("projects")
-    .update({ github_repo: parsedRepo.data, github_token_enc: parsedToken.data })
-    .eq("id", projectId);
+  // Neither credential present means nothing would ever post a Check Run,
+  // so say so instead of saving a repo that silently does nothing.
+  if (!hasToken) {
+    const { data: existing } = await service
+      .from("projects")
+      .select("github_token_enc, github_installation_id")
+      .eq("id", projectId)
+      .single();
+
+    if (!existing?.github_token_enc && !existing?.github_installation_id) {
+      return {
+        error: "Installez l'app GitHub ou collez un token avant d'enregistrer le dépôt.",
+      };
+    }
+  }
+
+  const { error } = await service.from("projects").update(update).eq("id", projectId);
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/app/${projectId}`);
+  revalidatePath(`/app/${projectId}/integrations`);
   return { success: "Check GitHub enregistré." };
 }
 
@@ -541,12 +570,49 @@ export async function setVercelHookSecret(
   return setDeployHookSecret("vercel_hook_secret", "Vercel", projectId, formData);
 }
 
-export async function setNetlifyHookSecret(
+// Netlify is the one provider where the secret is invented by whoever
+// sets it up rather than handed over by the provider: its "JWS secret
+// token" field is a free-text box. Asking a user to think one up is how
+// you get "postship123" — so PostShip generates it and the user pastes
+// our value into Netlify, the reverse direction of Vercel/Cloudflare.
+// Shown exactly once, same contract as the outbound webhook secret.
+export async function generateNetlifyHookSecret(
   projectId: string,
-  _prevState: ActionResult,
-  formData: FormData,
-): Promise<ActionResult> {
-  return setDeployHookSecret("netlify_hook_secret", "Netlify", projectId, formData);
+  _prevState: RegenerateSecretResult,
+): Promise<RegenerateSecretResult> {
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("projects")
+    .select("user_id")
+    .eq("id", projectId)
+    .single();
+
+  if (!project) return { error: "Projet introuvable." };
+
+  const { data: ownerProfile } = await createServiceClient()
+    .from("profiles")
+    .select("plan")
+    .eq("id", project.user_id)
+    .single();
+
+  if (!getPlanLimits((ownerProfile?.plan as Plan) ?? "free").deployHooks) {
+    return { error: "Netlify n'est disponible qu'avec un plan payant." };
+  }
+
+  const secret = randomBytes(32).toString("hex");
+
+  const { error } = await createServiceClient()
+    .from("projects")
+    .update({ netlify_hook_secret: secret })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/app/${projectId}/integrations`);
+  return {
+    success: "Secret généré — collez-le dans Netlify, il ne sera plus réaffiché.",
+    secret,
+  };
 }
 
 export async function setCloudflareHookSecret(
@@ -713,20 +779,35 @@ export async function setTelegramConfig(
 ): Promise<ActionResult> {
   const rawToken = formData.get("telegram_bot_token");
   const rawChatId = formData.get("telegram_chat_id");
+  const hasToken = typeof rawToken === "string" && rawToken.trim() !== "";
+  const hasChatId = typeof rawChatId === "string" && rawChatId.trim() !== "";
 
   // Same "empty means untouched" convention as setChatWebhook — the token
   // is never sent back to the browser, so an empty submit isn't "clear it".
-  if ((rawToken === "" || rawToken === null) && (rawChatId === "" || rawChatId === null)) {
+  if (!hasToken && !hasChatId) {
     return { success: "Aucun changement." };
   }
 
-  const parsedToken = telegramTokenSchema.safeParse(rawToken);
-  if (!parsedToken.success) {
-    return { error: parsedToken.error.issues[0]?.message ?? "Token invalide." };
+  const update: Record<string, string> = {};
+
+  if (hasToken) {
+    const parsed = telegramTokenSchema.safeParse(rawToken);
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Token invalide." };
+    }
+    update.telegram_bot_token = parsed.data;
   }
-  const parsedChatId = telegramChatIdSchema.safeParse(rawChatId);
-  if (!parsedChatId.success) {
-    return { error: parsedChatId.error.issues[0]?.message ?? "Chat ID invalide." };
+
+  // The chat ID is optional now: leave it blank and the bot fills it in
+  // from the first /start it receives
+  // (src/app/api/telegram/webhook/[projectId]). Still accepted when
+  // someone already knows it, or wants to move the alerts to another chat.
+  if (hasChatId) {
+    const parsed = telegramChatIdSchema.safeParse(rawChatId);
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Chat ID invalide." };
+    }
+    update.telegram_chat_id = parsed.data;
   }
 
   const supabase = await createClient();
@@ -745,7 +826,8 @@ export async function setTelegramConfig(
     return { error: "Projet introuvable." };
   }
 
-  const { data: ownerProfile } = await createServiceClient()
+  const service = createServiceClient();
+  const { data: ownerProfile } = await service
     .from("profiles")
     .select("plan")
     .eq("id", project.user_id)
@@ -755,18 +837,32 @@ export async function setTelegramConfig(
     return { error: "Telegram n'est disponible qu'avec un plan payant." };
   }
 
-  const { error } = await createServiceClient()
-    .from("projects")
-    .update({
-      telegram_bot_token: parsedToken.data,
-      telegram_chat_id: parsedChatId.data,
-    })
-    .eq("id", projectId);
-
+  const { error } = await service.from("projects").update(update).eq("id", projectId);
   if (error) return { error: error.message };
 
-  revalidatePath(`/app/${projectId}`);
-  return { success: "Telegram enregistré." };
+  revalidatePath(`/app/${projectId}/integrations`);
+
+  if (!hasToken) {
+    return { success: "Chat Telegram enregistré." };
+  }
+
+  // A new token invalidates whatever webhook the old one had, and the bot
+  // can't receive the /start that supplies the chat ID until this lands —
+  // so it happens here rather than behind a separate button.
+  const registered = await registerTelegramWebhook(
+    service,
+    projectId,
+    update.telegram_bot_token,
+  );
+  if (!registered.ok) return { error: registered.reason };
+
+  if (hasChatId) {
+    return { success: "Telegram enregistré." };
+  }
+
+  return {
+    success: "Token enregistré — envoyez maintenant /start à votre bot.",
+  };
 }
 
 export async function toggleTarget(

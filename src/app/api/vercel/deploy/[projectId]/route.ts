@@ -2,7 +2,11 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { describeAlertItem } from "@/lib/alert-copy";
 import { createServiceClient } from "@/lib/db/service";
-import { recordDeployEvent, scheduleDeployWatches } from "@/lib/deploys";
+import {
+  recordDeployEvent,
+  recordDeployHookReceipt,
+  scheduleDeployWatches,
+} from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { postGithubCheckRun } from "@/lib/github-check";
 import { runPreviewChecks, runProjectChecks } from "@/lib/runner";
@@ -38,7 +42,7 @@ export async function POST(
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, base_url, vercel_hook_secret, check_previews, github_repo, github_token_enc, profiles(plan)",
+      "id, base_url, vercel_hook_secret, check_previews, github_repo, github_token_enc, github_installation_id, profiles(plan)",
     )
     .eq("id", projectId)
     .single();
@@ -50,6 +54,11 @@ export async function POST(
   if (!isValidSignature(rawBody, project.vercel_hook_secret, signature)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
+
+  // The signature verified, so this really is Vercel talking to us —
+  // that alone is what Intégrations reports, whatever the event turns
+  // out to be below.
+  await recordDeployHookReceipt(supabase, projectId, "vercel");
 
   const owner = project.profiles as unknown as { plan: Plan } | null;
   if (!getPlanLimits(owner?.plan ?? "free").deployHooks) {
@@ -169,11 +178,14 @@ export async function POST(
     await scheduleDeployWatches(supabase, projectId, deployEventId);
   }
 
-  // Opt-in, and only when this specific webhook exposes a commit SHA — no
-  // GitHub App, a fine-grained PAT (checks:write) the user pastes once.
-  // Free doesn't get here at all (deployHooks gate above).
+  // Opt-in, and only when this specific webhook exposes a commit SHA.
+  // Either credential will do: a GitHub App installation (the one-click
+  // path) or the legacy fine-grained PAT. Free doesn't get here at all
+  // (deployHooks gate above).
   const sha = event.payload?.deployment?.meta?.githubCommitSha;
-  if (sha && project.github_repo && project.github_token_enc) {
+  const hasGithubCredential =
+    project.github_installation_id != null || project.github_token_enc != null;
+  if (sha && project.github_repo && hasGithubCredential) {
     const failedCount = results.filter((r) => r.outcome !== "pass").length;
     const summary = results
       .map((r) =>
@@ -191,6 +203,7 @@ export async function POST(
 
     await postGithubCheckRun({
       repo: project.github_repo,
+      installationId: project.github_installation_id,
       token: project.github_token_enc,
       sha,
       conclusion: failedCount === 0 ? "success" : "failure",

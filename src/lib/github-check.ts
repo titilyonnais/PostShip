@@ -3,11 +3,18 @@
 // only in Discord/email/the dashboard. Host is the literal api.github.com
 // — not user input, so nothing to SSRF-guard, unlike the Discord/Slack
 // webhook URLs a user actually supplies.
+import { createInstallationToken } from "@/lib/github-app";
+
 const TIMEOUT_MS = 12_000;
 
 export type GithubCheckRunParams = {
   repo: string; // "owner/repo"
-  token: string;
+  // Exactly one of these. An App installation is the current path — one
+  // click, scoped to the repos the user picked, revoked from GitHub —
+  // while the pasted fine-grained PAT stays supported for projects that
+  // set it up before the App existed.
+  installationId?: number | null;
+  token?: string | null;
   sha: string;
   conclusion: "success" | "failure";
   title: string;
@@ -18,6 +25,17 @@ export type GithubCheckRunParams = {
 // break the deploy webhook's own response; the site checks it triggered
 // already ran regardless of whether this call succeeds.
 export async function postGithubCheckRun(params: GithubCheckRunParams): Promise<void> {
+  // An installation token is minted per call and lives an hour; it is
+  // never stored, unlike the PAT it replaces.
+  const token = params.installationId
+    ? await createInstallationToken(params.installationId)
+    : params.token;
+
+  if (!token) {
+    console.error("Aucun identifiant GitHub utilisable pour le Check Run");
+    return;
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -28,7 +46,7 @@ export async function postGithubCheckRun(params: GithubCheckRunParams): Promise<
         method: "POST",
         signal: controller.signal,
         headers: {
-          Authorization: `Bearer ${params.token}`,
+          Authorization: `Bearer ${token}`,
           Accept: "application/vnd.github+json",
           "Content-Type": "application/json",
           "User-Agent": "PostShipBot/0.1 (+https://postship.fr)",

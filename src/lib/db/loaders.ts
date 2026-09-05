@@ -97,7 +97,7 @@ export const getProjectOwnerPlan = cache(async (ownerId: string): Promise<Plan> 
 // the ones it can't see). Settings UI reads the generated
 // `*_configured` booleans instead of the secrets themselves.
 const PROJECT_COLUMNS =
-  "id, user_id, name, base_url, locale, last_checked_at, last_status, created_at, paused, check_previews, stripe_success_url, badge_public, vercel_hook_configured, discord_webhook_configured, slack_webhook_configured, netlify_hook_configured, cloudflare_hook_configured, telegram_configured, telegram_commands_enabled, github_repo, github_connected, alerts_silenced_until, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_configured";
+  "id, user_id, name, base_url, locale, last_checked_at, last_status, created_at, paused, check_previews, stripe_success_url, badge_public, vercel_hook_configured, discord_webhook_configured, slack_webhook_configured, netlify_hook_configured, cloudflare_hook_configured, telegram_configured, telegram_commands_enabled, github_repo, github_connected, alerts_silenced_until, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_configured, github_app_installed, telegram_awaiting_start, vercel_hook_last_received_at, netlify_hook_last_received_at, cloudflare_hook_last_received_at";
 
 export const getProject = cache(async (projectId: string) => {
   const supabase = await createClient();

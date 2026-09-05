@@ -1,9 +1,9 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
 import { createClient } from "@/lib/db/server";
 import { createServiceClient } from "@/lib/db/service";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
+import { registerTelegramWebhook } from "@/lib/telegram";
 import { runBotCommand, sendBotMessage } from "@/lib/bot-commands";
 import type { ActionResult } from "@/lib/use-toast-action";
 
@@ -81,31 +81,12 @@ export async function setTelegramWebhook(
     return { error: "Configurez d'abord le token Telegram dans Paramètres." };
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr";
-  const secretToken = randomBytes(32).toString("hex");
-
-  const response = await fetch(
-    `https://api.telegram.org/bot${secrets.telegram_bot_token}/setWebhook`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: `${appUrl}/api/telegram/webhook/${projectId}`,
-        secret_token: secretToken,
-      }),
-    },
+  const registered = await registerTelegramWebhook(
+    service,
+    projectId,
+    secrets.telegram_bot_token,
   );
-
-  if (!response.ok) {
-    return { error: "Échec de la connexion à Telegram — vérifiez le token." };
-  }
-
-  const { error } = await service
-    .from("projects")
-    .update({ telegram_webhook_secret: secretToken })
-    .eq("id", projectId);
-
-  if (error) return { error: error.message };
+  if (!registered.ok) return { error: registered.reason };
 
   return { success: "Commandes Telegram activées — essayez /status dans le salon." };
 }

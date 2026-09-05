@@ -138,3 +138,23 @@ export async function getRecentDeployEvents(
     .limit(30);
   return (data ?? []) as DeployEventRow[];
 }
+
+// Stamped as soon as a request's signature verifies, before any decision
+// about whether this particular event is one we act on — the question the
+// Intégrations card answers with it is "is the webhook wired up at all",
+// and a deployment.created we deliberately skip proves that just as well
+// as a deployment.ready. Best-effort: never let a bookkeeping write break
+// the webhook's own response.
+export async function recordDeployHookReceipt(
+  supabase: SupabaseClient,
+  projectId: string,
+  provider: DeployProvider,
+): Promise<void> {
+  const column = `${provider}_hook_last_received_at` as const;
+  const { error } = await supabase
+    .from("projects")
+    .update({ [column]: new Date().toISOString() })
+    .eq("id", projectId);
+
+  if (error) console.error("Échec enregistrement réception webhook", provider, error);
+}

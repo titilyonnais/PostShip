@@ -109,10 +109,13 @@ function TelegramSection({
   action,
   disableAction,
   configured,
+  awaitingStart,
 }: {
   action: (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
   disableAction: (prevState: ActionResult) => Promise<ActionResult>;
   configured: boolean;
+  /** Token saved, still waiting for the /start that supplies the chat ID. */
+  awaitingStart: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
@@ -123,12 +126,22 @@ function TelegramSection({
         </h3>
         <DocLink href="/docs/connecter-telegram" />
       </div>
-      <p className="text-xs text-muted-foreground">
-        Créez un bot via @BotFather pour obtenir le token, puis récupérez le
-        chat ID (envoyez un message au bot et consultez
-        api.telegram.org/bot&lt;token&gt;/getUpdates). Laissez les champs
-        vides pour ne rien changer.
+      <p className="flex-1 text-xs text-muted-foreground">
+        Créez un bot via @BotFather, collez son token ci-dessous, puis
+        envoyez <code className="rounded-sm bg-secondary px-1 py-0.5 font-mono">/start</code>{" "}
+        à votre bot : il enregistre le salon tout seul. Le chat ID n&apos;est
+        à remplir que pour forcer un autre salon. Laissez les champs vides
+        pour ne rien changer.
       </p>
+      {awaitingStart && (
+        <p className="flex items-center gap-1.5 text-xs text-[#d29922]">
+          <span
+            className="size-1.5 shrink-0 rounded-full bg-[#d29922]"
+            aria-hidden="true"
+          />
+          En attente de votre /start
+        </p>
+      )}
       <ActionForm action={action} className="flex flex-col gap-2">
         <label htmlFor="telegram_bot_token" className="sr-only">
           Token du bot Telegram
@@ -144,7 +157,7 @@ function TelegramSection({
         <Input
           id="telegram_chat_id"
           name="telegram_chat_id"
-          placeholder={configured ? "•••• (déjà configuré)" : "-100123456789"}
+          placeholder={configured ? "•••• (déjà configuré)" : "Chat ID (facultatif)"}
         />
         <SubmitButton variant="outline" pendingText="Enregistrement...">
           Enregistrer
@@ -177,6 +190,7 @@ export function ChatWebhooksCard({
     discord_webhook_configured: boolean;
     slack_webhook_configured: boolean;
     telegram_configured: boolean;
+    telegram_awaiting_start: boolean;
   };
   allowed: boolean;
   backTo: string;
@@ -235,6 +249,7 @@ export function ChatWebhooksCard({
           action={setTelegramConfig.bind(null, projectId)}
           disableAction={disableTelegram.bind(null, projectId)}
           configured={!!project.telegram_configured}
+          awaitingStart={!!project.telegram_awaiting_start}
         />
       </fieldset>
     </div>

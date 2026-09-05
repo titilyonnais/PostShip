@@ -12,6 +12,9 @@ export type DocSlug =
   | "sitemap-ssl"
   | "stripe"
   | "webhooks-deploy"
+  | "connecter-vercel"
+  | "connecter-netlify"
+  | "connecter-cloudflare"
   | "connecter-github"
   | "t2-t8"
   | "ship-score"
@@ -49,7 +52,16 @@ export const DOC_CATEGORIES: DocCategory[] = [
   },
   {
     label: "Déploiements",
-    slugs: ["webhooks-deploy", "connecter-github", "t2-t8", "ship-score", "radar-mutation"],
+    slugs: [
+      "webhooks-deploy",
+      "connecter-vercel",
+      "connecter-netlify",
+      "connecter-cloudflare",
+      "connecter-github",
+      "t2-t8",
+      "ship-score",
+      "radar-mutation",
+    ],
   },
   {
     label: "Alertes",
@@ -159,6 +171,93 @@ export const DOCS: Record<DocSlug, DocPage> = {
       },
     ],
   },
+  "connecter-vercel": {
+    title: "Connecter Vercel",
+    summary: "Vérifier le site dès que Vercel a fini de déployer.",
+    sections: [
+      {
+        body: "Sans webhook, PostShip vérifie votre site sur son cycle habituel — toutes les 5 à 30 minutes selon votre plan. Avec, la vérification part dans la seconde qui suit la mise en ligne, pendant que vous regardez encore le déploiement : c'est le moment où une régression coûte le moins cher. Disponible à partir du plan Solo.",
+      },
+      {
+        heading: "Créer le webhook",
+        body: "Le webhook se crée au niveau de l'équipe Vercel, pas du projet.",
+        steps: [
+          "Sur vercel.com, ouvrez les Settings de votre équipe → Webhooks → Create Webhook.",
+          "Collez l'URL affichée sur la carte Vercel de la page Intégrations (cliquez dessus pour la copier).",
+          "Cochez l'événement « Deployment ready », et limitez le webhook au projet concerné.",
+          "Créez-le : Vercel affiche alors un secret. Copiez-le, collez-le dans le champ de la carte Vercel et enregistrez.",
+        ],
+      },
+      {
+        heading: "Vérifier que ça marche",
+        body: "La carte Vercel affiche « Dernier webhook reçu il y a … » dès qu'une requête correctement signée arrive. Tant qu'elle indique « Aucun webhook reçu », c'est que l'URL ou le secret ne correspond pas — déployez une fois pour trancher : la ligne se met à jour même si l'événement n'a rien déclenché.",
+      },
+      {
+        heading: "Previews",
+        body: "L'option en bas de la carte Déploiement étend la vérification aux déploiements de preview : les checks visent alors l'URL de preview et non la production, et les alertes sont préfixées « Preview ».",
+      },
+    ],
+  },
+  "connecter-netlify": {
+    title: "Connecter Netlify",
+    summary: "Vérifier le site dès que Netlify a fini de déployer.",
+    sections: [
+      {
+        body: "Même principe que Vercel : la vérification part à la fin du déploiement au lieu d'attendre le prochain cycle. Une différence pratique — le secret, c'est PostShip qui le génère, parce que Netlify vous demande d'en inventer un. Disponible à partir du plan Solo.",
+      },
+      {
+        heading: "Générer le secret",
+        body: "Sur la carte Netlify de la page Intégrations, cliquez sur « Générer un secret ». Il s'affiche une seule fois : copiez-le avant de quitter la page. Vous pourrez toujours en générer un nouveau, mais il faudra alors le mettre à jour côté Netlify.",
+      },
+      {
+        heading: "Créer la notification",
+        body: "Tout se passe dans les réglages du site Netlify.",
+        steps: [
+          "Ouvrez Project configuration → Notifications → Deploy notifications → Add notification → Outgoing webhook.",
+          "Événement : « Deploy succeeded ».",
+          "URL : celle affichée sur la carte Netlify.",
+          "JWS secret token : le secret généré par PostShip.",
+          "Enregistrez.",
+        ],
+      },
+      {
+        heading: "Vérifier que ça marche",
+        body: "La carte affiche « Dernier webhook reçu il y a … » dès la première requête correctement signée. Si elle reste sur « Aucun webhook reçu » après un déploiement, c'est le secret ou l'URL.",
+      },
+    ],
+  },
+  "connecter-cloudflare": {
+    title: "Connecter Cloudflare Pages",
+    summary: "Vérifier le site dès que Cloudflare Pages a fini de déployer.",
+    sections: [
+      {
+        body: "Cloudflare sépare le webhook (la destination) de la notification (ce qui le déclenche) : il faut créer les deux, dans cet ordre. Disponible à partir du plan Solo.",
+      },
+      {
+        heading: "Créer la destination",
+        body: "Dans le tableau de bord Cloudflare, au niveau du compte.",
+        steps: [
+          "Ouvrez Notifications → Destinations → Webhooks → Create.",
+          "Collez l'URL affichée sur la carte Cloudflare Pages.",
+          "Cloudflare génère un secret à la création : copiez-le, collez-le dans le champ de la carte et enregistrez.",
+        ],
+      },
+      {
+        heading: "Créer la notification",
+        body: "Le webhook seul ne reçoit rien tant qu'aucune notification ne pointe dessus.",
+        steps: [
+          "Ouvrez Notifications → Add.",
+          "Choisissez l'événement « Pages Deployment Success ».",
+          "Comme destination, sélectionnez le webhook créé juste avant.",
+          "Enregistrez.",
+        ],
+      },
+      {
+        heading: "Vérifier que ça marche",
+        body: "La carte passe à « Dernier webhook reçu il y a … » dès la première requête signée. Si rien n'arrive après un déploiement réussi, c'est presque toujours la notification qui manque — le webhook peut très bien exister sans que rien ne le déclenche.",
+      },
+    ],
+  },
   "connecter-github": {
     title: "Connecter GitHub",
     summary: "Publier le résultat de la vérification sur le commit.",
@@ -167,22 +266,25 @@ export const DOCS: Record<DocSlug, DocPage> = {
         body: "Une fois connecté, PostShip publie un Check Run sur le commit déployé après chaque vérification déclenchée par un webhook de déploiement : vert si tout passe, rouge sinon, avec le Ship Score comme titre. Vous voyez le résultat dans la pull request sans quitter GitHub. Disponible à partir du plan Solo.",
       },
       {
-        heading: "Créer le token",
-        body: "PostShip n'installe pas d'application GitHub : un token personnel fine-grained suffit, et vous gardez la main sur les dépôts qu'il couvre.",
+        heading: "Installer l'app GitHub",
+        body: "C'est le chemin recommandé : rien à créer, rien à faire tourner, et la révocation se fait d'un clic côté GitHub.",
         steps: [
-          "Sur GitHub, ouvrez Settings → Developer settings → Personal access tokens → Fine-grained tokens, puis « Generate new token ».",
-          "Dans « Repository access », choisissez « Only select repositories » et sélectionnez le dépôt du site surveillé.",
-          "Dans « Repository permissions », passez « Checks » sur « Read and write ». Aucune autre permission n'est nécessaire.",
-          "Générez le token et copiez-le : GitHub ne le réaffichera pas.",
+          "Depuis Intégrations, carte GitHub, cliquez sur « Installer l'app GitHub ».",
+          "Sur l'écran GitHub, choisissez le compte ou l'organisation, puis « Only select repositories » et le dépôt du site surveillé.",
+          "Validez : vous revenez sur PostShip. Indiquez le dépôt au format owner/repo et enregistrez.",
         ],
       },
       {
-        heading: "Renseigner PostShip",
-        body: "Depuis Intégrations, carte GitHub : indiquez le dépôt au format owner/repo, collez le token, puis enregistrez. Le token est chiffré et jamais réaffiché — pour le remplacer, collez-en un nouveau ; pour tout couper, utilisez « Désactiver ».",
+        heading: "Si le dépôt appartient à une organisation",
+        body: "GitHub peut exiger l'accord d'un propriétaire de l'organisation. L'installation part alors en demande d'approbation et PostShip vous le dit : la connexion se termine une fois la demande acceptée, en relançant l'installation.",
+      },
+      {
+        heading: "Avec un token, à la place",
+        body: "L'ancien chemin reste supporté si vous préférez un jeton que vous contrôlez. Créez un token fine-grained sur GitHub (Settings → Developer settings → Personal access tokens → Fine-grained tokens), limité au dépôt concerné, avec la permission « Checks » en « Read and write » — aucune autre n'est nécessaire. Collez-le dans le champ prévu de la carte GitHub : il est chiffré et jamais réaffiché.",
       },
       {
         heading: "Prérequis",
-        body: "Le Check Run se rattache au commit du déploiement, donc il faut qu'un webhook de déploiement soit branché (voir Webhooks de déploiement) : sans lui, PostShip ne sait pas quel commit vient de partir en production.",
+        body: "Le Check Run se rattache au commit du déploiement, donc il faut qu'un webhook de déploiement soit branché (voir Connecter Vercel) : sans lui, PostShip ne sait pas quel commit vient de partir en production.",
       },
     ],
   },
@@ -310,7 +412,7 @@ export const DOCS: Record<DocSlug, DocPage> = {
     summary: "Recevoir les alertes dans une conversation Telegram.",
     sections: [
       {
-        body: "Telegram n'a pas de connexion en un clic : il faut créer un bot, puis lui indiquer à qui parler. Comptez deux minutes. Disponible à partir du plan Solo.",
+        body: "Telegram n'a pas de bouton d'installation : chaque projet parle par son propre bot, qu'il faut créer une fois. En revanche vous n'avez plus à aller chercher d'identifiant de conversation — le bot enregistre le salon lui-même. Comptez une minute. Disponible à partir du plan Solo.",
       },
       {
         heading: "Créer le bot",
@@ -318,21 +420,25 @@ export const DOCS: Record<DocSlug, DocPage> = {
         steps: [
           "Ouvrez une conversation avec @BotFather et envoyez /newbot.",
           "Donnez un nom, puis un identifiant se terminant par « bot ».",
-          "@BotFather répond avec un token de la forme 123456:AbC-... : c'est le token du bot.",
+          "@BotFather répond avec un token de la forme 123456:AbC-… : c'est le token du bot.",
         ],
       },
       {
-        heading: "Trouver le chat ID",
-        body: "Le token dit quel bot parle ; le chat ID dit à qui.",
+        heading: "Le brancher sur PostShip",
+        body: "Deux champs sur la carte Telegram de la page Intégrations, dont un seul est obligatoire.",
         steps: [
-          "Envoyez n'importe quel message à votre nouveau bot (ou ajoutez-le à un groupe et écrivez-y un message).",
-          "Ouvrez https://api.telegram.org/bot<votre-token>/getUpdates dans un navigateur.",
-          "Relevez la valeur de chat.id dans la réponse — un nombre, négatif s'il s'agit d'un groupe.",
+          "Collez le token dans le premier champ, laissez le second vide, et enregistrez.",
+          "Envoyez /start à votre bot — depuis une conversation directe, ou depuis un groupe où vous l'avez ajouté.",
+          "Le bot répond qu'il est connecté : le salon est enregistré, c'est fini.",
         ],
       },
       {
-        heading: "Renseigner PostShip",
-        body: "Depuis Intégrations, section Alertes, collez le token dans le premier champ Telegram et le chat ID dans le second, puis enregistrez. Laisser un champ vide ne l'efface pas : il conserve la valeur déjà enregistrée. Le bot répond aussi à quelques commandes depuis la conversation — voir la page Bot Telegram.",
+        heading: "Le champ Chat ID",
+        body: "Il ne sert qu'à forcer un salon précis, par exemple pour déplacer les alertes vers un autre groupe sans repasser par /start. Tant qu'il est vide et qu'aucun /start n'est arrivé, la carte affiche « En attente de votre /start ». Laisser un champ vide ne l'efface jamais : il conserve la valeur déjà enregistrée.",
+      },
+      {
+        heading: "Commandes",
+        body: "Le bot répond aussi à quelques commandes depuis la conversation — /status, /check, /uptime. Voir la page Bot Telegram.",
       },
     ],
   },

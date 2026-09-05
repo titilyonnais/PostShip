@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
-import { recordDeployEvent, scheduleDeployWatches } from "@/lib/deploys";
+import {
+  recordDeployEvent,
+  recordDeployHookReceipt,
+  scheduleDeployWatches,
+} from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { isValidNetlifySignature } from "@/lib/netlify-webhook";
 import { runProjectChecks } from "@/lib/runner";
@@ -28,6 +32,11 @@ export async function POST(
   if (!isValidNetlifySignature(rawBody, project.netlify_hook_secret, signature)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
+
+  // The signature verified, so this really is Netlify talking to us —
+  // that alone is what Intégrations reports, whatever the event turns
+  // out to be below.
+  await recordDeployHookReceipt(supabase, projectId, "netlify");
 
   const owner = project.profiles as unknown as { plan: Plan } | null;
   if (!getPlanLimits(owner?.plan ?? "free").deployHooks) {

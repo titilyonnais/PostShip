@@ -1,7 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/service";
-import { recordDeployEvent, scheduleDeployWatches } from "@/lib/deploys";
+import {
+  recordDeployEvent,
+  recordDeployHookReceipt,
+  scheduleDeployWatches,
+} from "@/lib/deploys";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { runProjectChecks } from "@/lib/runner";
 import { computeShipScore } from "@/lib/ship-score";
@@ -40,6 +44,11 @@ export async function POST(
   if (!isValidCloudflareAuth(project.cloudflare_hook_secret, header)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
+
+  // The signature verified, so this really is Cloudflare talking to us —
+  // that alone is what Intégrations reports, whatever the event turns
+  // out to be below.
+  await recordDeployHookReceipt(supabase, projectId, "cloudflare");
 
   const owner = project.profiles as unknown as { plan: Plan } | null;
   if (!getPlanLimits(owner?.plan ?? "free").deployHooks) {
