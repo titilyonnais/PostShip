@@ -10,8 +10,10 @@ import {
   hashPassword,
   lockRemainingMs,
   recordFailure,
+  requestContext,
   verifyPassword,
 } from "@/lib/admin-auth";
+import { sendAdminLoginAlert } from "@/lib/admin-login-alert";
 
 export type LoginState = { error?: string };
 
@@ -27,6 +29,10 @@ const GENERIC = "Identifiants invalides.";
 // second factor gone this is the only thing standing between an attacker
 // and a confirmed username to grind against.
 const DUMMY_HASH = hashPassword("timing-equalisation-placeholder");
+
+// Matches LOCK_THRESHOLD in src/lib/admin-auth.ts: the attempt that trips
+// the lockout is the one worth emailing about.
+const LOCK_ALERT_AT = 5;
 
 export async function adminSignIn(
   _prevState: LoginState,
@@ -71,12 +77,38 @@ export async function adminSignIn(
   if (!verifyPassword(password, account.password_hash)) {
     await recordFailure(account);
     await auditLog({ accountId: account.id, username, action: "login.failed" });
+
+    // The failure that just tripped the lock is worth an email of its own:
+    // someone is grinding the only factor this console has.
+    if (account.failed_attempts + 1 >= LOCK_ALERT_AT) {
+      const { ip, userAgent } = await requestContext();
+      await sendAdminLoginAlert({
+        accountId: account.id,
+        username,
+        ip,
+        userAgent,
+        kind: "locked",
+      });
+    }
+
     return { error: GENERIC };
   }
 
   await clearFailures(account.id);
   await createAdminSession(account.id);
   await auditLog({ accountId: account.id, username, action: "login.success" });
+
+  // After the session row exists, so the alert can compare this login
+  // against every previous one and say whether the IP and the device have
+  // ever been seen before.
+  const { ip, userAgent } = await requestContext();
+  await sendAdminLoginAlert({
+    accountId: account.id,
+    username,
+    ip,
+    userAgent,
+    kind: "success",
+  });
 
   redirect("/admin");
 }

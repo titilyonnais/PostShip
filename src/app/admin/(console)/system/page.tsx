@@ -4,10 +4,22 @@ import { getInfraPanels } from "@/lib/admin-infra";
 export const metadata = { title: "Système" };
 export const dynamic = "force-dynamic";
 
-const ENV_HINT: Record<string, string> = {
-  vercel: "VERCEL_API_TOKEN",
-  supabase: "SUPABASE_MANAGEMENT_TOKEN + SUPABASE_PROJECT_REF",
-  resend: "RESEND_API_KEY",
+const ENV_HINT: Record<string, { vars: string; where: string; url: string }> = {
+  vercel: {
+    vars: "VERCEL_API_TOKEN",
+    where: "Vercel → Account Settings → Tokens",
+    url: "https://vercel.com/account/tokens",
+  },
+  supabase: {
+    vars: "SUPABASE_MANAGEMENT_TOKEN + SUPABASE_PROJECT_REF",
+    where: "Supabase → Account → Access Tokens",
+    url: "https://supabase.com/dashboard/account/tokens",
+  },
+  resend: {
+    vars: "RESEND_API_KEY",
+    where: "Resend → API Keys",
+    url: "https://resend.com/api-keys",
+  },
 };
 
 export default async function ConsoleSystem() {
@@ -34,10 +46,23 @@ export default async function ConsoleSystem() {
             }
           >
             {!panel.configured ? (
-              <p className="font-mono text-xs text-neutral-600">
-                Jeton absent. Renseignez{" "}
-                <span className="text-neutral-400">{ENV_HINT[panel.provider]}</span>.
-              </p>
+              <div className="flex flex-col gap-1 font-mono text-xs text-neutral-600">
+                <p>
+                  Jeton absent — variable{" "}
+                  <span className="text-neutral-400">
+                    {ENV_HINT[panel.provider].vars}
+                  </span>
+                  .
+                </p>
+                <a
+                  href={ENV_HINT[panel.provider].url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-neutral-500 underline underline-offset-2 hover:text-neutral-300"
+                >
+                  {ENV_HINT[panel.provider].where} ↗
+                </a>
+              </div>
             ) : panel.error ? (
               <Tag tone="bad">{panel.error}</Tag>
             ) : (

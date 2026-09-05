@@ -1,18 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ConsoleNav } from "@/components/admin/console-nav";
 import { getAdminSession, revokeAdminSession, auditLog } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
-
-const NAV = [
-  { href: "/admin", label: "Vue d'ensemble" },
-  { href: "/admin/users", label: "Utilisateurs" },
-  { href: "/admin/projects", label: "Projets" },
-  { href: "/admin/revenue", label: "Revenu" },
-  { href: "/admin/system", label: "Système" },
-  { href: "/admin/audit", label: "Journal" },
-  { href: "/admin/security", label: "Sécurité" },
-];
 
 async function signOut() {
   "use server";
@@ -42,17 +33,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
             postship <span className="text-[#3fb950]">/ console</span>
           </Link>
 
-          <nav className="flex flex-wrap items-center gap-1">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded px-2 py-1 font-mono text-xs text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-neutral-100"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          <ConsoleNav />
 
           <div className="ml-auto flex items-center gap-3">
             <span className="font-mono text-xs text-neutral-600">{session.username}</span>
