@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { CookieBanner } from "@/components/cookie-banner";
+import { Suspense } from "react";
+import { MeasureRoute } from "@/components/measure-route";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -61,6 +63,11 @@ export default function RootLayout({
         {/* Site-wide: the choice applies to every page, and a banner that
             only appears on marketing pages would ask again after login. */}
         <CookieBanner />
+        {/* Sends nothing unless the banner was accepted; it reads the
+            same stored choice the banner writes. */}
+        <Suspense fallback={null}>
+          <MeasureRoute />
+        </Suspense>
         <Toaster
           position="top-center"
           closeButton

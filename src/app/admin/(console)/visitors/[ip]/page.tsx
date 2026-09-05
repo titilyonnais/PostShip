@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Cell, Metric, Panel, Row, Table, Tag } from "@/components/admin/console-ui";
+import { classifyAddress } from "@/lib/bot-detection";
 import { getIpDetail } from "@/lib/admin-visitors";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { TrustToggle } from "./trust-toggle";
@@ -20,7 +21,7 @@ export default async function ConsoleIpDetail({
   if (!detail.profile) notFound();
 
   const { profile, accounts, visits } = detail;
-  const browsers = new Set(visits.map((v) => v.browser).filter(Boolean));
+  const traffic = classifyAddress(profile.hits_bot, profile.hits);
   const languages = new Set(visits.map((v) => v.acceptLanguage).filter(Boolean));
 
   return (
@@ -37,7 +38,11 @@ export default async function ConsoleIpDetail({
         </div>
         <div className="flex items-center gap-2">
           {profile.trusted && <Tag tone="good">de confiance</Tag>}
-          {profile.isBot && <Tag tone="warn">robot</Tag>}
+          {traffic.label !== "humain" && (
+            <Tag tone={traffic.label === "robot" ? "warn" : "neutral"}>
+              {traffic.label} · {Math.round(traffic.ratio * 100)}% automatisé
+            </Tag>
+          )}
           {profile.distinctUsers > 1 && (
             <Tag tone="bad">{profile.distinctUsers} comptes</Tag>
           )}
@@ -51,7 +56,12 @@ export default async function ConsoleIpDetail({
           value={String(profile.distinctUsers)}
           tone={profile.distinctUsers > 1 ? "bad" : "default"}
         />
-        <Metric label="Navigateurs" value={String(browsers.size)} />
+        <Metric
+          label="Trafic automatisé"
+          value={`${Math.round(traffic.ratio * 100)}%`}
+          hint={`${profile.hits_bot} visite(s) sur ${profile.hits}`}
+          tone={traffic.label === "robot" ? "warn" : "default"}
+        />
         <Metric label="Langues" value={String(languages.size)} />
       </div>
 

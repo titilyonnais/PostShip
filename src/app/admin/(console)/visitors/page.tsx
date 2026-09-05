@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Cell, Metric, Panel, Row, Table, Tag } from "@/components/admin/console-ui";
 import { VisitGlobe } from "@/components/admin/visit-globe";
+import { classifyAddress } from "@/lib/bot-detection";
 import { getVisitorOverview } from "@/lib/admin-visitors";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 
@@ -108,7 +109,17 @@ export default async function ConsoleVisitors() {
               <Cell className="text-neutral-500">{formatRelativeTime(ip.lastSeenAt)}</Cell>
               <Cell>
                 {ip.trusted && <Tag tone="good">de confiance</Tag>}
-                {ip.isBot && <Tag tone="warn">robot</Tag>}
+                {(() => {
+                  // A label from the share of automated traffic, not from
+                  // a flag one crawler could set for good.
+                  const { label, ratio } = classifyAddress(ip.hits_bot, ip.hits);
+                  if (label === "humain") return null;
+                  return (
+                    <Tag tone={label === "robot" ? "warn" : "neutral"}>
+                      {label} {Math.round(ratio * 100)}%
+                    </Tag>
+                  );
+                })()}
               </Cell>
             </Row>
           ))}

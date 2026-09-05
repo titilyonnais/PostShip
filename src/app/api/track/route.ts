@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/db/server";
+import { detectBot } from "@/lib/bot-detection";
 import { recordVisit } from "@/lib/visit-tracking";
 
 // The middleware can't do this itself: it runs on the edge runtime, where
@@ -52,8 +53,18 @@ export async function POST(request: Request) {
     return Number.isFinite(parsed) ? parsed : null;
   };
 
+  const verdict = detectBot({
+    userAgent: headers.get("x-track-ua"),
+    accept: headers.get("x-track-accept"),
+    acceptLanguage: headers.get("x-track-lang"),
+    secFetchMode: headers.get("x-track-sfm"),
+    secFetchDest: headers.get("x-track-sfd"),
+    secFetchSite: headers.get("x-track-sfs"),
+  });
+
   await recordVisit({
     ip: headers.get("x-track-ip") || "unknown",
+    isBot: verdict.isBot,
     path,
     method,
     userId,

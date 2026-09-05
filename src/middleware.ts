@@ -74,6 +74,12 @@ function track(request: NextRequest): void {
   headers.set("x-track-ua", request.headers.get("user-agent") ?? "");
   headers.set("x-track-referer", request.headers.get("referer") ?? "");
   headers.set("x-track-lang", request.headers.get("accept-language") ?? "");
+  // Fetch metadata is what separates a browser from a script that copied
+  // its user agent — the browser sets these, the script author doesn't.
+  headers.set("x-track-accept", request.headers.get("accept") ?? "");
+  headers.set("x-track-sfm", request.headers.get("sec-fetch-mode") ?? "");
+  headers.set("x-track-sfd", request.headers.get("sec-fetch-dest") ?? "");
+  headers.set("x-track-sfs", request.headers.get("sec-fetch-site") ?? "");
 
   for (const name of GEO_HEADERS) {
     const value = request.headers.get(name);

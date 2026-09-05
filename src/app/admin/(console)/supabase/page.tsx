@@ -14,6 +14,11 @@ export const dynamic = "force-dynamic";
 export default async function ConsoleSupabase() {
   // Three independent sources: the Management API can be down while the
   // database is perfectly reachable, and vice versa.
+  // The dashboard has no stable per-user URL, so the button opens the
+  // project's user list; the row's own name is the deep link into our
+  // file, which does exist.
+  const supabaseRef = process.env.SUPABASE_PROJECT_REF ?? null;
+
   const [project, auth, db] = await Promise.all([
     getSupabaseProject(),
     getAuthOverview(),
@@ -115,12 +120,22 @@ export default async function ConsoleSupabase() {
                       {u.lastSignInAt ? formatRelativeTime(u.lastSignInAt) : "jamais"}
                     </Cell>
                     <Cell>
-                      <Link
-                        href={`/admin/users/${u.id}`}
-                        className="border border-neutral-800 px-2 py-0.5 text-[0.65rem] text-neutral-400 hover:border-neutral-600 hover:text-neutral-100"
-                      >
-                        fiche →
-                      </Link>
+                      {/* This page is about Supabase, so its button goes to
+                          Supabase. The account name beside it already links
+                          to our own file — two destinations, each where the
+                          label says. */}
+                      {project.configured && supabaseRef ? (
+                        <a
+                          href={`https://supabase.com/dashboard/project/${supabaseRef}/auth/users`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="border border-neutral-800 px-2 py-0.5 text-[0.65rem] text-neutral-400 hover:border-neutral-600 hover:text-neutral-100"
+                        >
+                          Supabase ↗
+                        </a>
+                      ) : (
+                        <span className="text-neutral-700">—</span>
+                      )}
                     </Cell>
                   </Row>
                 ))}

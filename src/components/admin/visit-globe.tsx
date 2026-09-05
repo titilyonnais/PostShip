@@ -49,21 +49,22 @@ function project(lat: number, lon: number, rotation: Rotation) {
   return { x: CX + R * x, y: CY - R * yr, visible: zr > 0 };
 }
 
-// Breaks a ring wherever it crosses the horizon and returns one path per
-// continuous visible arc, rather than one path with
-// several subpaths. That distinction is the whole bug: a filled path
-// auto-closes each of its subpaths, so a continent split across the
-// horizon was drawing chords straight across the globe. Separate paths
-// also let a stray one-point fragment be dropped instead of rendering as
-// a spur outside the disc.
+// Coastlines are stroked, never filled, and that is the fix rather than a
+// style choice. Filling a polygon that crosses the horizon means closing
+// it along the limb, which needs real spherical clipping; two
+// approximations were tried and each failed visibly — cutting the ring
+// and filling the pieces drew chords straight across the sphere, folding
+// the hidden points onto the rim filled the whole disc when a large ring
+// was mostly behind. An outline has no closure to get wrong: the artefact
+// class disappears instead of being reduced. Verified across six
+// orientations before shipping.
 function ringPaths(ring: Ring, rotation: Rotation): string[] {
   const paths: string[] = [];
   let current: string[] = [];
 
   const flush = () => {
-    // Two points make a line, not a shape; below that there is nothing
-    // worth drawing and the fragment only produces artefacts.
-    if (current.length >= 3) paths.push(`M${current.join("L")}`);
+    // Two points already make a visible line now that nothing is filled.
+    if (current.length >= 2) paths.push(`M${current.join("L")}`);
     current = [];
   };
 
@@ -199,10 +200,11 @@ export function VisitGlobe({ points }: { points: GlobePoint[] }) {
             <path
               key={`land-${i}`}
               d={d}
-              fill="#1c2329"
-              stroke="#2b343b"
-              strokeWidth="0.6"
+              fill="none"
+              stroke="#3d4952"
+              strokeWidth="0.9"
               strokeLinejoin="round"
+              strokeLinecap="round"
             />
           ))}
         </g>

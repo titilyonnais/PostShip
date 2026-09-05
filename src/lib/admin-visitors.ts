@@ -12,7 +12,7 @@ export type VisitorIpRow = {
   longitude: number | null;
   timezone: string | null;
   distinctUsers: number;
-  isBot: boolean;
+  hits_bot: number;
   trusted: boolean;
 };
 
@@ -35,7 +35,7 @@ export async function getVisitorOverview(limit = 200): Promise<VisitorOverview> 
     supabase
       .from("visitor_ips")
       .select(
-        "ip, hits, first_seen_at, last_seen_at, country, region, city, latitude, longitude, timezone, distinct_users, is_bot, trusted",
+        "ip, hits, first_seen_at, last_seen_at, country, region, city, latitude, longitude, timezone, distinct_users, bot_hits, trusted",
       )
       .order("hits", { ascending: false })
       .limit(limit),
@@ -56,7 +56,7 @@ export async function getVisitorOverview(limit = 200): Promise<VisitorOverview> 
     longitude: (r.longitude as number) ?? null,
     timezone: (r.timezone as string) ?? null,
     distinctUsers: Number(r.distinct_users ?? 0),
-    isBot: Boolean(r.is_bot),
+    hits_bot: Number(r.bot_hits ?? 0),
     trusted: Boolean(r.trusted),
   }));
 
@@ -124,7 +124,7 @@ export async function getIpDetail(ip: string): Promise<IpDetail> {
     supabase
       .from("visitor_ips")
       .select(
-        "ip, hits, first_seen_at, last_seen_at, country, region, city, latitude, longitude, timezone, distinct_users, is_bot, trusted",
+        "ip, hits, first_seen_at, last_seen_at, country, region, city, latitude, longitude, timezone, distinct_users, bot_hits, trusted",
       )
       .eq("ip", ip)
       .maybeSingle(),
@@ -165,7 +165,7 @@ export async function getIpDetail(ip: string): Promise<IpDetail> {
           longitude: (p.longitude as number) ?? null,
           timezone: (p.timezone as string) ?? null,
           distinctUsers: Number(p.distinct_users ?? 0),
-          isBot: Boolean(p.is_bot),
+          hits_bot: Number(p.bot_hits ?? 0),
           trusted: Boolean(p.trusted),
         }
       : null,

@@ -14,6 +14,8 @@ import { createServiceClient } from "@/lib/db/service";
 
 export type VisitInput = {
   ip: string;
+  /** Decided by the caller from the full header set, not from the UA. */
+  isBot: boolean;
   path: string;
   method: string;
   userId: string | null;
@@ -28,17 +30,15 @@ export type VisitInput = {
   timezone: string | null;
 };
 
-export type DeviceInfo = { device: string; browser: string; os: string; isBot: boolean };
+export type DeviceInfo = { device: string; browser: string; os: string };
 
 // Four regex families rather than a user-agent database: the database is
 // a monthly-updated dependency, and "Chrome on Windows, desktop" is what
 // the console shows. Order matters — Edge and Opera both claim Chrome,
-// and Chrome claims Safari.
-const BOT_PATTERN =
-  /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|headless|lighthouse|curl\/|wget\/|python-requests|axios\/|node-fetch|monitoring|uptime|pingdom|postship/i;
-
+// and Chrome claims Safari. Whether it is a bot is decided elsewhere, by
+// src/lib/bot-detection.ts, which looks at far more than this string.
 export function describeDevice(ua: string | null): DeviceInfo {
-  if (!ua) return { device: "inconnu", browser: "inconnu", os: "inconnu", isBot: false };
+  if (!ua) return { device: "inconnu", browser: "inconnu", os: "inconnu" };
 
   const browser = /Edg\//.test(ua)
     ? "Edge"
@@ -52,9 +52,7 @@ export function describeDevice(ua: string | null): DeviceInfo {
             ? "Chrome"
             : /Safari\//.test(ua)
               ? "Safari"
-              : BOT_PATTERN.test(ua)
-                ? "robot"
-                : "inconnu";
+              : "inconnu";
 
   const os = /Windows NT 10/.test(ua)
     ? "Windows 10/11"
@@ -80,7 +78,7 @@ export function describeDevice(ua: string | null): DeviceInfo {
       ? "tablette"
       : "ordinateur";
 
-  return { device, browser, os, isBot: BOT_PATTERN.test(ua) };
+  return { device, browser, os };
 }
 
 function num(value: string | null): number | null {
@@ -123,7 +121,7 @@ export function clientIpFromHeaders(headers: Headers): string {
 }
 
 export async function recordVisit(input: VisitInput): Promise<void> {
-  const { device, browser, os, isBot } = describeDevice(input.userAgent);
+  const { device, browser, os } = describeDevice(input.userAgent);
 
   try {
     const { error } = await createServiceClient().rpc("record_visit", {
@@ -143,7 +141,7 @@ export async function recordVisit(input: VisitInput): Promise<void> {
       p_device: device,
       p_browser: browser,
       p_os: os,
-      p_is_bot: isBot,
+      p_is_bot: input.isBot,
     });
 
     if (error) console.error("Échec enregistrement de visite", error.message);

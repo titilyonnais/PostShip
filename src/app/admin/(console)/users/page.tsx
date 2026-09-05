@@ -1,5 +1,6 @@
 import { Panel } from "@/components/admin/console-ui";
 import { getAdminUsers } from "@/lib/admin";
+import { RescoreButton } from "./rescore-button";
 import { UsersTable } from "./users-table";
 
 export const metadata = { title: "Utilisateurs" };
@@ -10,9 +11,12 @@ export default async function ConsoleUsers() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="font-mono text-sm text-neutral-100">
-        Utilisateurs <span className="text-neutral-600">({users.length})</span>
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-mono text-sm text-neutral-100">
+          Utilisateurs <span className="text-neutral-600">({users.length})</span>
+        </h1>
+        <RescoreButton />
+      </div>
 
       <Panel>
         <UsersTable users={users} />

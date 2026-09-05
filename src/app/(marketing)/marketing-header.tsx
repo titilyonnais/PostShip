@@ -184,7 +184,19 @@ export function MarketingHeader() {
             );
           })}
           {showAuthLink && (
-            <Link href={authLinkHref} className={NAV_LINK_CLASS}>
+            // A real control, not a nav word. "Connexion" sat in the same
+            // muted grey as Produit and Tarifs, so the one thing a
+            // returning visitor comes to the header for looked like part
+            // of the menu. An outline button next to the filled primary
+            // reads as the second action rather than competing with it.
+            <Link
+              href={authLinkHref}
+              className={
+                auth.loggedIn
+                  ? NAV_LINK_CLASS
+                  : buttonVariants({ variant: "outline", size: "sm" })
+              }
+            >
               {auth.loggedIn && auth.avatarUrl ? (
                 <span className="flex items-center gap-2">
                   {/* eslint-disable-next-line @next/next/no-img-element -- external avatar (DiceBear or the OAuth provider's own photo) */}
