@@ -10,14 +10,13 @@ import {
   verifyPassword,
 } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/db/service";
-import { generateTotpSecret, totpUri, verifyTotp } from "@/lib/totp";
 
-export type SecurityState = { error?: string; success?: string; secret?: string; uri?: string };
+export type SecurityState = { error?: string; success?: string };
 
-// Both factors are re-checked before either can be changed. Without it, a
-// session left open on an unlocked screen — the exact scenario the idle
-// timeout only narrows — would be enough to take the account over
-// permanently by swapping the password and the authenticator.
+// The current password is re-checked before it can be replaced. Without
+// it, a session left open on an unlocked screen — the exact scenario the
+// idle timeout only narrows — would be enough to take the account over
+// permanently.
 async function reauthenticate(
   formData: FormData,
 ): Promise<{ ok: true; accountId: string; username: string } | { ok: false; error: string }> {
@@ -25,28 +24,22 @@ async function reauthenticate(
   if (!session) redirect("/admin/login");
 
   const password = String(formData.get("current_password") ?? "");
-  const code = String(formData.get("current_code") ?? "");
 
   const { data: account } = await createServiceClient()
     .from("admin_accounts")
-    .select("id, password_hash, totp_secret, totp_last_step")
+    .select("id, password_hash")
     .eq("id", session.accountId)
     .single();
 
   if (!account) return { ok: false, error: "Compte introuvable." };
 
-  const passwordOk = verifyPassword(password, account.password_hash);
-  const totpOk = account.totp_secret
-    ? verifyTotp(account.totp_secret, code, account.totp_last_step).ok
-    : false;
-
-  if (!passwordOk || !totpOk) {
+  if (!verifyPassword(password, account.password_hash)) {
     await auditLog({
       accountId: session.accountId,
       username: session.username,
       action: "security.reauth_failed",
     });
-    return { ok: false, error: "Mot de passe ou code invalide." };
+    return { ok: false, error: "Mot de passe invalide." };
   }
 
   return { ok: true, accountId: session.accountId, username: session.username };
@@ -66,7 +59,8 @@ export async function changePassword(
 
   // Length over composition rules: a 16-character passphrase beats a
   // 10-character one with a symbol in it, and composition rules mostly
-  // produce predictable substitutions.
+  // produce predictable substitutions. It carries more weight now that it
+  // is the only factor.
   if (next.length < MIN_LENGTH) {
     return { error: `Le mot de passe doit faire au moins ${MIN_LENGTH} caractères.` };
   }
@@ -87,78 +81,6 @@ export async function changePassword(
   });
 
   redirect("/admin/login");
-}
-
-export async function startTotpRotation(
-  _prev: SecurityState,
-  formData: FormData,
-): Promise<SecurityState> {
-  const auth = await reauthenticate(formData);
-  if (!auth.ok) return { error: auth.error };
-
-  const secret = generateTotpSecret();
-  // Parked on the row but not activated: totp_secret only changes once a
-  // code from the new authenticator has been proved, so a half-finished
-  // rotation can never lock the operator out.
-  await createServiceClient()
-    .from("admin_accounts")
-    .update({ pending_totp_secret: secret })
-    .eq("id", auth.accountId);
-
-  await auditLog({
-    accountId: auth.accountId,
-    username: auth.username,
-    action: "security.totp_rotation_started",
-  });
-
-  return {
-    secret,
-    uri: totpUri(secret, auth.username),
-    success: "Scannez le code, puis confirmez avec un code de la nouvelle application.",
-  };
-}
-
-export async function confirmTotpRotation(
-  _prev: SecurityState,
-  formData: FormData,
-): Promise<SecurityState> {
-  const session = await getAdminSession();
-  if (!session) redirect("/admin/login");
-
-  const code = String(formData.get("new_code") ?? "");
-
-  const service = createServiceClient();
-  const { data: account } = await service
-    .from("admin_accounts")
-    .select("pending_totp_secret")
-    .eq("id", session.accountId)
-    .single();
-
-  if (!account?.pending_totp_secret) {
-    return { error: "Aucune rotation en cours." };
-  }
-
-  const result = verifyTotp(account.pending_totp_secret, code, null);
-  if (!result.ok) return { error: "Code invalide." };
-
-  await service
-    .from("admin_accounts")
-    .update({
-      totp_secret: account.pending_totp_secret,
-      pending_totp_secret: null,
-      totp_enrolled_at: new Date().toISOString(),
-      totp_last_step: result.step,
-    })
-    .eq("id", session.accountId);
-
-  await auditLog({
-    accountId: session.accountId,
-    username: session.username,
-    action: "security.totp_rotated",
-  });
-
-  revalidatePath("/admin/security");
-  return { success: "Nouvelle application d'authentification active." };
 }
 
 export async function revokeOtherSessions(): Promise<void> {

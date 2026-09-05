@@ -1,4 +1,4 @@
-import { Cell, Panel, Row, Table, Tag } from "@/components/admin/console-ui";
+import { Cell, Panel, Row, Table } from "@/components/admin/console-ui";
 import { getAdminSession } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/db/service";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -16,7 +16,7 @@ export default async function ConsoleSecurity() {
   const [{ data: account }, { data: sessions }] = await Promise.all([
     supabase
       .from("admin_accounts")
-      .select("username, totp_enrolled_at, last_login_at, failed_attempts, created_at")
+      .select("username, last_login_at, failed_attempts, created_at")
       .eq("id", session.accountId)
       .single(),
     supabase
@@ -39,18 +39,6 @@ export default async function ConsoleSecurity() {
           <div className="flex justify-between gap-3">
             <dt className="text-neutral-500">Identifiant</dt>
             <dd className="text-neutral-200">{account?.username}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-neutral-500">Authenticator activé</dt>
-            <dd>
-              {account?.totp_enrolled_at ? (
-                <Tag tone="good">
-                  {new Date(account.totp_enrolled_at).toLocaleDateString("fr-FR")}
-                </Tag>
-              ) : (
-                <Tag tone="bad">non</Tag>
-              )}
-            </dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-neutral-500">Dernière connexion</dt>

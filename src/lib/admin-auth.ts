@@ -13,7 +13,9 @@ const ABSOLUTE_MS = 8 * 60 * 60 * 1000;
 
 // After this many consecutive failures the account is locked, and each
 // further failure doubles the wait. Per account rather than per IP alone,
-// since an attacker with a botnet has as many IPs as they like.
+// since an attacker with a botnet has as many IPs as they like. This is
+// the main brake on password guessing now that the console runs on a
+// single factor.
 const LOCK_THRESHOLD = 5;
 const LOCK_BASE_MS = 15 * 60 * 1000;
 
@@ -82,9 +84,6 @@ export type AdminAccount = {
   id: string;
   username: string;
   password_hash: string;
-  totp_secret: string | null;
-  totp_enrolled_at: string | null;
-  totp_last_step: number | null;
   failed_attempts: number;
   locked_until: string | null;
   disabled: boolean;
@@ -93,9 +92,7 @@ export type AdminAccount = {
 export async function findAdminAccount(username: string): Promise<AdminAccount | null> {
   const { data } = await createServiceClient()
     .from("admin_accounts")
-    .select(
-      "id, username, password_hash, totp_secret, totp_enrolled_at, totp_last_step, failed_attempts, locked_until, disabled",
-    )
+    .select("id, username, password_hash, failed_attempts, locked_until, disabled")
     .eq("username", username.trim().toLowerCase())
     .maybeSingle();
   return (data as AdminAccount | null) ?? null;

@@ -21,7 +21,7 @@ export default async function AdminLoginPage() {
           </span>
           <h1 className="font-mono text-lg text-neutral-100">postship / console</h1>
           <p className="text-xs text-neutral-500">
-            Mot de passe et code d&apos;authentification requis ensemble.
+            Toute tentative, réussie ou non, est journalisée.
           </p>
         </div>
         <AdminLoginForm />

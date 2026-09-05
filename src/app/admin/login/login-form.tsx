@@ -56,22 +56,6 @@ export function AdminLoginForm() {
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="code" className="font-mono text-[0.7rem] text-neutral-500">
-          Code d&apos;authentification
-        </label>
-        <input
-          id="code"
-          name="code"
-          inputMode="numeric"
-          maxLength={6}
-          autoComplete="one-time-code"
-          required
-          placeholder="000000"
-          className={`${FIELD} text-center tracking-[0.4em]`}
-        />
-      </div>
-
       {state.error && (
         <p role="alert" className="font-mono text-xs text-[#f85149]">
           {state.error}
