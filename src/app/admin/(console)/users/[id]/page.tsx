@@ -180,6 +180,11 @@ export default async function ConsoleUserDetail({
                           userId={identity.id}
                           subscriptionId={s.id}
                           cancelAtPeriodEnd={s.cancelAtPeriodEnd}
+                          endsAtLabel={
+                            s.currentPeriodEnd
+                              ? new Date(s.currentPeriodEnd * 1000).toLocaleDateString("fr-FR")
+                              : null
+                          }
                         />
                       )}
                     </div>
@@ -247,7 +252,11 @@ export default async function ConsoleUserDetail({
                     </Cell>
                     <Cell>
                       {c.refundable ? (
-                        <RefundAction userId={identity.id} chargeId={c.id} />
+                        <RefundAction
+                          userId={identity.id}
+                          chargeId={c.id}
+                          amountLabel={formatAmount(c.amount, payment.currency)}
+                        />
                       ) : (
                         <span className="text-neutral-700">—</span>
                       )}

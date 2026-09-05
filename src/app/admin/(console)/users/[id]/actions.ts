@@ -6,8 +6,27 @@ import { auditLog, getAdminSession, requestContext } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/db/service";
 import { recordOpsEvent, type OpsSeverity } from "@/lib/ops-events";
 import { getStripe } from "@/lib/stripe";
+import {
+  sendBanEmail,
+  sendCancellationEmail,
+  sendRefundEmail,
+  sendUnbanEmail,
+} from "@/lib/admin-emails";
 
 export type ActionState = { error?: string; success?: string };
+
+// Every action that changes something for a customer tells them so. An
+// unexplained refund on a statement is what a chargeback is made of, and
+// an account that stops working without a word is a support ticket that
+// starts angry.
+async function customerEmail(userId: string): Promise<string | null> {
+  const { data } = await createServiceClient()
+    .from("profiles")
+    .select("email")
+    .eq("id", userId)
+    .maybeSingle();
+  return data?.email ?? null;
+}
 
 // Every action here writes to both trails: admin_audit_log, which exists
 // to answer "who did this", and ops_events, which puts it next to the
@@ -69,9 +88,18 @@ export async function banUser(
   });
   if (error) return { error: error.message };
 
-  await trace("user.banned", userId, { duration });
+  const email = await customerEmail(userId);
+  const notified = email
+    ? await sendBanEmail({ to: email, duration: duration as "24h" | "7d" | "permanent" })
+    : false;
+
+  await trace("user.banned", userId, { duration, notified });
   revalidatePath(`/admin/users/${userId}`);
-  return { success: `Compte banni (${duration}).` };
+  return {
+    success: notified
+      ? `Compte banni (${duration}), client prévenu par email.`
+      : `Compte banni (${duration}). Aucun email envoyé.`,
+  };
 }
 
 export async function unbanUser(
@@ -85,9 +113,14 @@ export async function unbanUser(
   });
   if (error) return { error: error.message };
 
-  await trace("user.unbanned", userId, {}, "info");
+  const email = await customerEmail(userId);
+  const notified = email ? await sendUnbanEmail(email) : false;
+
+  await trace("user.unbanned", userId, { notified }, "info");
   revalidatePath(`/admin/users/${userId}`);
-  return { success: "Bannissement levé." };
+  return {
+    success: notified ? "Bannissement levé, client prévenu." : "Bannissement levé.",
+  };
 }
 
 export async function revokeUserSessions(
@@ -113,14 +146,33 @@ export async function cancelSubscription(
 ): Promise<ActionState> {
   await requireOperator();
 
-  // Cancelling immediately ends service the customer has paid for, so it
-  // asks for the word rather than a click someone can make by reflex.
-  if (mode === "now" && String(formData.get("confirm") ?? "").trim() !== "ANNULER") {
-    return { error: "Tapez ANNULER pour confirmer une résiliation immédiate." };
-  }
+  // The operator's own words, passed through to the customer verbatim.
+  // Optional: a cancellation with no explanation still reads better than
+  // one invented on their behalf.
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500);
+  const notify = formData.get("notify") !== "off";
+
+  let planLabel = "PostShip";
+  let endsAt: number | null = null;
 
   try {
     const stripe = getStripe();
+    // Read before writing: the price and period end go into the email,
+    // and after cancellation Stripe no longer reports the period the
+    // customer actually paid for.
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const item = subscription.items.data[0];
+    planLabel =
+      (item?.price?.nickname ??
+        (item?.price?.unit_amount != null
+          ? `${(item.price.unit_amount / 100).toFixed(0)} ${item.price.currency.toUpperCase()} / ${item.price.recurring?.interval ?? "mois"}`
+          : null)) ??
+      "PostShip";
+    endsAt =
+      (item as { current_period_end?: number } | undefined)?.current_period_end ??
+      (subscription as unknown as { current_period_end?: number }).current_period_end ??
+      null;
+
     if (mode === "now") {
       await stripe.subscriptions.cancel(subscriptionId);
     } else {
@@ -130,13 +182,28 @@ export async function cancelSubscription(
     return { error: err instanceof Error ? err.message : "Échec côté Stripe." };
   }
 
-  await trace("subscription.canceled", userId, { subscriptionId, mode });
+  let notified = false;
+  if (notify) {
+    const email = await customerEmail(userId);
+    notified = email
+      ? await sendCancellationEmail({
+          to: email,
+          planLabel,
+          immediate: mode === "now",
+          endsAt,
+          reason: note,
+        })
+      : false;
+  }
+
+  await trace("subscription.canceled", userId, { subscriptionId, mode, notified, note });
   revalidatePath(`/admin/users/${userId}`);
   return {
     success:
-      mode === "now"
+      (mode === "now"
         ? "Abonnement résilié immédiatement."
-        : "Résiliation programmée en fin de période.",
+        : "Résiliation programmée en fin de période.") +
+      (notified ? " Client prévenu." : ""),
   };
 }
 
@@ -148,9 +215,11 @@ export async function refundCharge(
 ): Promise<ActionState> {
   await requireOperator();
 
-  if (String(formData.get("confirm") ?? "").trim() !== "REMBOURSER") {
-    return { error: "Tapez REMBOURSER pour confirmer." };
-  }
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500);
+  const notify = formData.get("notify") !== "off";
+
+  let amount = 0;
+  let currency = "eur";
 
   try {
     const stripe = getStripe();
@@ -163,12 +232,26 @@ export async function refundCharge(
       return { error: "Paiement en litige — le remboursement passe par le litige." };
     }
 
+    amount = charge.amount;
+    currency = charge.currency;
     await stripe.refunds.create({ charge: chargeId });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Échec côté Stripe." };
   }
 
-  await trace("charge.refunded", userId, { chargeId });
+  let notified = false;
+  if (notify) {
+    const email = await customerEmail(userId);
+    notified = email
+      ? await sendRefundEmail({ to: email, amount, currency, reason: note })
+      : false;
+  }
+
+  await trace("charge.refunded", userId, { chargeId, amount, currency, notified, note });
   revalidatePath(`/admin/users/${userId}`);
-  return { success: "Remboursement émis." };
+  return {
+    success: notified
+      ? "Remboursement émis, client prévenu par email."
+      : "Remboursement émis. Aucun email envoyé.",
+  };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
+import { ConfirmAction, NOTE_FIELD } from "@/components/admin/confirm-action";
 import {
   banUser,
   cancelSubscription,
@@ -13,46 +13,49 @@ import {
 
 const initial: ActionState = {};
 
-const FIELD =
-  "border border-neutral-800 bg-[#0d0f12] px-2 py-1 font-mono text-xs text-neutral-100 placeholder:text-neutral-700 focus:border-[#f85149] focus:outline-none";
-
-function Btn({
-  children,
-  danger,
-}: {
-  children: string;
-  danger?: boolean;
-}) {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className={`border px-2 py-1 font-mono text-xs disabled:opacity-50 ${
-        danger
-          ? "border-[#f85149]/40 text-[#f85149] hover:border-[#f85149]"
-          : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-      }`}
-    >
-      {pending ? "..." : children}
-    </button>
-  );
-}
-
 function Feedback({ state }: { state: ActionState }) {
-  if (state.error) return <span className="font-mono text-xs text-[#f85149]">{state.error}</span>;
+  if (state.error)
+    return <p className="font-mono text-xs text-[#f85149]">{state.error}</p>;
   if (state.success)
-    return <span className="font-mono text-xs text-[#3fb950]">{state.success}</span>;
+    return <p className="font-mono text-xs text-[#3fb950]">{state.success}</p>;
   return null;
 }
 
-export function AccessActions({
-  userId,
-  banned,
+// The customer gets told, and the operator gets to see exactly what will
+// be said before it goes — an opt-out rather than a surprise.
+function NotifyControls({
+  emailSummary,
+  placeholder,
 }: {
-  userId: string;
-  banned: boolean;
+  emailSummary: string;
+  placeholder: string;
 }) {
+  return (
+    <div className="flex flex-col gap-2 border-t border-neutral-800 pt-2">
+      <label className="flex items-start gap-2 font-mono text-[0.7rem] text-neutral-400">
+        <input
+          type="checkbox"
+          name="notify"
+          defaultChecked
+          className="mt-0.5 size-3 accent-neutral-300"
+        />
+        <span>
+          Prévenir le client par email
+          <span className="block text-neutral-600">{emailSummary}</span>
+        </span>
+      </label>
+      <textarea
+        name="note"
+        rows={2}
+        maxLength={500}
+        placeholder={placeholder}
+        className={NOTE_FIELD}
+      />
+    </div>
+  );
+}
+
+export function AccessActions({ userId, banned }: { userId: string; banned: boolean }) {
   const [ban24, ban24Action] = useActionState(banUser.bind(null, userId, "24h"), initial);
   const [ban7, ban7Action] = useActionState(banUser.bind(null, userId, "7d"), initial);
   const [banPerm, banPermAction] = useActionState(
@@ -62,38 +65,89 @@ export function AccessActions({
   const [unban, unbanAction] = useActionState(unbanUser.bind(null, userId), initial);
   const [revoke, revokeAction] = useActionState(revokeUserSessions.bind(null, userId), initial);
 
+  const banConsequences = (duration: string, restores: string) => [
+    `Le compte ne pourra plus se connecter pendant ${duration}.`,
+    "La surveillance de ses sites est suspendue, aucune alerte ne partira.",
+    restores,
+    "Un email lui est envoyé : non-respect des conditions d'utilisation, sans autre détail.",
+  ];
+
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        {banned ? (
-          <form action={unbanAction}>
-            <Btn>Lever le bannissement</Btn>
-          </form>
-        ) : (
-          <>
-            <form action={ban24Action}>
-              <Btn danger>Bannir 24 h</Btn>
-            </form>
-            <form action={ban7Action}>
-              <Btn danger>Bannir 7 j</Btn>
-            </form>
-            <form action={banPermAction}>
-              <Btn danger>Bannir définitivement</Btn>
-            </form>
-          </>
-        )}
-        <form action={revokeAction}>
-          <Btn>Révoquer les sessions</Btn>
-        </form>
-      </div>
-      {[ban24, ban7, banPerm, unban, revoke].map((state, i) => (
-        <Feedback key={i} state={state} />
-      ))}
-      {/* Deliberately absent: sending a password reset or a magic link
-          from here. An email the customer didn't ask for, arriving right
-          after they contacted support, is indistinguishable from phishing
-          — and teaching customers to click those is how support becomes
-          an attack vector. */}
+    <div className="flex flex-col gap-3">
+      {banned ? (
+        <ConfirmAction
+          trigger="Lever le bannissement"
+          title="Rétablir l'accès à ce compte ?"
+          consequences={[
+            "Le compte pourra se reconnecter immédiatement.",
+            "La surveillance de ses sites reprend.",
+            "Un email lui annonce le rétablissement.",
+          ]}
+          confirmLabel="Rétablir l'accès"
+          action={unbanAction}
+          feedback={<Feedback state={unban} />}
+        />
+      ) : (
+        <div className="flex flex-wrap gap-3">
+          <ConfirmAction
+            trigger="Bannir 24 h"
+            title="Suspendre ce compte 24 heures ?"
+            consequences={banConsequences(
+              "24 heures",
+              "L'accès est rétabli automatiquement à l'échéance.",
+            )}
+            confirmLabel="Suspendre 24 h"
+            danger
+            action={ban24Action}
+            feedback={<Feedback state={ban24} />}
+          />
+          <ConfirmAction
+            trigger="Bannir 7 j"
+            title="Suspendre ce compte 7 jours ?"
+            consequences={banConsequences(
+              "7 jours",
+              "L'accès est rétabli automatiquement à l'échéance.",
+            )}
+            confirmLabel="Suspendre 7 j"
+            danger
+            action={ban7Action}
+            feedback={<Feedback state={ban7} />}
+          />
+          <ConfirmAction
+            trigger="Fermer définitivement"
+            title="Fermer ce compte définitivement ?"
+            consequences={[
+              "Le compte ne pourra plus jamais se connecter.",
+              "La surveillance de ses sites s'arrête pour de bon.",
+              "L'email parle de fermeture définitive et invite à contester en répondant.",
+              "Seule une levée manuelle depuis cette page peut revenir en arrière.",
+            ]}
+            confirmLabel="Fermer le compte"
+            danger
+            action={banPermAction}
+            feedback={<Feedback state={banPerm} />}
+          />
+        </div>
+      )}
+
+      <ConfirmAction
+        trigger="Révoquer les sessions"
+        title="Déconnecter ce compte partout ?"
+        consequences={[
+          "Toutes ses sessions ouvertes sont fermées, sur tous ses appareils.",
+          "Il pourra se reconnecter normalement juste après.",
+          "Aucun email n'est envoyé : ce n'est pas une sanction.",
+        ]}
+        confirmLabel="Déconnecter partout"
+        action={revokeAction}
+        feedback={<Feedback state={revoke} />}
+      />
+
+      {/* Deliberately absent: sending a password reset or a magic link.
+          An authentication email the customer didn't ask for, arriving
+          right after they contacted support, is indistinguishable from
+          phishing — and teaching customers to click those is how support
+          becomes an attack vector. */}
       <p className="font-mono text-[0.65rem] text-neutral-700">
         Pas d&apos;envoi de lien de connexion depuis la console : un email
         d&apos;authentification non sollicité est indistinguable d&apos;un
@@ -107,10 +161,12 @@ export function SubscriptionActions({
   userId,
   subscriptionId,
   cancelAtPeriodEnd,
+  endsAtLabel,
 }: {
   userId: string;
   subscriptionId: string;
   cancelAtPeriodEnd: boolean;
+  endsAtLabel: string | null;
 }) {
   const [periodEnd, periodEndAction] = useActionState(
     cancelSubscription.bind(null, userId, subscriptionId, "period_end"),
@@ -122,30 +178,83 @@ export function SubscriptionActions({
   );
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-wrap gap-3">
       {!cancelAtPeriodEnd && (
-        <form action={periodEndAction}>
-          <Btn>Annuler en fin de période</Btn>
-        </form>
+        <ConfirmAction
+          trigger="Annuler en fin de période"
+          title="Ne pas reconduire cet abonnement ?"
+          consequences={[
+            endsAtLabel
+              ? `L'accès payant reste actif jusqu'au ${endsAtLabel}.`
+              : "L'accès payant reste actif jusqu'au terme de la période en cours.",
+            "Aucun nouveau prélèvement ne sera effectué.",
+            "Rien n'est remboursé : la période en cours est déjà réglée.",
+            "Les projets et l'historique du client restent en place.",
+          ]}
+          confirmLabel="Programmer la résiliation"
+          action={periodEndAction}
+          feedback={<Feedback state={periodEnd} />}
+        >
+          <NotifyControls
+            emailSummary="Explique que l'abonnement court jusqu'à son terme puis s'arrête."
+            placeholder="Mot au client, facultatif — repris tel quel dans l'email."
+          />
+        </ConfirmAction>
       )}
-      <form action={nowAction} className="flex flex-wrap items-center gap-2">
-        <input name="confirm" placeholder="tapez ANNULER" className={FIELD} />
-        <Btn danger>Annuler maintenant</Btn>
-      </form>
-      <Feedback state={periodEnd} />
-      <Feedback state={now} />
+
+      <ConfirmAction
+        trigger="Résilier maintenant"
+        title="Couper l'abonnement immédiatement ?"
+        consequences={[
+          "L'accès aux fonctionnalités payantes s'arrête à la seconde.",
+          "Le client perd du temps déjà payé — envisagez un remboursement.",
+          "Aucun remboursement n'est émis automatiquement.",
+          "Les projets et l'historique restent en place.",
+        ]}
+        confirmLabel="Résilier immédiatement"
+        danger
+        action={nowAction}
+        feedback={<Feedback state={now} />}
+      >
+        <NotifyControls
+          emailSummary="Annonce l'arrêt immédiat et rassure sur la conservation des données."
+          placeholder="Mot au client, facultatif — repris tel quel dans l'email."
+        />
+      </ConfirmAction>
     </div>
   );
 }
 
-export function RefundAction({ userId, chargeId }: { userId: string; chargeId: string }) {
+export function RefundAction({
+  userId,
+  chargeId,
+  amountLabel,
+}: {
+  userId: string;
+  chargeId: string;
+  amountLabel: string;
+}) {
   const [state, action] = useActionState(refundCharge.bind(null, userId, chargeId), initial);
 
   return (
-    <form action={action} className="flex flex-wrap items-center gap-2">
-      <input name="confirm" placeholder="tapez REMBOURSER" className={FIELD} />
-      <Btn danger>Rembourser</Btn>
-      <Feedback state={state} />
-    </form>
+    <ConfirmAction
+      trigger="Rembourser"
+      title={`Rembourser ${amountLabel} ?`}
+      consequences={[
+        `${amountLabel} sont recrédités sur le moyen de paiement d'origine.`,
+        "Comptez 5 à 10 jours ouvrés côté banque.",
+        "L'abonnement n'est pas résilié pour autant.",
+        "Un remboursement n'est pas annulable.",
+      ]}
+      confirmLabel={`Rembourser ${amountLabel}`}
+      danger
+      action={action}
+      feedback={<Feedback state={state} />}
+    >
+      <NotifyControls
+        emailSummary="Annonce le montant, le délai bancaire et le libellé sur le relevé."
+        placeholder="Motif à communiquer, facultatif — repris tel quel dans l'email."
+      />
+    </ConfirmAction>
   );
 }
