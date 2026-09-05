@@ -170,3 +170,73 @@ export async function getStripeSnapshot(): Promise<StripeSnapshot | null> {
     return null;
   }
 }
+
+export type AdminUserRow = {
+  id: string;
+  email: string | null;
+  username: string | null;
+  plan: string | null;
+  token_balance: number | null;
+  stripe_subscription_status: string | null;
+  created_at: string;
+  projects: number;
+  targets: number;
+  last_seen_at: string | null;
+};
+
+// Deliberately no impersonation anywhere in this console: "log in as this
+// customer" is the single most dangerous feature an operator panel can
+// have, and everything the support case actually needs — plan, quota,
+// project state, last activity — is on this row already.
+export async function getAdminUsers(limit = 200): Promise<AdminUserRow[]> {
+  const { data, error } = await createServiceClient().rpc("admin_users", {
+    p_limit: limit,
+  });
+  if (error) {
+    console.error("Échec admin_users", error.message);
+    return [];
+  }
+  return (data ?? []) as AdminUserRow[];
+}
+
+export type AdminProjectRow = {
+  id: string;
+  name: string;
+  base_url: string | null;
+  owner_email: string | null;
+  paused: boolean;
+  targets: number;
+  failing: number;
+  last_checked_at: string | null;
+  created_at: string;
+};
+
+export async function getAdminProjects(limit = 200): Promise<AdminProjectRow[]> {
+  const { data, error } = await createServiceClient().rpc("admin_projects", {
+    p_limit: limit,
+  });
+  if (error) {
+    console.error("Échec admin_projects", error.message);
+    return [];
+  }
+  return (data ?? []) as AdminProjectRow[];
+}
+
+export type AuditEntry = {
+  id: number;
+  username: string | null;
+  action: string;
+  target: string | null;
+  detail: Record<string, unknown> | null;
+  ip: string | null;
+  created_at: string;
+};
+
+export async function getAuditLog(limit = 150): Promise<AuditEntry[]> {
+  const { data } = await createServiceClient()
+    .from("admin_audit_log")
+    .select("id, username, action, target, detail, ip, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []) as AuditEntry[];
+}
