@@ -7,6 +7,7 @@
 // guard (same reasoning as src/lib/github-check.ts).
 
 import { createServiceClient } from "@/lib/db/service";
+import { formatRelativeTime } from "@/lib/format-relative-time";
 
 const TIMEOUT_MS = 8000;
 
@@ -60,10 +61,18 @@ async function vercelPanel(): Promise<InfraPanel> {
   if (!token) return base;
 
   const headers = { Authorization: `Bearer ${token}` };
-  const team = process.env.VERCEL_TEAM_ID ? `?teamId=${process.env.VERCEL_TEAM_ID}` : "";
+
+  // A project-scoped token (vcp_…) is refused on account-level endpoints
+  // and only answers when the request names the team it belongs to, so
+  // the team id isn't optional in practice — and scoping to the project
+  // as well keeps the numbers about PostShip rather than every project
+  // sharing the team.
+  const query = new URLSearchParams({ limit: "100" });
+  if (process.env.VERCEL_TEAM_ID) query.set("teamId", process.env.VERCEL_TEAM_ID);
+  if (process.env.VERCEL_PROJECT_ID) query.set("projectId", process.env.VERCEL_PROJECT_ID);
 
   const deployments = await fetchJson(
-    `https://api.vercel.com/v6/deployments${team || "?"}&limit=100`.replace("?&", "?"),
+    `https://api.vercel.com/v6/deployments?${query.toString()}`,
     headers,
   );
 
@@ -72,33 +81,42 @@ async function vercelPanel(): Promise<InfraPanel> {
       ...base,
       error:
         deployments.status === 401 || deployments.status === 403
-          ? "Jeton refusé par Vercel — il a expiré ou ne couvre pas cette équipe."
+          ? "Jeton refusé par Vercel — expiré, ou VERCEL_TEAM_ID absent pour un jeton de projet."
           : "Vercel n'a pas répondu.",
     };
   }
 
   const deploys =
-    (deployments.body as { deployments?: { created: number; state: string }[] })
-      .deployments ?? [];
+    (
+      deployments.body as {
+        deployments?: { created: number; state: string; target?: string | null }[];
+      }
+    ).deployments ?? [];
+
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const week = deploys.filter((d) => d.created >= weekAgo);
+  const failed = week.filter((d) => d.state === "ERROR").length;
+  const latest = deploys[0];
 
   return {
     ...base,
     metrics: [
       {
+        label: "Dernier déploiement",
+        value: latest
+          ? `${latest.state.toLowerCase()} · ${formatRelativeTime(new Date(latest.created).toISOString())}`
+          : "—",
+      },
+      {
         label: "Déploiements 24 h",
         value: String(deploys.filter((d) => d.created >= dayAgo).length),
       },
-      {
-        label: "Déploiements 7 j",
-        value: String(deploys.filter((d) => d.created >= weekAgo).length),
-      },
+      { label: "Déploiements 7 j", value: String(week.length) },
       {
         label: "Échecs 7 j",
-        value: String(
-          deploys.filter((d) => d.created >= weekAgo && d.state === "ERROR").length,
-        ),
+        value: String(failed),
+        hint: failed > 0 ? "state=ERROR sur la fenêtre glissante" : undefined,
       },
     ],
   };
