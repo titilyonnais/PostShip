@@ -11,8 +11,14 @@
 -- Nothing here is reachable from PostgREST: RLS is on with no policy at
 -- all, and every grant is revoked, so only the service role (server-side,
 -- never in a browser) can read or write these tables.
+--
+-- Every statement is idempotent. These tables were first created through
+-- the Management API rather than the migration runner, so the runner then
+-- replayed this file against a database that already had them and failed
+-- with 42P07. A migration that cannot be replayed is a migration that
+-- blocks every later one behind it.
 
-create table public.admin_accounts (
+create table if not exists public.admin_accounts (
   id uuid primary key default gen_random_uuid(),
   username text not null unique,
   -- scrypt$N$r$p$salt$hash — the parameters travel with the hash so they
@@ -33,7 +39,7 @@ create table public.admin_accounts (
   created_at timestamptz not null default now()
 );
 
-create table public.admin_sessions (
+create table if not exists public.admin_sessions (
   id uuid primary key default gen_random_uuid(),
   account_id uuid not null references public.admin_accounts(id) on delete cascade,
   -- The cookie carries an opaque random token; only its SHA-256 is stored,
@@ -49,12 +55,12 @@ create table public.admin_sessions (
   revoked_at timestamptz
 );
 
-create index admin_sessions_account_idx on public.admin_sessions (account_id);
-create index admin_sessions_expiry_idx on public.admin_sessions (expires_at);
+create index if not exists admin_sessions_account_idx on public.admin_sessions (account_id);
+create index if not exists admin_sessions_expiry_idx on public.admin_sessions (expires_at);
 
 -- Every privileged action and every login attempt, successful or not.
 -- An operator console without a trail is an alibi machine.
-create table public.admin_audit_log (
+create table if not exists public.admin_audit_log (
   id bigserial primary key,
   account_id uuid references public.admin_accounts(id) on delete set null,
   username text,
@@ -66,7 +72,7 @@ create table public.admin_audit_log (
   created_at timestamptz not null default now()
 );
 
-create index admin_audit_log_created_idx on public.admin_audit_log (created_at desc);
+create index if not exists admin_audit_log_created_idx on public.admin_audit_log (created_at desc);
 
 alter table public.admin_accounts enable row level security;
 alter table public.admin_sessions enable row level security;
