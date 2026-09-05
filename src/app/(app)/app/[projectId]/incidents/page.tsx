@@ -159,11 +159,22 @@ export default async function IncidentsPage({
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <StatusDot status={entry.kind === "recovered" ? "pass" : "fail"} />
-                  <span className="min-w-0 truncate font-mono">{entry.url}</span>
+                  {entry.targetId ? (
+                    <Link
+                      href={`/app/${projectId}/${entry.targetId}`}
+                      className="min-w-0 truncate font-mono underline-offset-2 hover:underline"
+                    >
+                      {entry.url}
+                    </Link>
+                  ) : (
+                    <span className="min-w-0 truncate font-mono">{entry.url}</span>
+                  )}
                 </span>
                 <span className="flex shrink-0 items-center gap-3 text-muted-foreground">
                   <span>{entry.kind === "recovered" ? "Rétabli" : "En échec"}</span>
-                  <span>{CHANNEL_LABEL[entry.channel] ?? entry.channel}</span>
+                  <span>
+                    {entry.channels.map((c) => CHANNEL_LABEL[c] ?? c).join(" · ")}
+                  </span>
                   <span>{formatRelativeTime(entry.sentAt)}</span>
                 </span>
               </li>

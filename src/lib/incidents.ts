@@ -15,7 +15,8 @@ export type IncidentLogEntry = {
   targetId: string | null;
   url: string;
   kind: "fail" | "recovered";
-  channel: string;
+  /** Every channel that carried this one alert, e.g. ["email", "discord"]. */
+  channels: string[];
   sentAt: string;
 };
 
@@ -78,6 +79,20 @@ export async function getOpenIncidents(
 }
 
 // The journal — every alert actually sent, not just the current state.
+// One row per channel is written for every alert (src/lib/alerts.ts), so a
+// project on email + Discord + Slack burns three rows per incident. The
+// log used to select the newest 50 of those and stop: a 30-day range
+// really showed about five hours, and each incident three times over.
+//
+// So it now collapses those rows back into the alerts they came from —
+// same target, same kind, same fingerprint, within the dedup window — and
+// reads far enough back to fill the range being asked for.
+const RAW_EVENT_CAP = 1000;
+const ENTRY_CAP = 200;
+// Matches DEDUP_WINDOW_MS in src/lib/alerts.ts: rows further apart than
+// this are, by definition, separate alerts rather than one fan-out.
+const FANOUT_WINDOW_MS = 10 * 60 * 1000;
+
 export async function getIncidentLog(
   supabase: SupabaseClient,
   projectId: string,
@@ -85,16 +100,53 @@ export async function getIncidentLog(
 ): Promise<IncidentLogEntry[]> {
   const { data: events } = await supabase
     .from("alert_events")
-    .select("id, target_id, kind, channel, sent_at")
+    .select("id, target_id, kind, channel, fingerprint, sent_at")
     .eq("project_id", projectId)
     .gte("sent_at", sinceIso)
     .order("sent_at", { ascending: false })
-    .limit(50);
+    .limit(RAW_EVENT_CAP);
 
   if (!events || events.length === 0) return [];
 
+  // Greedy walk over the already-sorted rows rather than bucketing on a
+  // fixed clock: the channels of one fan-out are written by separate
+  // inserts milliseconds apart, and a fixed bucket would split the ones
+  // that happen to straddle its boundary.
+  const groups: {
+    id: string;
+    targetId: string | null;
+    kind: "fail" | "recovered";
+    fingerprint: string | null;
+    channels: Set<string>;
+    sentAt: string;
+  }[] = [];
+  const openByKey = new Map<string, (typeof groups)[number]>();
+
+  for (const event of events) {
+    const key = `${event.target_id}|${event.kind}|${event.fingerprint}`;
+    const open = openByKey.get(key);
+    const at = new Date(event.sent_at).getTime();
+
+    if (open && new Date(open.sentAt).getTime() - at <= FANOUT_WINDOW_MS) {
+      open.channels.add(event.channel);
+      continue;
+    }
+
+    const group = {
+      id: event.id,
+      targetId: event.target_id,
+      kind: event.kind as "fail" | "recovered",
+      fingerprint: event.fingerprint,
+      channels: new Set<string>([event.channel]),
+      sentAt: event.sent_at,
+    };
+    groups.push(group);
+    openByKey.set(key, group);
+    if (groups.length >= ENTRY_CAP) break;
+  }
+
   const targetIds = [
-    ...new Set(events.map((e) => e.target_id).filter((id): id is string => !!id)),
+    ...new Set(groups.map((g) => g.targetId).filter((id): id is string => !!id)),
   ];
   const { data: targets } =
     targetIds.length > 0
@@ -102,12 +154,12 @@ export async function getIncidentLog(
       : { data: [] };
   const urlById = new Map((targets ?? []).map((t) => [t.id, t.url]));
 
-  return events.map((e) => ({
-    id: e.id,
-    targetId: e.target_id,
-    url: e.target_id ? (urlById.get(e.target_id) ?? "—") : "—",
-    kind: e.kind as "fail" | "recovered",
-    channel: e.channel,
-    sentAt: e.sent_at,
+  return groups.map((g) => ({
+    id: g.id,
+    targetId: g.targetId,
+    url: g.targetId ? (urlById.get(g.targetId) ?? "—") : "—",
+    kind: g.kind,
+    channels: [...g.channels].sort(),
+    sentAt: g.sentAt,
   }));
 }

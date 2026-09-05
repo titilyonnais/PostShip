@@ -45,7 +45,11 @@ const PROJECT = {
   profiles: { plan: "solo" },
 };
 
-function mockProject(project: (typeof PROJECT & { telegram_chat_id: string | null }) | null) {
+type ProjectRow = Omit<typeof PROJECT, "telegram_chat_id"> & {
+  telegram_chat_id: string | null;
+};
+
+function mockProject(project: ProjectRow | null) {
   fromMock.mockReturnValue({
     select: () => ({
       eq: () => ({
