@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -13,7 +14,12 @@ import { NavDropdown } from "./nav-dropdown";
 
 type AuthState =
   | { loaded: false; loggedIn: false; label: null; avatarUrl: null }
-  | { loaded: true; loggedIn: boolean; label: string | null; avatarUrl: string | null };
+  | {
+      loaded: true;
+      loggedIn: boolean;
+      label: string | null;
+      avatarUrl: string | null;
+    };
 
 const INITIAL_AUTH_STATE: AuthState = {
   loaded: false,
@@ -38,7 +44,13 @@ function useMarketingAuth(): AuthState {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        if (active) setState({ loaded: true, loggedIn: false, label: null, avatarUrl: null });
+        if (active)
+          setState({
+            loaded: true,
+            loggedIn: false,
+            label: null,
+            avatarUrl: null,
+          });
         return;
       }
 
@@ -47,7 +59,13 @@ function useMarketingAuth(): AuthState {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        if (active) setState({ loaded: true, loggedIn: false, label: null, avatarUrl: null });
+        if (active)
+          setState({
+            loaded: true,
+            loggedIn: false,
+            label: null,
+            avatarUrl: null,
+          });
         return;
       }
 
@@ -87,6 +105,11 @@ export function MarketingHeader() {
   const pathname = usePathname();
   const auth = useMarketingAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // document doesn't exist during the server render, so the portal
+  // target can only be read after mount.
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
   const config = getHeaderConfig(pathname, auth.loggedIn);
 
   // Connexion shows for every logged-out visitor on every marketing page
@@ -117,7 +140,9 @@ export function MarketingHeader() {
   }, [drawerOpen]);
 
   const authLinkHref = auth.loggedIn ? "/app" : "/login";
-  const authLinkLabel = auth.loggedIn ? (auth.label ?? "Mon espace") : "Connexion";
+  const authLinkLabel = auth.loggedIn
+    ? (auth.label ?? "Mon espace")
+    : "Connexion";
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
@@ -126,7 +151,10 @@ export function MarketingHeader() {
           <LogoMark className="size-9" />
         </Link>
 
-        <nav aria-label="Principale" className="hidden items-center gap-2 md:flex">
+        <nav
+          aria-label="Principale"
+          className="hidden items-center gap-2 md:flex"
+        >
           {SECTION_LINKS.map((link) => {
             const active = isCurrentSection(pathname, link.href);
             const megaMenu = MEGA_MENUS[link.href];
@@ -175,7 +203,10 @@ export function MarketingHeader() {
             </Link>
           )}
           {config.slot && (
-            <Link href={config.slot.href} className={buttonVariants({ variant: "default" })}>
+            <Link
+              href={config.slot.href}
+              className={buttonVariants({ variant: "default" })}
+            >
               {config.slot.label}
             </Link>
           )}
@@ -192,62 +223,69 @@ export function MarketingHeader() {
         </button>
       </div>
 
-      {drawerOpen && (
-        <div className="md:hidden">
-          <button
-            type="button"
-            aria-label="Fermer le menu"
-            onClick={() => setDrawerOpen(false)}
-            className="fixed inset-0 z-40 bg-black/40 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
-          />
-          <div className="fixed inset-x-0 top-[calc(4rem+1px)] bottom-0 z-50 flex flex-col overflow-y-auto bg-background px-6 py-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                aria-label="Fermer le menu"
-                className="flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <X className="size-5" aria-hidden="true" />
-              </button>
-            </div>
-            {SECTION_LINKS.map((link) =>
-              isCurrentSection(pathname, link.href) ? (
-                <span key={link.href} aria-current="page" className="py-3 text-lg font-medium text-foreground">
-                  {link.label}
-                </span>
-              ) : (
+      {drawerOpen &&
+        mounted &&
+        createPortal(
+          <div className="md:hidden">
+            <button
+              type="button"
+              aria-label="Fermer le menu"
+              onClick={() => setDrawerOpen(false)}
+              className="fixed inset-0 z-40 bg-black/40 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
+            />
+            <div className="fixed inset-x-0 top-[calc(4rem+1px)] bottom-0 z-50 flex flex-col overflow-y-auto bg-background px-6 py-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(false)}
+                  aria-label="Fermer le menu"
+                  className="flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="size-5" aria-hidden="true" />
+                </button>
+              </div>
+              {SECTION_LINKS.map((link) =>
+                isCurrentSection(pathname, link.href) ? (
+                  <span
+                    key={link.href}
+                    aria-current="page"
+                    className="py-3 text-lg font-medium text-foreground"
+                  >
+                    {link.label}
+                  </span>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setDrawerOpen(false)}
+                    className="py-3 text-lg text-foreground"
+                  >
+                    {link.label}
+                  </Link>
+                ),
+              )}
+              {showAuthLink && (
                 <Link
-                  key={link.href}
-                  href={link.href}
+                  href={authLinkHref}
                   onClick={() => setDrawerOpen(false)}
                   className="py-3 text-lg text-foreground"
                 >
-                  {link.label}
+                  {authLinkLabel}
                 </Link>
-              ),
-            )}
-            {showAuthLink && (
-              <Link
-                href={authLinkHref}
-                onClick={() => setDrawerOpen(false)}
-                className="py-3 text-lg text-foreground"
-              >
-                {authLinkLabel}
-              </Link>
-            )}
-            {config.slot && (
-              <Link
-                href={config.slot.href}
-                onClick={() => setDrawerOpen(false)}
-                className={`${buttonVariants({ variant: "default" })} mt-3 w-full`}
-              >
-                {config.slot.label}
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
+              )}
+              {config.slot && (
+                <Link
+                  href={config.slot.href}
+                  onClick={() => setDrawerOpen(false)}
+                  className={`${buttonVariants({ variant: "default" })} mt-3 w-full`}
+                >
+                  {config.slot.label}
+                </Link>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </header>
   );
 }

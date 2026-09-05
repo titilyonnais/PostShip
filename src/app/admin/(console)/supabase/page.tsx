@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Cell, Metric, Panel, Row, Table, Tag } from "@/components/admin/console-ui";
 import {
   formatBytes,
@@ -94,12 +95,32 @@ export default async function ConsoleSupabase() {
             </div>
 
             <Panel title="Dernières connexions">
-              <Table head={["Compte", "Dernière connexion"]} empty={auth.recent.length === 0}>
+              <Table
+                head={["Compte", "Dernière connexion", ""]}
+                empty={auth.recent.length === 0}
+              >
                 {auth.recent.map((u) => (
                   <Row key={u.id}>
-                    <Cell>{u.email ?? u.id}</Cell>
+                    <Cell>
+                      {/* The name was a dead end: seeing who signed in is
+                          only useful if you can then open their file. */}
+                      <Link
+                        href={`/admin/users/${u.id}`}
+                        className="text-neutral-200 underline-offset-2 hover:underline"
+                      >
+                        {u.email ?? u.id}
+                      </Link>
+                    </Cell>
                     <Cell className="text-neutral-500">
                       {u.lastSignInAt ? formatRelativeTime(u.lastSignInAt) : "jamais"}
+                    </Cell>
+                    <Cell>
+                      <Link
+                        href={`/admin/users/${u.id}`}
+                        className="border border-neutral-800 px-2 py-0.5 text-[0.65rem] text-neutral-400 hover:border-neutral-600 hover:text-neutral-100"
+                      >
+                        fiche →
+                      </Link>
                     </Cell>
                   </Row>
                 ))}

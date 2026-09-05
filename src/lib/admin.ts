@@ -1,6 +1,5 @@
 import { createServiceClient } from "@/lib/db/service";
 import { getStripe } from "@/lib/stripe";
-import { assessFraud } from "@/lib/fraud-engine";
 
 // Access is an env allowlist, not a column: a database flag needs a write
 // path, and any write path to "is admin" is a privilege-escalation
@@ -183,8 +182,10 @@ export type AdminUserRow = {
   projects: number;
   targets: number;
   last_seen_at: string | null;
-  /** Partial: database signals plus past_due, no Stripe round-trip. */
-  riskScore?: number;
+  /** From the nightly sweep. Null until an account has been scored once. */
+  riskScore?: number | null;
+  riskBand?: string | null;
+  riskScoredAt?: string | null;
 };
 
 // Deliberately no impersonation anywhere in this console: "log in as this
@@ -194,9 +195,9 @@ export type AdminUserRow = {
 export async function getAdminUsers(limit = 200): Promise<AdminUserRow[]> {
   const supabase = createServiceClient();
 
-  const [{ data, error }, { data: signals }] = await Promise.all([
+  const [{ data, error }, { data: scores }] = await Promise.all([
     supabase.rpc("admin_users", { p_limit: limit }),
-    supabase.rpc("admin_user_risk_signals"),
+    supabase.from("fraud_scores").select("user_id, score, band, scored_at"),
   ]);
 
   if (error) {
@@ -204,65 +205,25 @@ export async function getAdminUsers(limit = 200): Promise<AdminUserRow[]> {
     return [];
   }
 
-  // Only the signals that live in our own database. The Stripe-derived
-  // ones — disputes, failed invoices, past due — would cost one API round
-  // trip per row, which is why this list had no risk column at all. It
-  // flags who is worth opening; the detail page does the full score.
+  // The score the nightly sweep computed, Stripe signals included — the
+  // same number the customer file shows. Computing a cheaper one here was
+  // what made the two pages disagree.
   const byUser = new Map(
-    ((signals ?? []) as {
+    ((scores ?? []) as {
       user_id: string;
-      failed_logins_24h: number;
-      accounts_sharing_customer: number;
-      tokens_purchased: boolean;
-      project_count: number;
+      score: number;
+      band: string;
+      scored_at: string;
     }[]).map((row) => [row.user_id, row]),
   );
 
   return ((data ?? []) as AdminUserRow[]).map((user) => {
-    const signal = byUser.get(user.id);
-    // The same engine as the customer file, fed only what the database
-    // can answer for every row at once. The Stripe features would cost an
-    // API call per line, so they are left at zero here and the page says
-    // so — a partial score that admits it is partial beats a full one
-    // that takes ten seconds to render.
-    const risk = signal
-      ? assessFraud({
-          accountAgeDays: Math.floor(
-            (Date.now() - new Date(user.created_at).getTime()) / (24 * 60 * 60 * 1000),
-          ),
-          maxAccountsPerIp: 0,
-          distinctIps30d: 0,
-          accountsSharingStripeCustomer: Number(signal.accounts_sharing_customer),
-          emailDomain: user.email?.split("@")[1]?.toLowerCase() ?? null,
-          signupsFromSameIp30d: 0,
-          failedLogins24h: Number(signal.failed_logins_24h),
-          disputes: 0,
-          failedInvoices30d: 0,
-          pastDueDays: 0,
-          smallFailedCharges24h: 0,
-          refundedCharges: 0,
-          totalCharges: 0,
-          distinctCountries7d: 0,
-          maxImpliedSpeedKmh: 0,
-          cardCountry: null,
-          visitCountry: null,
-          distinctUserAgents30d: 0,
-          botSessionSeen: false,
-          hourDeviation: 0,
-          tokensPurchased: signal.tokens_purchased,
-          projectCount: Number(signal.project_count),
-        })
-      : null;
-
-    // past_due on the profile is free and materially changes the picture,
-    // so it is folded in without calling Stripe.
-    const pastDue =
-      user.stripe_subscription_status === "past_due" ||
-      user.stripe_subscription_status === "unpaid";
-
+    const stored = byUser.get(user.id);
     return {
       ...user,
-      riskScore: (risk?.score ?? 0) + (pastDue ? 25 : 0),
+      riskScore: stored?.score ?? null,
+      riskBand: stored?.band ?? null,
+      riskScoredAt: stored?.scored_at ?? null,
     };
   });
 }

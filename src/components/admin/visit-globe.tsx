@@ -49,41 +49,52 @@ function project(lat: number, lon: number, rotation: Rotation) {
   return { x: CX + R * x, y: CY - R * yr, visible: zr > 0 };
 }
 
-// Breaks a ring wherever it crosses the horizon, so a continent half on
-// the far side draws as the arc that is actually facing us rather than as
-// a line cutting across the globe.
-function ringPath(ring: Ring, rotation: Rotation): string {
-  let path = "";
-  let pen = false;
+// Breaks a ring wherever it crosses the horizon and returns one path per
+// continuous visible arc, rather than one path with
+// several subpaths. That distinction is the whole bug: a filled path
+// auto-closes each of its subpaths, so a continent split across the
+// horizon was drawing chords straight across the globe. Separate paths
+// also let a stray one-point fragment be dropped instead of rendering as
+// a spur outside the disc.
+function ringPaths(ring: Ring, rotation: Rotation): string[] {
+  const paths: string[] = [];
+  let current: string[] = [];
+
+  const flush = () => {
+    // Two points make a line, not a shape; below that there is nothing
+    // worth drawing and the fragment only produces artefacts.
+    if (current.length >= 3) paths.push(`M${current.join("L")}`);
+    current = [];
+  };
 
   for (const [lon, lat] of ring) {
     const p = project(lat, lon, rotation);
     if (!p.visible) {
-      pen = false;
+      flush();
       continue;
     }
-    path += `${pen ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-    pen = true;
+    current.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
   }
+  flush();
 
-  return path;
+  return paths;
 }
 
 function graticule(rotation: Rotation): string[] {
   const paths: string[] = [];
 
+  // 2° steps rather than 4°: at 150px radius a 4° chord is visibly
+  // straight, which is what made the parallels look faceted.
   for (let lat = -60; lat <= 60; lat += 30) {
     const ring: Ring = [];
-    for (let lon = -180; lon <= 180; lon += 4) ring.push([lon, lat]);
-    const path = ringPath(ring, rotation);
-    if (path) paths.push(path);
+    for (let lon = -180; lon <= 180; lon += 2) ring.push([lon, lat]);
+    paths.push(...ringPaths(ring, rotation));
   }
 
   for (let lon = -180; lon < 180; lon += 30) {
     const ring: Ring = [];
-    for (let lat = -90; lat <= 90; lat += 4) ring.push([lon, lat]);
-    const path = ringPath(ring, rotation);
-    if (path) paths.push(path);
+    for (let lat = -90; lat <= 90; lat += 2) ring.push([lon, lat]);
+    paths.push(...ringPaths(ring, rotation));
   }
 
   return paths;
@@ -121,7 +132,7 @@ export function VisitGlobe({ points }: { points: GlobePoint[] }) {
   }, [spinning]);
 
   const landPaths = useMemo(
-    () => land.map((ring) => ringPath(ring, rotation)).filter(Boolean),
+    () => land.flatMap((ring) => ringPaths(ring, rotation)),
     [land, rotation],
   );
 
@@ -158,22 +169,43 @@ export function VisitGlobe({ points }: { points: GlobePoint[] }) {
           drag.current = null;
         }}
       >
-        <circle cx={CX} cy={CY} r={R} fill="#0b0d10" stroke="#1f2428" strokeWidth="1" />
+        <defs>
+          <clipPath id="globe-disc">
+            <circle cx={CX} cy={CY} r={R} />
+          </clipPath>
+        </defs>
 
-        {graticule(rotation).map((d, i) => (
-          <path key={`grat-${i}`} d={d} fill="none" stroke="#161b20" strokeWidth="0.75" />
-        ))}
+        <circle
+          cx={CX}
+          cy={CY}
+          r={R}
+          fill="#0b0d10"
+          stroke="#1f2428"
+          strokeWidth="1"
+        />
 
-        {landPaths.map((d, i) => (
-          <path
-            key={`land-${i}`}
-            d={d}
-            fill="#1c2329"
-            stroke="#2b343b"
-            strokeWidth="0.6"
-            strokeLinejoin="round"
-          />
-        ))}
+        <g clipPath="url(#globe-disc)">
+          {graticule(rotation).map((d, i) => (
+            <path
+              key={`grat-${i}`}
+              d={d}
+              fill="none"
+              stroke="#161b20"
+              strokeWidth="0.75"
+            />
+          ))}
+
+          {landPaths.map((d, i) => (
+            <path
+              key={`land-${i}`}
+              d={d}
+              fill="#1c2329"
+              stroke="#2b343b"
+              strokeWidth="0.6"
+              strokeLinejoin="round"
+            />
+          ))}
+        </g>
 
         {points.map((point, i) => {
           const p = project(point.lat, point.lon, rotation);
@@ -183,7 +215,13 @@ export function VisitGlobe({ points }: { points: GlobePoint[] }) {
           const radius = 2.5 + 7 * Math.sqrt(point.hits / maxHits);
           return (
             <g key={`${point.label}-${i}`}>
-              <circle cx={p.x} cy={p.y} r={radius + 4} fill="#3fb950" opacity={0.15} />
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={radius + 4}
+                fill="#3fb950"
+                opacity={0.15}
+              />
               <circle
                 cx={p.x}
                 cy={p.y}
@@ -200,7 +238,9 @@ export function VisitGlobe({ points }: { points: GlobePoint[] }) {
 
       <div className="flex items-center justify-between gap-3 font-mono text-[0.65rem] text-neutral-600">
         <span>
-          {hover ? `${hover.label} — ${hover.hits} visites` : "Glissez pour tourner"}
+          {hover
+            ? `${hover.label} — ${hover.hits} visites`
+            : "Glissez pour tourner"}
         </span>
         <button
           type="button"

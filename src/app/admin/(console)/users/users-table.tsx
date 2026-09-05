@@ -38,7 +38,7 @@ export function UsersTable({ users }: { users: AdminUserRow[] }) {
 
     return {
       all: users,
-      risk: users.filter((u) => (u.riskScore ?? 0) > 0),
+      risk: users.filter((u) => (u.riskScore ?? 0) >= 15),
       paying: users.filter((u) => u.plan && u.plan !== "free"),
       past_due: users.filter(
         (u) =>
@@ -72,15 +72,26 @@ export function UsersTable({ users }: { users: AdminUserRow[] }) {
     {
       key: "risk",
       label: "Risque",
-      sort: (u) => u.riskScore ?? 0,
+      // Unscored accounts sort below zero rather than mixing in with the
+      // clean ones: "not yet measured" is not the same as "measured, fine".
+      sort: (u) => (u.riskScore === null || u.riskScore === undefined ? -1 : u.riskScore),
       render: (u) => {
-        const score = u.riskScore ?? 0;
-        return score >= 40 ? (
-          <Tag tone="bad">{score}</Tag>
-        ) : score > 0 ? (
-          <Tag tone="warn">{score}</Tag>
+        if (u.riskScore === null || u.riskScore === undefined) {
+          return (
+            <span className="text-neutral-700" title="Pas encore évalué par le balayage nocturne">
+              non évalué
+            </span>
+          );
+        }
+        const age = u.riskScoredAt ? formatRelativeTime(u.riskScoredAt) : "";
+        return u.riskScore >= 40 ? (
+          <Tag tone="bad">{u.riskScore}</Tag>
+        ) : u.riskScore >= 15 ? (
+          <Tag tone="warn">{u.riskScore}</Tag>
         ) : (
-          <span className="text-neutral-700">—</span>
+          <span className="text-neutral-500" title={`Évalué ${age}`}>
+            {u.riskScore}
+          </span>
         );
       },
     },

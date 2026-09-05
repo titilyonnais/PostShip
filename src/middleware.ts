@@ -39,13 +39,51 @@ function isPageRequest(request: NextRequest): boolean {
 }
 
 // Fire-and-forget: the visitor's page must never wait on telemetry, and a
-// failure here costs a row rather than a page view. The edge runtime has
-// no Supabase service client, hence the hop through /api/track.
+// failure here costs a row rather than a page view. The hop through
+// /api/track exists because the edge runtime this middleware runs in has
+// no Supabase service client.
+//
+// Every value the route needs travels under an x-track-* name, and that
+// is not tidiness. The hop is a server-to-server request, so by the time
+// it arrives the platform has rewritten x-forwarded-for and x-real-ip to
+// the address of the machine that made it — our own infrastructure. The
+// tracker was faithfully recording Vercel's AWS egress IPs in London and
+// filing them as visitors. Copying the originals under names nothing else
+// touches is what makes the recorded address the visitor's.
+const GEO_HEADERS = [
+  "x-vercel-ip-country",
+  "x-vercel-ip-country-region",
+  "x-vercel-ip-city",
+  "x-vercel-ip-latitude",
+  "x-vercel-ip-longitude",
+  "x-vercel-ip-timezone",
+] as const;
+
 function track(request: NextRequest): void {
   const url = new URL("/api/track", request.nextUrl.origin);
-  const headers = new Headers(request.headers);
+  const headers = new Headers();
+
   headers.set("x-track-path", request.nextUrl.pathname);
   headers.set("x-track-method", request.method);
+  headers.set(
+    "x-track-ip",
+    request.headers.get("x-real-ip") ??
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      "unknown",
+  );
+  headers.set("x-track-ua", request.headers.get("user-agent") ?? "");
+  headers.set("x-track-referer", request.headers.get("referer") ?? "");
+  headers.set("x-track-lang", request.headers.get("accept-language") ?? "");
+
+  for (const name of GEO_HEADERS) {
+    const value = request.headers.get(name);
+    if (value) headers.set(`x-track-${name.replace("x-vercel-ip-", "geo-")}`, value);
+  }
+
+  // The session cookie has to come along or every visit reads as
+  // anonymous — it is the only thing that ties a visit to an account.
+  const cookie = request.headers.get("cookie");
+  if (cookie) headers.set("cookie", cookie);
 
   void fetch(url, { method: "POST", headers, keepalive: true }).catch(() => {});
 }

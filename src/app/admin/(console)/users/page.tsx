@@ -19,9 +19,10 @@ export default async function ConsoleUsers() {
       </Panel>
 
       <p className="font-mono text-[0.65rem] text-neutral-700">
-        Le score de cette liste ne compte que les signaux présents en base :
-        les signaux Stripe coûteraient un appel par ligne. Ouvrez une fiche
-        pour le score complet. Pas d&apos;usurpation d&apos;identité.
+        Le score affiché ici est celui du balayage nocturne, signaux Stripe
+        compris — le même que sur la fiche. Une fiche ouverte recalcule en
+        direct, donc un écart signifie simplement que quelque chose a bougé
+        depuis la nuit dernière. Pas d&apos;usurpation d&apos;identité.
       </p>
     </div>
   );

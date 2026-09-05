@@ -48,6 +48,18 @@ export async function runRiskSweep(): Promise<SweepResult> {
     try {
       const { assessment } = await getFraudProfile(account.id);
       topScore = Math.max(topScore, assessment.score);
+
+      // Stored for every account, not only the flagged ones: this is what
+      // the users list reads, and a list that only knows about its worst
+      // rows can't be sorted.
+      await supabase.from("fraud_scores").upsert({
+        user_id: account.id,
+        score: assessment.score,
+        band: assessment.band,
+        features: assessment.features,
+        scored_at: new Date().toISOString(),
+      });
+
       if (!shouldFlag(assessment)) return;
 
       flagged += 1;
