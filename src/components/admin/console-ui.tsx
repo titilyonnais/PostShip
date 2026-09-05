@@ -103,11 +103,18 @@ export function Row({ children }: { children: ReactNode }) {
 export function Cell({
   children,
   className = "",
+  title,
 }: {
   children: ReactNode;
   className?: string;
+  /** Native tooltip — used for the full user-agent behind a short label. */
+  title?: string;
 }) {
-  return <td className={`px-2 py-2 align-top text-neutral-300 ${className}`}>{children}</td>;
+  return (
+    <td title={title} className={`px-2 py-2 align-top text-neutral-300 ${className}`}>
+      {children}
+    </td>
+  );
 }
 
 export function Tag({

@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/db/service";
 import { getStripe } from "@/lib/stripe";
-import { assessRisk, type RiskAssessment, type RiskSignals } from "@/lib/admin-risk";
+import { getFraudProfile, type FraudProfile } from "@/lib/admin-fraud-signals";
 
 // Everything the console shows about one customer, assembled from the
 // three places it actually lives: profiles, Supabase Auth, and Stripe.
@@ -66,12 +66,43 @@ export type UserPayment = {
   portalCustomerUrl: string | null;
 };
 
+export type VisitRow = {
+  at: string;
+  ip: string;
+  path: string;
+  country: string | null;
+  city: string | null;
+  device: string | null;
+  browser: string | null;
+  os: string | null;
+  userAgent: string | null;
+  isBot: boolean;
+};
+
+export type UserFootprint = {
+  addresses: {
+    ip: string;
+    hits: number;
+    firstSeen: string;
+    lastSeen: string;
+    country: string | null;
+    city: string | null;
+    region: string | null;
+    timezone: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    distinctUsers: number;
+    trusted: boolean;
+  }[];
+  visits: VisitRow[];
+};
+
 export type UserDetail = {
   identity: UserIdentity;
   usage: UserUsage;
   payment: UserPayment;
-  risk: RiskAssessment;
-  riskSignals: RiskSignals;
+  fraud: FraudProfile;
+  footprint: UserFootprint;
 };
 
 async function loadIdentity(userId: string): Promise<UserIdentity | null> {
@@ -231,57 +262,69 @@ async function loadPayment(customerId: string | null): Promise<UserPayment> {
   }
 }
 
-async function loadRiskSignals(
-  identity: UserIdentity,
-  usage: UserUsage,
-  payment: UserPayment,
-): Promise<RiskSignals> {
+// Everything observed about where this person connects from and on
+// what. The addresses come from the rolled-up table, the visits from the
+// raw stream — the first answers "who is this", the second answers "what
+// did they just do".
+async function loadFootprint(userId: string): Promise<UserFootprint> {
   const supabase = createServiceClient();
-  const now = Date.now();
 
-  const [{ count: failedLogins }, { count: sharing }, { count: purchases }] =
-    await Promise.all([
-      supabase
-        .from("ops_events")
-        .select("id", { count: "exact", head: true })
-        .eq("source", "auth")
-        .eq("actor_user_id", identity.id)
-        .like("action", "%failed%")
-        .gte("at", new Date(now - DAY_MS).toISOString()),
-      identity.stripeCustomerId
-        ? supabase
-            .from("profiles")
-            .select("id", { count: "exact", head: true })
-            .eq("stripe_customer_id", identity.stripeCustomerId)
-        : Promise.resolve({ count: 1 }),
-      supabase
-        .from("token_purchases")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", identity.id),
-    ]);
+  const { data: links } = await supabase
+    .from("visitor_identities")
+    .select("ip, hits, first_seen_at, last_seen_at")
+    .eq("user_id", userId)
+    .order("last_seen_at", { ascending: false })
+    .limit(50);
 
-  // Days past due is measured from the oldest failed invoice, which is
-  // when the money actually stopped arriving — the subscription's own
-  // status carries no date.
-  const oldestFailed = payment.invoices
-    .filter((i) => i.status === "failed")
-    .sort((a, b) => a.created - b.created)[0];
-  const pastDue =
-    payment.subscriptions.some((s) => s.status === "past_due" || s.status === "unpaid") &&
-    oldestFailed
-      ? Math.floor((now - oldestFailed.created * 1000) / DAY_MS)
-      : 0;
+  const ips = (links ?? []).map((l) => l.ip);
+
+  const [{ data: profiles }, { data: visits }] = await Promise.all([
+    ips.length
+      ? supabase
+          .from("visitor_ips")
+          .select("ip, country, region, city, timezone, latitude, longitude, distinct_users, trusted")
+          .in("ip", ips)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("visits")
+      .select("at, ip, path, country, city, device, browser, os, user_agent, is_bot")
+      .eq("user_id", userId)
+      .order("at", { ascending: false })
+      .limit(50),
+  ]);
+
+  const byIp = new Map((profiles ?? []).map((p) => [p.ip, p]));
 
   return {
-    hasDispute: payment.charges.some((c) => c.disputed),
-    pastDueDays: pastDue,
-    failedInvoices30d: payment.invoices.filter(
-      (i) => i.status === "failed" && now - i.created * 1000 < 30 * DAY_MS,
-    ).length,
-    failedLogins24h: failedLogins ?? 0,
-    accountsSharingCustomer: sharing ?? 1,
-    tokensPurchased: (purchases ?? 0) > 0 || identity.tokenBalance > 0,
-    projectCount: usage.projects,
+    addresses: (links ?? []).map((link) => {
+      const geo = byIp.get(link.ip);
+      return {
+        ip: link.ip,
+        hits: Number(link.hits),
+        firstSeen: link.first_seen_at,
+        lastSeen: link.last_seen_at,
+        country: geo?.country ?? null,
+        city: geo?.city ?? null,
+        region: geo?.region ?? null,
+        timezone: geo?.timezone ?? null,
+        latitude: geo?.latitude ?? null,
+        longitude: geo?.longitude ?? null,
+        distinctUsers: geo?.distinct_users ?? 0,
+        trusted: Boolean(geo?.trusted),
+      };
+    }),
+    visits: ((visits ?? []) as Record<string, unknown>[]).map((v) => ({
+      at: v.at as string,
+      ip: v.ip as string,
+      path: v.path as string,
+      country: (v.country as string) ?? null,
+      city: (v.city as string) ?? null,
+      device: (v.device as string) ?? null,
+      browser: (v.browser as string) ?? null,
+      os: (v.os as string) ?? null,
+      userAgent: (v.user_agent as string) ?? null,
+      isBot: Boolean(v.is_bot),
+    })),
   };
 }
 
@@ -289,12 +332,12 @@ export async function getUserDetail(userId: string): Promise<UserDetail | null> 
   const identity = await loadIdentity(userId);
   if (!identity) return null;
 
-  const [usage, payment] = await Promise.all([
+  const [usage, payment, fraud, footprint] = await Promise.all([
     loadUsage(userId),
     loadPayment(identity.stripeCustomerId),
+    getFraudProfile(userId),
+    loadFootprint(userId),
   ]);
 
-  const riskSignals = await loadRiskSignals(identity, usage, payment);
-
-  return { identity, usage, payment, risk: assessRisk(riskSignals), riskSignals };
+  return { identity, usage, payment, fraud, footprint };
 }

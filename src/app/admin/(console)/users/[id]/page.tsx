@@ -27,7 +27,8 @@ export default async function ConsoleUserDetail({
   const detail = await getUserDetail(id);
   if (!detail) notFound();
 
-  const { identity, usage, payment, risk } = detail;
+  const { identity, usage, payment, fraud, footprint } = detail;
+  const risk = fraud.assessment;
   const banned =
     Boolean(identity.bannedUntil) && new Date(identity.bannedUntil!).getTime() > Date.now();
 
@@ -45,8 +46,9 @@ export default async function ConsoleUserDetail({
         </div>
         <div className="flex items-center gap-2">
           {banned && <Tag tone="bad">banni</Tag>}
-          {risk.level === "high" && <Tag tone="bad">risque {risk.score}</Tag>}
-          {risk.level === "watch" && <Tag tone="warn">risque {risk.score}</Tag>}
+          {risk.band === "critical" && <Tag tone="bad">risque {risk.score} — critique</Tag>}
+          {risk.band === "elevated" && <Tag tone="bad">risque {risk.score} — élevé</Tag>}
+          {risk.band === "watch" && <Tag tone="warn">risque {risk.score} — à surveiller</Tag>}
         </div>
       </div>
 
@@ -273,22 +275,95 @@ export default async function ConsoleUserDetail({
         )}
       </div>
 
-      <Panel title={`Risque — ${risk.score}/100`}>
-        {risk.rules.length === 0 ? (
+      <div className="flex flex-col gap-3">
+        <h2 className="font-mono text-[0.7rem] tracking-[0.15em] text-neutral-500 uppercase">
+          Empreinte
+        </h2>
+
+        <Panel title={`Adresses IP (${footprint.addresses.length})`}>
+          <Table
+            head={["IP", "Lieu", "Fuseau", "Vues", "Comptes", "Première", "Dernière"]}
+            empty={footprint.addresses.length === 0}
+          >
+            {footprint.addresses.map((a) => (
+              <Row key={a.ip}>
+                <Cell>
+                  <Link
+                    href={`/admin/visitors/${encodeURIComponent(a.ip)}`}
+                    className="text-neutral-200 underline-offset-2 hover:underline"
+                  >
+                    {a.ip}
+                  </Link>
+                  {a.trusted && <span className="ml-2 text-[0.65rem] text-[#3fb950]">de confiance</span>}
+                </Cell>
+                <Cell className="text-neutral-400">
+                  {[a.city, a.region, a.country].filter(Boolean).join(", ") || "—"}
+                </Cell>
+                <Cell className="text-neutral-500">{a.timezone ?? "—"}</Cell>
+                <Cell>{a.hits}</Cell>
+                <Cell className={a.distinctUsers > 1 ? "text-[#f85149]" : "text-neutral-500"}>
+                  {a.distinctUsers}
+                </Cell>
+                <Cell className="text-neutral-500">{formatRelativeTime(a.firstSeen)}</Cell>
+                <Cell className="text-neutral-500">{formatRelativeTime(a.lastSeen)}</Cell>
+              </Row>
+            ))}
+          </Table>
+        </Panel>
+
+        <Panel title="Dernières visites">
+          <Table
+            head={["Quand", "Page", "IP", "Lieu", "Appareil"]}
+            empty={footprint.visits.length === 0}
+          >
+            {footprint.visits.map((v, i) => (
+              <Row key={`${v.at}-${i}`}>
+                <Cell className="whitespace-nowrap text-neutral-500">
+                  {new Date(v.at).toLocaleString("fr-FR")}
+                </Cell>
+                <Cell className="max-w-[220px] truncate">{v.path}</Cell>
+                <Cell className="text-neutral-400">{v.ip}</Cell>
+                <Cell className="text-neutral-500">
+                  {[v.city, v.country].filter(Boolean).join(", ") || "—"}
+                </Cell>
+                <Cell className="text-neutral-400" title={v.userAgent ?? undefined}>
+                  {[v.browser, v.os, v.device].filter(Boolean).join(" · ") || "—"}
+                  {v.isBot && <span className="ml-2 text-[#d29922]">robot</span>}
+                </Cell>
+              </Row>
+            ))}
+          </Table>
+        </Panel>
+      </div>
+
+      <Panel title={`Score de fraude — ${risk.score}/100 (${risk.band})`}>
+        {risk.features.length === 0 ? (
           <p className="font-mono text-xs text-[#3fb950]">Aucun signal.</p>
         ) : (
-          <ul className="flex flex-col gap-1.5 font-mono text-xs">
-            {risk.rules.map((rule) => (
-              <li key={rule.id} className="flex items-baseline justify-between gap-3">
-                <span className="text-neutral-300">{rule.label}</span>
-                <span className="shrink-0 text-[#d29922]">+{rule.points}</span>
+          <ul className="flex flex-col gap-2 font-mono text-xs">
+            {risk.features.map((f) => (
+              <li key={f.id} className="flex flex-col gap-0.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-neutral-200">{f.label}</span>
+                  <span className="shrink-0 text-[#d29922]">
+                    +{f.points}
+                    <span className="ml-1 text-neutral-700">/ {f.weight}</span>
+                  </span>
+                </div>
+                <span className="text-[0.65rem] text-neutral-500">{f.evidence}</span>
               </li>
             ))}
           </ul>
         )}
-        <p className="mt-3 font-mono text-[0.65rem] text-neutral-700">
-          Règles fixes, pas un modèle. Les règles qui ont déclenché sont
-          affichées : un score seul ne dit pas quoi regarder.
+        <p className="mt-4 font-mono text-[0.65rem] leading-relaxed text-neutral-700">
+          Familles de features tirées de Bahnsen, Aouada, Stojanovic &amp;
+          Ottersten, « Feature engineering strategies for credit card fraud
+          detection » (Expert Systems with Applications, 2016) : agrégation RFM
+          sur plusieurs fenêtres, et feature périodique mesurant l&apos;écart
+          circulaire à l&apos;heure habituelle du compte. Ce n&apos;est pas un
+          modèle : aucune fraude confirmée n&apos;a jamais été enregistrée ici,
+          donc rien à entraîner. Chaque point affiché avec la mesure qui l&apos;a
+          produit.
         </p>
       </Panel>
     </div>

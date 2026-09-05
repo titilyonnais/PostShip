@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/db/service";
 import { getStripe } from "@/lib/stripe";
-import { assessRisk } from "@/lib/admin-risk";
+import { assessFraud } from "@/lib/fraud-engine";
 
 // Access is an env allowlist, not a column: a database flag needs a write
 // path, and any write path to "is admin" is a privilege-escalation
@@ -220,13 +220,35 @@ export async function getAdminUsers(limit = 200): Promise<AdminUserRow[]> {
 
   return ((data ?? []) as AdminUserRow[]).map((user) => {
     const signal = byUser.get(user.id);
+    // The same engine as the customer file, fed only what the database
+    // can answer for every row at once. The Stripe features would cost an
+    // API call per line, so they are left at zero here and the page says
+    // so — a partial score that admits it is partial beats a full one
+    // that takes ten seconds to render.
     const risk = signal
-      ? assessRisk({
-          hasDispute: false,
-          pastDueDays: 0,
-          failedInvoices30d: 0,
+      ? assessFraud({
+          accountAgeDays: Math.floor(
+            (Date.now() - new Date(user.created_at).getTime()) / (24 * 60 * 60 * 1000),
+          ),
+          maxAccountsPerIp: 0,
+          distinctIps30d: 0,
+          accountsSharingStripeCustomer: Number(signal.accounts_sharing_customer),
+          emailDomain: user.email?.split("@")[1]?.toLowerCase() ?? null,
+          signupsFromSameIp30d: 0,
           failedLogins24h: Number(signal.failed_logins_24h),
-          accountsSharingCustomer: Number(signal.accounts_sharing_customer),
+          disputes: 0,
+          failedInvoices30d: 0,
+          pastDueDays: 0,
+          smallFailedCharges24h: 0,
+          refundedCharges: 0,
+          totalCharges: 0,
+          distinctCountries7d: 0,
+          maxImpliedSpeedKmh: 0,
+          cardCountry: null,
+          visitCountry: null,
+          distinctUserAgents30d: 0,
+          botSessionSeen: false,
+          hourDeviation: 0,
           tokensPurchased: signal.tokens_purchased,
           projectCount: Number(signal.project_count),
         })

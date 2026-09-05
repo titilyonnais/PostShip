@@ -75,8 +75,19 @@ export async function GET(request: Request) {
     sweep = { error: err instanceof Error ? err.message : "unknown" };
   }
 
+  // Visit telemetry is collected under legitimate interest for security
+  // and fraud prevention. That basis does not survive an indefinite log
+  // of who visited from where, so the raw stream is bounded at the same
+  // 90 days as the journal. visitor_ips keeps its rollup: a count and a
+  // last-seen date is not a browsing history.
+  const { count: visitsDeleted } = await supabase
+    .from("visits")
+    .delete({ count: "exact" })
+    .lt("at", opsCutoff);
+
   return NextResponse.json({
     projects: projects?.length ?? 0,
+    visitsDeleted: visitsDeleted ?? 0,
     deleted: deletedTotal,
     opsEventsDeleted: opsDeleted ?? 0,
     risk: sweep,
