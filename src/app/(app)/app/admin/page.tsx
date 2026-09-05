@@ -342,7 +342,8 @@ export default async function AdminPage({
                       values: stripe.revenueByMonth.map((m) => m.amount),
                     },
                   ]}
-                  formatValue={(v) => formatAmount(v, stripe.currency)}
+                  format="currency"
+                  currency={stripe.currency}
                 />
               </div>
             )}

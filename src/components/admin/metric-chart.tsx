@@ -18,13 +18,27 @@ export function MetricChart({
   labels,
   series,
   height = 180,
-  formatValue = (n: number) => n.toLocaleString("fr-FR"),
+  format = "number",
+  currency = "eur",
 }: {
   labels: string[];
   series: ChartSeries[];
   height?: number;
-  formatValue?: (value: number) => string;
+  // A descriptor, not a formatter function: a function cannot cross the
+  // server/client boundary, and passing one here is exactly what broke
+  // this page the first time.
+  format?: "number" | "currency";
+  currency?: string;
 }) {
+  const formatValue = (value: number) =>
+    format === "currency"
+      ? new Intl.NumberFormat("fr-FR", {
+          style: "currency",
+          currency: currency.toUpperCase(),
+          maximumFractionDigits: 0,
+        }).format(value / 100)
+      : value.toLocaleString("fr-FR");
+
   const gradientId = useId();
   const [hover, setHover] = useState<number | null>(null);
 
