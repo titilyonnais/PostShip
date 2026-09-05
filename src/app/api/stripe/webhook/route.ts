@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { createServiceClient } from "@/lib/db/service";
 import { getStripe, planFromPriceId } from "@/lib/stripe";
 import { creditTokenPurchase } from "@/lib/token-purchases";
+import { recordStripeEvent } from "@/lib/ops-stripe";
 
 async function planFromSubscriptionId(
   subscriptionId: string | null | undefined,
@@ -59,6 +60,11 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  // After signature verification, before any handling: the journal should
+  // record what Stripe sent even for event types this switch ignores,
+  // which is most of them and includes every dispute.
+  await recordStripeEvent(event);
 
   const supabase = createServiceClient();
 

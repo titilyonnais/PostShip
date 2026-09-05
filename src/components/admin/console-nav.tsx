@@ -8,8 +8,10 @@ const NAV = [
   { href: "/admin/users", label: "Utilisateurs" },
   { href: "/admin/projects", label: "Projets" },
   { href: "/admin/revenue", label: "Revenu" },
+  { href: "/admin/vercel", label: "Vercel" },
+  { href: "/admin/supabase", label: "Supabase" },
+  { href: "/admin/logs", label: "Journal" },
   { href: "/admin/system", label: "Système" },
-  { href: "/admin/audit", label: "Journal" },
   { href: "/admin/security", label: "Sécurité" },
 ];
 

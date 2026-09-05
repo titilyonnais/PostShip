@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/db/server";
 import { createServiceClient } from "@/lib/db/service";
 import { linkPendingProjectInvites } from "@/lib/project-members";
+import { recordOpsEvent } from "@/lib/ops-events";
 
 // login/actions.ts's nextPathFor() always emits a relative path under
 // /onboarding — this allowlist is deliberately narrower than "any relative
@@ -37,6 +38,18 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    await recordOpsEvent({
+      source: "auth",
+      severity: error ? "warn" : "info",
+      action: error ? "auth.callback.failed" : "auth.callback.success",
+      actorUserId: data?.user?.id ?? null,
+      target: data?.user?.email ?? null,
+      payload: {
+        provider: data?.user?.app_metadata?.provider ?? null,
+        reason: error?.message ?? null,
+      },
+    });
 
     if (!error && data.user) {
       // GitHub/Google hand back a name and a real photo in user_metadata —

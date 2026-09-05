@@ -10,6 +10,7 @@ import {
 } from "@/lib/checks/shared";
 import { runWithConcurrencyLimit } from "@/lib/concurrency";
 import { fetchRobotsDisallowRules, isDisallowed } from "@/lib/robots";
+import { recordOpsEvent } from "@/lib/ops-events";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -189,6 +190,18 @@ export async function createSiteScan(params: {
     .single();
 
   if (!profile || profile.token_balance < 1) {
+    // A refused scan is the interesting one: it is a customer who wanted
+    // to use the product and couldn't, which is a support case waiting to
+    // happen rather than routine noise.
+    await recordOpsEvent({
+      source: "scan",
+      severity: "warn",
+      action: "scan.quota_refused",
+      actorUserId: params.userId,
+      target: params.projectId,
+      payload: { seed_url: params.seedUrl, token_balance: profile?.token_balance ?? 0 },
+    });
+
     return {
       error:
         "Solde de tokens insuffisant. Achetez un pack de tokens dans Compte → Tokens.",
@@ -209,6 +222,14 @@ export async function createSiteScan(params: {
   if (error || !scan) {
     return { error: error?.message ?? "Impossible de créer le scan." };
   }
+
+  await recordOpsEvent({
+    source: "scan",
+    action: "scan.created",
+    actorUserId: params.userId,
+    target: params.projectId ?? scan.id,
+    payload: { scan_id: scan.id, seed_url: params.seedUrl },
+  });
 
   return { scanId: scan.id };
 }

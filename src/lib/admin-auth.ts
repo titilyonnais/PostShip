@@ -4,6 +4,7 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { createServiceClient } from "@/lib/db/service";
+import { recordOpsEvent } from "@/lib/ops-events";
 
 // Session lifetime is bounded twice, because the two bounds answer
 // different questions: the idle window limits an unattended screen, the
@@ -142,6 +143,24 @@ export async function auditLog(entry: {
     detail: entry.detail ?? null,
     ip,
     user_agent: userAgent,
+  });
+
+  // Written to both on purpose. admin_audit_log stays the narrow
+  // tamper-evidence trail for privileged actions; ops_events is where an
+  // operator action sits next to the Stripe and auth events around it,
+  // which is how you reconstruct what actually happened.
+  await recordOpsEvent({
+    source: "console",
+    severity:
+      entry.action.endsWith(".failed") || entry.action.endsWith(".locked")
+        ? "warn"
+        : "info",
+    action: entry.action,
+    actorAdminId: entry.accountId ?? null,
+    target: entry.target ?? entry.username ?? null,
+    ip,
+    userAgent,
+    payload: entry.detail ?? {},
   });
 }
 

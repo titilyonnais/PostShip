@@ -8,6 +8,8 @@ type ProjectRow = { id: string; profiles: { plan: Plan } | null };
 // Purges check_runs past the owner's plan retention window
 // (CLAUDE.md: 7/14/30 days). Runs once/day (see vercel.json) — retention
 // doesn't need finer granularity than that.
+const OPS_RETENTION_DAYS = 90;
+
 export async function GET(request: Request) {
   if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -41,8 +43,19 @@ export async function GET(request: Request) {
     if (!deleteError) deletedTotal += count ?? 0;
   }
 
+  // The operations journal keeps 90 days regardless of plan — it is about
+  // running the service, not about what a customer paid for.
+  const opsCutoff = new Date(
+    Date.now() - OPS_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const { count: opsDeleted } = await supabase
+    .from("ops_events")
+    .delete({ count: "exact" })
+    .lt("at", opsCutoff);
+
   return NextResponse.json({
     projects: projects?.length ?? 0,
     deleted: deletedTotal,
+    opsEventsDeleted: opsDeleted ?? 0,
   });
 }

@@ -9,6 +9,7 @@ import { runStripeHealthCheck } from "@/lib/checks/stripe-health";
 import { computeFingerprint, type CheckResult } from "@/lib/checks/shared";
 import { runWithConcurrencyLimit } from "@/lib/concurrency";
 import { dispatchAlerts, shouldSendFailAlert, type AlertItem } from "@/lib/alerts";
+import { recordOpsEventThrottled } from "@/lib/ops-events";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import {
   nextConsecutiveFails,
@@ -193,6 +194,31 @@ async function runSingleTarget(
     fingerprint: result.fingerprint,
     details: result.details,
   });
+
+  // "error" means the check itself broke — a timeout, an unreachable
+  // host, a misconfiguration — as opposed to "fail", which is the product
+  // working correctly and finding a problem on the customer's site. Only
+  // the former belongs in an operations journal, and only once an hour
+  // per project: the same project erroring every cycle would bury
+  // everything else under the one event that says nothing new the second
+  // time you see it.
+  if (result.outcome === "error") {
+    await recordOpsEventThrottled(
+      {
+        source: "runner",
+        severity: "error",
+        action: "runner.check.error",
+        target: projectId,
+        payload: {
+          target_id: target.id,
+          url: target.url,
+          kind: target.kind,
+          details: result.details,
+        },
+      },
+      60 * 60 * 1000,
+    );
+  }
 
   // D6 (drill-nav backlog): consecutive_fails gates whether dispatchAlerts
   // fires (see runOneTarget/runProjectChecks) — computed from the streak

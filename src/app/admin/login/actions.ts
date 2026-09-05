@@ -14,6 +14,7 @@ import {
   verifyPassword,
 } from "@/lib/admin-auth";
 import { sendAdminLoginAlert } from "@/lib/admin-login-alert";
+import { recordOpsEvent } from "@/lib/ops-events";
 
 export type LoginState = { error?: string };
 
@@ -88,6 +89,18 @@ export async function adminSignIn(
         ip,
         userAgent,
         kind: "locked",
+      });
+      // Someone grinding the console's only factor is the definition of
+      // what the fraud severity is for.
+      await recordOpsEvent({
+        source: "admin_alert",
+        severity: "fraud",
+        action: "admin.login.locked",
+        actorAdminId: account.id,
+        target: username,
+        ip,
+        userAgent,
+        payload: { failed_attempts: account.failed_attempts + 1 },
       });
     }
 
