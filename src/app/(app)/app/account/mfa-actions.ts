@@ -8,7 +8,12 @@ export type EnrollTotpResult =
   | { ok: true; factorId: string; qrCode: string; secret: string }
   | { ok: false; error: string };
 
-export async function enrollTotp(): Promise<EnrollTotpResult> {
+// Supabase allows several TOTP factors per user, and that is its whole
+// recovery story: there are no backup codes in the platform, so a second
+// enrolled device is what stands between a lost phone and a support
+// request. Hence the friendly name — "PostShip" on every factor made them
+// indistinguishable in the list, which made a second one pointless.
+export async function enrollTotp(friendlyName: string): Promise<EnrollTotpResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -16,9 +21,18 @@ export async function enrollTotp(): Promise<EnrollTotpResult> {
 
   if (!user) redirect("/login");
 
+  const name = friendlyName.trim().slice(0, 40) || "Mon appareil";
+
+  // Supabase rejects a duplicate friendly name outright; saying which name
+  // is taken beats surfacing its raw error.
+  const { data: existing } = await supabase.auth.mfa.listFactors();
+  if ((existing?.totp ?? []).some((f) => f.friendly_name === name)) {
+    return { ok: false, error: `Un appareil s'appelle déjà « ${name} ».` };
+  }
+
   const { data, error } = await supabase.auth.mfa.enroll({
     factorType: "totp",
-    friendlyName: "PostShip",
+    friendlyName: name,
   });
 
   if (error || !data) {
@@ -62,7 +76,7 @@ export async function verifyTotpEnrollment(
 
   if (error) return { error: "Code invalide." };
 
-  return { success: "Double authentification activée." };
+  return { success: "Appareil vérifié — la double authentification est active." };
 }
 
 export async function cancelTotpEnrollment(factorId: string): Promise<ActionResult> {
@@ -85,8 +99,16 @@ export async function unenrollTotp(factorId: string): Promise<ActionResult> {
 
   if (!user) redirect("/login");
 
+  const { data: factors } = await supabase.auth.mfa.listFactors();
+  const verified = (factors?.totp ?? []).filter((f) => f.status === "verified");
+
   const { error } = await supabase.auth.mfa.unenroll({ factorId });
   if (error) return { error: error.message };
 
-  return { success: "Double authentification désactivée." };
+  return {
+    success:
+      verified.length <= 1
+        ? "Double authentification désactivée."
+        : "Appareil retiré.",
+  };
 }

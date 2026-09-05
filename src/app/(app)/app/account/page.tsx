@@ -52,9 +52,26 @@ export default async function AccountPage({
   ]);
   const profile = user ? await getProfile(user.id) : null;
 
-  const linkedProviders = (user?.identities ?? [])
-    .map((identity) => identity.provider)
-    .filter((provider) => provider !== "email");
+  // Every verified authenticator, not just the first: several devices is
+  // the only recovery path Supabase offers (it has no backup codes).
+  const totpFactors = (factorsData?.totp ?? [])
+    .filter((factor) => factor.status === "verified")
+    .map((factor) => ({
+      id: factor.id,
+      friendlyName: factor.friendly_name ?? null,
+      createdAt: factor.created_at ?? null,
+    }));
+
+  // The email identity is filtered out: it isn't a sign-in method the
+  // user can link or unlink, it's just the address, which the section
+  // right below already owns.
+  const identities = (user?.identities ?? [])
+    .filter((identity) => identity.provider !== "email")
+    .map((identity) => ({
+      provider: identity.provider,
+      email: (identity.identity_data?.email as string | undefined) ?? null,
+      createdAt: identity.created_at ?? null,
+    }));
 
   return (
     <AccountTabsHub
@@ -70,9 +87,8 @@ export default async function AccountPage({
         security: (
           <SecurityTab
             email={profile?.email ?? user?.email ?? ""}
-            linkedProviders={linkedProviders}
-            mfaEnabled={Boolean(factorsData?.totp?.[0])}
-            mfaFactorId={factorsData?.totp?.[0]?.id ?? null}
+            identities={identities}
+            totpFactors={totpFactors}
           />
         ),
         notifications: (

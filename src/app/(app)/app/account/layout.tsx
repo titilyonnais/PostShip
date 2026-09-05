@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { BackToProjectLink } from "@/components/back-to-project-link";
 import { CheckoutReturnToast } from "@/components/checkout-return-toast";
+import { OAuthReturnToast } from "@/components/oauth-return-toast";
 import { getAuthUser, getProfile } from "@/lib/db/loaders";
 import { getPlanLimits, type Plan } from "@/lib/entitlements";
 
@@ -25,6 +26,7 @@ export default async function AccountLayout({
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       <Suspense fallback={null}>
         <CheckoutReturnToast />
+        <OAuthReturnToast />
         <BackToProjectLink />
       </Suspense>
 

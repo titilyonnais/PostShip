@@ -27,6 +27,15 @@ const OAUTH_ERROR: Record<string, string> = {
   github_pending: "Installation GitHub en attente d'approbation par un propriétaire de l'organisation.",
 };
 
+// Returned by /api/account/link/[provider] when the redirect to the
+// provider never happens.
+const LINK_ERROR: Record<string, string> = {
+  unsupported: "Ce fournisseur ne peut pas être lié.",
+  already_linked: "Ce compte est déjà lié.",
+  google: "Échec de la liaison du compte Google — réessayez.",
+  github: "Échec de la liaison du compte GitHub — réessayez.",
+};
+
 export function OAuthReturnToast() {
   const router = useRouter();
   const pathname = usePathname();
@@ -37,13 +46,16 @@ export function OAuthReturnToast() {
     if (handled.current) return;
     const connected = searchParams.get("connected");
     const oauthError = searchParams.get("oauth_error");
-    if (!connected && !oauthError) return;
+    const linkError = searchParams.get("link_error");
+    if (!connected && !oauthError && !linkError) return;
 
     handled.current = true;
     if (connected) {
       toast.success(CONNECTED[connected] ?? "Intégration connectée.");
     } else if (oauthError) {
       toast.error(OAUTH_ERROR[oauthError] ?? "Échec de la connexion.");
+    } else if (linkError) {
+      toast.error(LINK_ERROR[linkError] ?? "Échec de la liaison du compte.");
     }
 
     // Drop only our own params, so a ?tab= or anything else the page
@@ -51,6 +63,7 @@ export function OAuthReturnToast() {
     const rest = new URLSearchParams(searchParams);
     rest.delete("connected");
     rest.delete("oauth_error");
+    rest.delete("link_error");
     const query = rest.toString();
     router.replace(query ? `${pathname}?${query}` : pathname);
   }, [pathname, router, searchParams]);

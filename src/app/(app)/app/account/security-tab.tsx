@@ -1,45 +1,23 @@
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
+import { ConnectedAccounts, type LinkedIdentity } from "./connected-accounts";
 import { EmailSection } from "./email-section";
-import { MfaSection } from "./mfa-section";
+import { MfaSection, type TotpFactor } from "./mfa-section";
 import { setPassword } from "./actions";
-
-const PROVIDER_LABEL: Record<string, string> = {
-  github: "GitHub",
-  google: "Google",
-};
 
 export function SecurityTab({
   email,
-  linkedProviders,
-  mfaEnabled,
-  mfaFactorId,
+  identities,
+  totpFactors,
 }: {
   email: string;
-  linkedProviders: string[];
-  mfaEnabled: boolean;
-  mfaFactorId: string | null;
+  identities: LinkedIdentity[];
+  totpFactors: TotpFactor[];
 }) {
   return (
     <div className="flex flex-col gap-6">
-      {linkedProviders.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Comptes connectés
-          </h2>
-          <ul className="flex flex-wrap gap-2">
-            {linkedProviders.map((provider) => (
-              <li
-                key={provider}
-                className="rounded-full border border-border bg-card px-3 py-1 text-sm"
-              >
-                {PROVIDER_LABEL[provider] ?? provider}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <ConnectedAccounts identities={identities} />
 
       <EmailSection currentEmail={email} />
 
@@ -72,7 +50,7 @@ export function SecurityTab({
       </div>
 
       <div className="border-t border-border pt-6">
-        <MfaSection enabled={mfaEnabled} factorId={mfaFactorId} />
+        <MfaSection factors={totpFactors} />
       </div>
     </div>
   );
