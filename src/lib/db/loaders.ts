@@ -24,7 +24,7 @@ export const getProfile = cache(async (userId: string) => {
   const { data } = await supabase
     .from("profiles")
     .select(
-      "id, email, display_name, username, avatar_seed, avatar_url, full_name, company_name, phone, team_size, plan, billing_address, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, email_alerts_enabled, locale, token_balance, timezone",
+      "id, email, display_name, username, avatar_seed, avatar_url, full_name, company_name, phone, team_size, plan, billing_address, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, email_alerts_enabled, notify_recovered, notify_mutated, notify_digest, notify_product_updates, locale, token_balance, timezone",
     )
     .eq("id", userId)
     .single();

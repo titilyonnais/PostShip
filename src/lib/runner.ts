@@ -258,7 +258,7 @@ export async function runOneTarget(targetId: string) {
   const { data: target } = await supabase
     .from("check_targets")
     .select(
-      "*, projects(id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_url, outbound_webhook_secret, profiles(plan, email, email_alerts_enabled))",
+      "*, projects(id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_url, outbound_webhook_secret, profiles(plan, email, email_alerts_enabled, notify_recovered, notify_mutated))",
     )
     .eq("id", targetId)
     .single();
@@ -286,6 +286,8 @@ export async function runOneTarget(targetId: string) {
       plan: Plan;
       email: string | null;
       email_alerts_enabled: boolean;
+    notify_recovered: boolean;
+    notify_mutated: boolean;
     } | null;
   };
   const owner = project.profiles;
@@ -363,6 +365,8 @@ export async function runOneTarget(targetId: string) {
         outbound_webhook_secret: project.outbound_webhook_secret,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
+        ownerNotifyRecovered: owner?.notify_recovered !== false,
+        ownerNotifyMutated: owner?.notify_mutated !== false,
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
       },
       alertItems,
@@ -418,7 +422,7 @@ export async function runPreviewChecks(
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_url, outbound_webhook_secret, profiles(plan, email, email_alerts_enabled)",
+      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_url, outbound_webhook_secret, profiles(plan, email, email_alerts_enabled, notify_recovered, notify_mutated)",
     )
     .eq("id", projectId)
     .single();
@@ -431,6 +435,8 @@ export async function runPreviewChecks(
     plan: Plan;
     email: string | null;
     email_alerts_enabled: boolean;
+    notify_recovered: boolean;
+    notify_mutated: boolean;
   } | null;
   const ownerPlan = owner?.plan ?? "free";
 
@@ -529,6 +535,8 @@ export async function runPreviewChecks(
         outbound_webhook_secret: project.outbound_webhook_secret,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
+        ownerNotifyRecovered: owner?.notify_recovered !== false,
+        ownerNotifyMutated: owner?.notify_mutated !== false,
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
       },
       alertItems,
@@ -552,7 +560,7 @@ export async function runProjectChecks(
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_url, outbound_webhook_secret, profiles(plan, email, email_alerts_enabled)",
+      "id, name, discord_webhook_url, slack_webhook_url, telegram_bot_token, telegram_chat_id, alerts_silenced_until, stripe_success_url, alert_confirm_count, quiet_hours_start, quiet_hours_end, quiet_hours_tz, outbound_webhook_url, outbound_webhook_secret, profiles(plan, email, email_alerts_enabled, notify_recovered, notify_mutated)",
     )
     .eq("id", projectId)
     .single();
@@ -565,6 +573,8 @@ export async function runProjectChecks(
     plan: Plan;
     email: string | null;
     email_alerts_enabled: boolean;
+    notify_recovered: boolean;
+    notify_mutated: boolean;
   } | null;
   const confirmCount = project.alert_confirm_count ?? 1;
 
@@ -696,6 +706,8 @@ export async function runProjectChecks(
         outbound_webhook_secret: project.outbound_webhook_secret,
         ownerEmail:
           owner?.email_alerts_enabled === false ? null : (owner?.email ?? null),
+        ownerNotifyRecovered: owner?.notify_recovered !== false,
+        ownerNotifyMutated: owner?.notify_mutated !== false,
         ownerPlanAllowsChatWebhooks: getPlanLimits(ownerPlan).chatWebhooks,
       },
       alertItems,

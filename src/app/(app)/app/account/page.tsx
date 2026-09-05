@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/db/server";
 import { getAuthUser, getProfile } from "@/lib/db/loaders";
-import { type Plan } from "@/lib/entitlements";
+import { getBillingHistory } from "@/lib/billing-history";
+import { getPlanLimits, type Plan } from "@/lib/entitlements";
 import { AccountTabsHub } from "./account-tabs";
-import { BillingAddressTab } from "./billing-address-tab";
+import { type BillingAddress } from "./billing-address-section";
+import { BillingTab } from "./billing-tab";
 import { DangerTab } from "./danger-tab";
 import { NotificationsTab } from "./notifications-tab";
 import { OverviewTab } from "./overview-tab";
@@ -29,14 +31,6 @@ function parseTab(raw: string | undefined): AccountTabSlug {
   return VALID_TABS.includes(raw as AccountTabSlug) ? (raw as AccountTabSlug) : "overview";
 }
 
-type BillingAddress = {
-  line1?: string;
-  line2?: string | null;
-  city?: string;
-  postal_code?: string;
-  country?: string;
-} | null;
-
 export default async function AccountPage({
   searchParams,
 }: {
@@ -51,6 +45,12 @@ export default async function AccountPage({
     supabase.auth.mfa.listFactors(),
   ]);
   const profile = user ? await getProfile(user.id) : null;
+
+  // Read straight from Stripe rather than mirroring invoices into our
+  // own tables: they change on Stripe's schedule (retries, refunds,
+  // proration), and a stale copy of a payment status is worse than none.
+  const billingHistory =
+    tab === "billing" ? await getBillingHistory(profile?.stripe_customer_id ?? null) : null;
 
   // Every verified authenticator, not just the first: several devices is
   // the only recovery path Supabase offers (it has no backup codes).
@@ -83,7 +83,12 @@ export default async function AccountPage({
             profile={profile}
           />
         ),
-        profile: <ProfileTab profile={profile} />,
+        profile: (
+          <ProfileTab
+            profile={profile}
+            billingAddress={(profile?.billing_address as BillingAddress) ?? null}
+          />
+        ),
         security: (
           <SecurityTab
             email={profile?.email ?? user?.email ?? ""}
@@ -94,14 +99,20 @@ export default async function AccountPage({
         notifications: (
           <NotificationsTab
             emailAlertsEnabled={profile?.email_alerts_enabled ?? true}
+            notifyRecovered={profile?.notify_recovered ?? true}
+            notifyMutated={profile?.notify_mutated ?? true}
+            notifyDigest={profile?.notify_digest ?? true}
+            notifyProductUpdates={profile?.notify_product_updates ?? false}
+            digestAvailable={getPlanLimits((profile?.plan as Plan) ?? "free").digest}
             locale={profile?.locale ?? "fr"}
           />
         ),
         tokens: <TokensTab tokenBalance={profile?.token_balance ?? 0} />,
         billing: (
-          <BillingAddressTab
+          <BillingTab
             plan={(profile?.plan as Plan) ?? "free"}
-            billingAddress={(profile?.billing_address as BillingAddress) ?? null}
+            history={billingHistory}
+            timezone={profile?.timezone ?? null}
           />
         ),
         danger: <DangerTab />,

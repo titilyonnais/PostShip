@@ -177,6 +177,10 @@ export async function updateBillingAddress(
 
 const notificationPrefsSchema = z.object({
   email_alerts_enabled: z.boolean(),
+  notify_recovered: z.boolean(),
+  notify_mutated: z.boolean(),
+  notify_digest: z.boolean(),
+  notify_product_updates: z.boolean(),
   locale: z.enum(["fr", "en"]),
 });
 
@@ -186,6 +190,10 @@ export async function updateNotificationPrefs(
 ): Promise<ActionResult> {
   const parsed = notificationPrefsSchema.safeParse({
     email_alerts_enabled: formData.get("email_alerts_enabled") === "on",
+    notify_recovered: formData.get("notify_recovered") === "on",
+    notify_mutated: formData.get("notify_mutated") === "on",
+    notify_digest: formData.get("notify_digest") === "on",
+    notify_product_updates: formData.get("notify_product_updates") === "on",
     locale: formData.get("locale"),
   });
 
@@ -202,6 +210,10 @@ export async function updateNotificationPrefs(
     .from("profiles")
     .update({
       email_alerts_enabled: parsed.data.email_alerts_enabled,
+      notify_recovered: parsed.data.notify_recovered,
+      notify_mutated: parsed.data.notify_mutated,
+      notify_digest: parsed.data.notify_digest,
+      notify_product_updates: parsed.data.notify_product_updates,
       locale: parsed.data.locale,
     })
     .eq("id", user.id);

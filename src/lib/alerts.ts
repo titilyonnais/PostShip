@@ -317,6 +317,12 @@ export async function dispatchAlerts(
     telegram_bot_token: string | null;
     telegram_chat_id: string | null;
     ownerEmail: string | null;
+    // Per-kind email preferences (account → Notifications). They govern the
+    // email channel only: Discord/Slack/Telegram are configured per project,
+    // so a personal account setting silencing someone else's project would
+    // be surprising.
+    ownerNotifyRecovered?: boolean;
+    ownerNotifyMutated?: boolean;
     ownerPlanAllowsChatWebhooks: boolean;
     alerts_silenced_until?: string | null;
     quiet_hours_start?: number | null;
@@ -370,10 +376,18 @@ export async function dispatchAlerts(
   // after.
   const recordDedup = options?.recordDedup ?? true;
 
-  if (project.ownerEmail) {
+  const emailItems = items.filter((item) => {
+    if (item.kind === "recovered") return project.ownerNotifyRecovered !== false;
+    if (item.kind === "mutated") return project.ownerNotifyMutated !== false;
+    return true;
+  });
+
+  if (project.ownerEmail && emailItems.length > 0) {
     try {
-      await sendFailEmail(project.ownerEmail, project.id, project.name, items);
-      if (recordDedup) await recordAlertEvents(supabase, project.id, items, "email");
+      await sendFailEmail(project.ownerEmail, project.id, project.name, emailItems);
+      // Only what was actually emailed gets recorded on the email channel —
+      // otherwise a suppressed recovery would dedup a later real one.
+      if (recordDedup) await recordAlertEvents(supabase, project.id, emailItems, "email");
     } catch (err) {
       console.error("Échec envoi email d'alerte", err);
     }

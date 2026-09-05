@@ -170,7 +170,7 @@ export async function sendWeeklyDigests(): Promise<{ sent: number }> {
 
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name, profiles(plan, email, email_alerts_enabled)");
+    .select("id, name, profiles(plan, email, email_alerts_enabled, notify_digest)");
 
   let sent = 0;
 
@@ -179,10 +179,12 @@ export async function sendWeeklyDigests(): Promise<{ sent: number }> {
       plan: Plan;
       email: string | null;
       email_alerts_enabled: boolean;
+      notify_digest: boolean;
     } | null;
 
     if (!owner?.email) continue;
     if (owner.email_alerts_enabled === false) continue;
+    if (owner.notify_digest === false) continue;
     if (!getPlanLimits(owner.plan ?? "free").digest) continue;
 
     const stats = await computeProjectStats(supabase, project.id);

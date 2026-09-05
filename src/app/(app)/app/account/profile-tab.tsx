@@ -2,6 +2,7 @@ import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 import { DEFAULT_TIMEZONE } from "@/lib/timezone";
+import { BillingAddressSection, type BillingAddress } from "./billing-address-section";
 import { IdentitySection } from "./identity-section";
 import { TeamSizeSelect } from "./team-size-select";
 import { TimezoneSelect } from "./timezone-select";
@@ -9,7 +10,9 @@ import { updateDisplayName, updateProfile } from "./actions";
 
 export function ProfileTab({
   profile,
+  billingAddress,
 }: {
+  billingAddress: BillingAddress;
   profile: {
     username: string | null;
     avatar_seed: string | null;
@@ -111,6 +114,7 @@ export function ProfileTab({
           </SubmitButton>
         </div>
       </ActionForm>
+      <BillingAddressSection billingAddress={billingAddress} />
     </div>
   );
 }
