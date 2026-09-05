@@ -18,26 +18,94 @@ The App itself is created by hand, once, and is not in version control.
 ## Creating it
 
 **github.com/settings/apps → New GitHub App** (or the organisation's
-Developer settings, if it should be owned by the org).
+Developer settings, if the App should be owned by the org).
+
+The form is long and almost all of it is left alone. Section by section,
+top to bottom:
+
+### Basic information
 
 | Field | Value |
 |---|---|
 | GitHub App name | `PostShip` |
+| Description | the paragraph below |
 | Homepage URL | `https://postship.fr` |
-| Setup URL | `https://postship.fr/api/oauth/github/callback` |
-| Redirect on update | **checked** — this is what returns the user to PostShip after they install |
-| Webhook | **uncheck Active** — PostShip never receives GitHub events; it only calls the API |
-| Repository permissions → Checks | **Read and write** — the only permission needed |
-| Where can this be installed | **Any account**, so customers can install it on their own repos |
 
-Description (shown on the install screen):
+Description, shown to anyone on the install screen:
 
 > PostShip vérifie vos URLs critiques après chaque déploiement et publie le résultat sur le commit : un Check Run vert si tout passe, rouge sinon, avec le Ship Score en titre. Accès en écriture aux Checks uniquement — aucun accès à votre code.
 
-Upload `public/brand/postship-avatar-1024.png` as the App's logo, same
-mark as the Discord and Slack apps.
+### Identifying and authorizing users
 
-Then **Generate a private key** — GitHub downloads a `.pem` once.
+Leave the **Callback URL** empty and every checkbox unticked. That
+section is for "Sign in with GitHub", which PostShip does not use — the
+App never acts on behalf of a GitHub user, only as itself.
+
+### Post installation
+
+| Field | Value |
+|---|---|
+| Setup URL | `https://postship.fr/api/oauth/github/callback` |
+| Redirect on update | **checked** |
+
+This is the one people get wrong. Without the Setup URL the install
+completes on GitHub and the user is simply left there, and PostShip never
+learns the `installation_id`. "Redirect on update" is what also brings
+them back when they later change which repositories are shared.
+
+### Webhook
+
+**Untick "Active".** PostShip never receives GitHub events; it only calls
+the API outbound. With the box unticked, the Webhook URL and secret
+fields disappear and there is nothing else to fill in here.
+
+### Permissions
+
+This is the part that matters. Open **Repository permissions** and set
+exactly one:
+
+| Permission | Access |
+|---|---|
+| **Checks** | **Read and write** |
+
+Leave every other repository permission on **No access** — Contents,
+Pull requests, Issues, Actions, Administration, all of them. PostShip
+never reads your code.
+
+`checks:write` is the whole requirement: write access to the Checks API
+is only available to GitHub Apps, and it is what
+`POST /repos/{owner}/{repo}/check-runs` needs
+([Permissions required for GitHub Apps](https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps),
+[REST API endpoints for check runs](https://docs.github.com/en/rest/checks/runs)).
+
+Two things GitHub does on its own, which are expected and should be left
+as they are:
+
+- **Metadata: Read-only** gets selected automatically as soon as any
+  repository permission is set, and cannot be turned off. It grants
+  nothing beyond basic repository metadata.
+- The permission count in the sidebar will read **2** (Checks + Metadata),
+  not 1.
+
+**Organization permissions** and **Account permissions**: leave every row
+on **No access**. Nothing in PostShip touches either.
+
+### Subscribe to events
+
+Nothing to tick — the list is only offered because of the webhook, which
+is off. If any boxes are checked, uncheck them.
+
+### Where can this GitHub App be installed?
+
+**Any account.** "Only on this account" would mean only your own repos
+could install it, so no customer could ever connect theirs.
+
+### Then
+
+Create the App, scroll to **Private keys → Generate a private key**.
+GitHub downloads a `.pem` once and never shows it again. Upload
+`public/brand/postship-avatar-1024.png` as the App's logo while you are
+there — same mark as the Discord and Slack apps.
 
 ## Environment
 
