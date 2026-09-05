@@ -18,6 +18,12 @@ import { describeAlertItemShort, type AlertCopyItem } from "@/lib/alert-copy";
 import { CHECK_KIND_LABEL, describeMissingCode } from "@/lib/check-labels";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://postship.fr";
+// 512x512, dark ground, generous padding — Discord and Slack both crop an
+// avatar to a circle, so the mark has to survive that. Discord fetches and
+// caches this per webhook post; Slack ignores it entirely (an
+// OAuth-installed webhook always posts as the app itself, so its identity
+// lives in the Slack app config — see docs/CHAT_APPS.md).
+const AVATAR_URL = `${APP_URL}/brand/postship-avatar-512.png`;
 
 export type ChatAlertItem = AlertCopyItem & {
   targetId: string;
@@ -165,13 +171,13 @@ export function buildDiscordPayload(
 
   return {
     username: "PostShip",
-    avatar_url: `${APP_URL}/apple-icon.png`,
+    avatar_url: AVATAR_URL,
     embeds: [
       {
         author: {
           name: projectName,
           url: dashboardUrl,
-          icon_url: `${APP_URL}/apple-icon.png`,
+          icon_url: AVATAR_URL,
         },
         title: headline,
         url: dashboardUrl,
