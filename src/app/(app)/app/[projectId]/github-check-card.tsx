@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GitBranch } from "lucide-react";
+import { DocLink } from "@/components/doc-link";
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
@@ -18,10 +19,13 @@ export function GithubCheckCard({
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-      <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <GitBranch className="size-3.5 text-brand-2" aria-hidden="true" />
-        GitHub
-      </h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <GitBranch className="size-3.5 text-brand-2" aria-hidden="true" />
+          GitHub
+        </h2>
+        <DocLink href="/docs/connecter-github" />
+      </div>
       {!allowed && (
         <p className="text-xs text-muted-foreground">
           Disponible à partir du plan Solo.{" "}

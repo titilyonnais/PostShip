@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CreditCard } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
+import { DocLink } from "@/components/doc-link";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 import { getProject, getProjectOwnerPlan } from "@/lib/db/loaders";
@@ -87,10 +88,13 @@ export default async function IntegrationsPage({
       />
 
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <CreditCard className="size-3.5 text-brand-2" aria-hidden="true" />
-          Stripe — URL de succès
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <CreditCard className="size-3.5 text-brand-2" aria-hidden="true" />
+            Stripe — URL de succès
+          </h2>
+          <DocLink href="/docs/stripe" />
+        </div>
         {!limits.stripeHealth && (
           <p className="text-xs text-muted-foreground">
             Disponible à partir du plan Team.

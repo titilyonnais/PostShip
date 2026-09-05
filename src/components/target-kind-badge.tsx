@@ -1,12 +1,8 @@
 import { CreditCard, Globe, Image as ImageIcon, Map, ShieldCheck } from "lucide-react";
 
-export const TARGET_KIND_LABEL: Record<string, string> = {
-  http: "HTTP",
-  og: "OG / Twitter",
-  sitemap: "Sitemap",
-  ssl: "SSL",
-  stripe_health: "Stripe health",
-};
+import { CHECK_KIND_LABEL } from "@/lib/check-labels";
+
+export const TARGET_KIND_LABEL = CHECK_KIND_LABEL;
 
 const TARGET_KIND_ICON: Record<string, typeof Globe> = {
   http: Globe,

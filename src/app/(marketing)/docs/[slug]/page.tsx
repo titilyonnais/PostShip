@@ -38,6 +38,21 @@ export default async function DocSlugPage({
               <h2 className="text-base font-medium">{section.heading}</h2>
             )}
             <p className="text-sm text-muted-foreground">{section.body}</p>
+            {section.steps && (
+              <ol className="mt-1 flex list-none flex-col gap-2">
+                {section.steps.map((step, stepIndex) => (
+                  <li key={stepIndex} className="flex gap-3 text-sm text-muted-foreground">
+                    <span
+                      className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary font-mono text-[0.65rem] text-foreground"
+                      aria-hidden="true"
+                    >
+                      {stepIndex + 1}
+                    </span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            )}
           </section>
         ))}
       </div>

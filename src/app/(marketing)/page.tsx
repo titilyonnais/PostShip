@@ -132,7 +132,7 @@ export default function MarketingHomePage() {
         <div className="relative">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -inset-8 -z-10 rounded-[3rem] bg-[#3fb950]/10 blur-3xl"
+            className="pointer-events-none absolute -inset-8 -z-10 rounded-[1.5rem] bg-[#3fb950]/10 blur-3xl"
           />
           <ApercuFrame />
         </div>

@@ -19,8 +19,6 @@ export type AlertCopyItem = {
 export type AlertCopy = {
   subject: string;
   text: string;
-  discordDescription: string;
-  slackText: string;
 };
 
 export function describeAlertItem(item: AlertCopyItem): string {
@@ -121,21 +119,5 @@ export function buildAlertCopy(
 
   const text = [recapLine, ...lines].join("\n");
 
-  const discordDescription = [
-    recapLine,
-    ...items.map(
-      (item) =>
-        `${item.kind === "recovered" ? "✅" : item.kind === "mutated" ? "🟠" : "🔴"} ${describeAlertItem(item)}`,
-    ),
-  ].join("\n");
-
-  const slackText = [
-    recapLine,
-    ...items.map(
-      (item) =>
-        `${item.kind === "recovered" ? ":large_green_circle:" : item.kind === "mutated" ? ":large_orange_circle:" : ":red_circle:"} ${describeAlertItem(item)}`,
-    ),
-  ].join("\n");
-
-  return { subject, text, discordDescription, slackText };
+  return { subject, text };
 }

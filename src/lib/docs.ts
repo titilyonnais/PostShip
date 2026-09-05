@@ -12,10 +12,14 @@ export type DocSlug =
   | "sitemap-ssl"
   | "stripe"
   | "webhooks-deploy"
+  | "connecter-github"
   | "t2-t8"
   | "ship-score"
   | "radar-mutation"
   | "alertes-canaux"
+  | "connecter-discord"
+  | "connecter-slack"
+  | "connecter-telegram"
   | "regles"
   | "webhook-sortant"
   | "app-pages"
@@ -24,7 +28,10 @@ export type DocSlug =
   | "scans-tokens"
   | "plans";
 
-export type DocSection = { heading?: string; body: string };
+// `steps` renders as a numbered list under the body — used by the
+// "connecter X" pages, where a wall of prose would be unusable next to a
+// provider's own settings screen.
+export type DocSection = { heading?: string; body: string; steps?: string[] };
 
 export type DocPage = {
   title: string;
@@ -40,8 +47,21 @@ export const DOC_CATEGORIES: DocCategory[] = [
     label: "Vérifications",
     slugs: ["http-assets", "pack-argent", "open-graph", "sitemap-ssl", "stripe"],
   },
-  { label: "Déploiements", slugs: ["webhooks-deploy", "t2-t8", "ship-score", "radar-mutation"] },
-  { label: "Alertes", slugs: ["alertes-canaux", "regles", "webhook-sortant"] },
+  {
+    label: "Déploiements",
+    slugs: ["webhooks-deploy", "connecter-github", "t2-t8", "ship-score", "radar-mutation"],
+  },
+  {
+    label: "Alertes",
+    slugs: [
+      "alertes-canaux",
+      "connecter-discord",
+      "connecter-slack",
+      "connecter-telegram",
+      "regles",
+      "webhook-sortant",
+    ],
+  },
   { label: "App", slugs: ["app-pages", "bot", "badge-partage", "scans-tokens"] },
   { label: "Compte", slugs: ["plans"] },
 ];
@@ -139,6 +159,33 @@ export const DOCS: Record<DocSlug, DocPage> = {
       },
     ],
   },
+  "connecter-github": {
+    title: "Connecter GitHub",
+    summary: "Publier le résultat de la vérification sur le commit.",
+    sections: [
+      {
+        body: "Une fois connecté, PostShip publie un Check Run sur le commit déployé après chaque vérification déclenchée par un webhook de déploiement : vert si tout passe, rouge sinon, avec le Ship Score comme titre. Vous voyez le résultat dans la pull request sans quitter GitHub. Disponible à partir du plan Solo.",
+      },
+      {
+        heading: "Créer le token",
+        body: "PostShip n'installe pas d'application GitHub : un token personnel fine-grained suffit, et vous gardez la main sur les dépôts qu'il couvre.",
+        steps: [
+          "Sur GitHub, ouvrez Settings → Developer settings → Personal access tokens → Fine-grained tokens, puis « Generate new token ».",
+          "Dans « Repository access », choisissez « Only select repositories » et sélectionnez le dépôt du site surveillé.",
+          "Dans « Repository permissions », passez « Checks » sur « Read and write ». Aucune autre permission n'est nécessaire.",
+          "Générez le token et copiez-le : GitHub ne le réaffichera pas.",
+        ],
+      },
+      {
+        heading: "Renseigner PostShip",
+        body: "Depuis Intégrations, carte GitHub : indiquez le dépôt au format owner/repo, collez le token, puis enregistrez. Le token est chiffré et jamais réaffiché — pour le remplacer, collez-en un nouveau ; pour tout couper, utilisez « Désactiver ».",
+      },
+      {
+        heading: "Prérequis",
+        body: "Le Check Run se rattache au commit du déploiement, donc il faut qu'un webhook de déploiement soit branché (voir Webhooks de déploiement) : sans lui, PostShip ne sait pas quel commit vient de partir en production.",
+      },
+    ],
+  },
   "t2-t8": {
     title: "T+2 / T+8",
     summary: "Les minutes qui suivent un déploiement.",
@@ -184,6 +231,108 @@ export const DOCS: Record<DocSlug, DocPage> = {
       },
       {
         body: "Rien n'est envoyé tant que tout est vert : c'est le principe du produit, pas une option à activer.",
+      },
+    ],
+  },
+  "connecter-discord": {
+    title: "Connecter Discord",
+    summary: "Recevoir les alertes dans un salon Discord.",
+    sections: [
+      {
+        body: "Deux chemins mènent au même résultat : le bouton « Connecter Discord », qui crée le webhook pour vous, ou le collage manuel d'une URL de webhook que vous créez vous-même. Le bouton est plus rapide ; le collage manuel fonctionne même si vous n'êtes pas administrateur du serveur, tant que quelqu'un vous fournit l'URL. Disponible à partir du plan Solo.",
+      },
+      {
+        heading: "Avec le bouton « Connecter Discord »",
+        body: "Depuis votre projet, ouvrez Intégrations, section Alertes.",
+        steps: [
+          "Cliquez sur « Connecter Discord ». Discord vous demande de vous authentifier si ce n'est pas déjà fait.",
+          "Choisissez le serveur puis le salon qui recevra les alertes. Il vous faut la permission « Gérer les webhooks » sur ce serveur.",
+          "Validez : Discord crée le webhook et vous renvoie sur PostShip, qui affiche « Discord connecté ».",
+        ],
+      },
+      {
+        heading: "En collant l'URL vous-même",
+        body: "Le webhook se crée depuis Discord, dans les paramètres du salon.",
+        steps: [
+          "Dans Discord, faites un clic droit sur le salon → Modifier le salon → Intégrations → Webhooks.",
+          "Créez un webhook, donnez-lui un nom (« PostShip »), puis cliquez sur « Copier l'URL du webhook ».",
+          "Collez cette URL dans le champ Discord de la page Intégrations et enregistrez.",
+        ],
+      },
+      {
+        heading: "Ce que vous recevez",
+        body: "Un message par vérification qui change quelque chose : un encart coloré selon l'état (rouge en échec, vert rétabli, orange contenu modifié), une ligne par URL concernée avec la raison de l'échec, le statut HTTP et le TTFB, et des liens directs vers la page de détail, les incidents et vos réglages d'alertes. Rien n'est envoyé tant que tout est vert.",
+      },
+      {
+        heading: "Couper ou changer de salon",
+        body: "Le bouton « Désactiver » sous le champ Discord supprime l'URL enregistrée — PostShip cesse immédiatement d'y écrire. Pour changer de salon, désactivez puis reconnectez. Pour faire taire les alertes temporairement sans rien débrancher, utilisez la mise en silence du projet ou les heures calmes.",
+      },
+    ],
+  },
+  "connecter-slack": {
+    title: "Connecter Slack",
+    summary: "Recevoir les alertes dans un canal Slack.",
+    sections: [
+      {
+        body: "Comme pour Discord, deux chemins : le bouton « Connecter Slack », qui passe par l'écran d'autorisation Slack et crée le webhook entrant pour vous, ou le collage manuel d'une URL que vous créez depuis api.slack.com. Disponible à partir du plan Solo.",
+      },
+      {
+        heading: "Avec le bouton « Connecter Slack »",
+        body: "Depuis votre projet, ouvrez Intégrations, section Alertes.",
+        steps: [
+          "Cliquez sur « Connecter Slack ». Slack affiche son écran d'autorisation.",
+          "Choisissez l'espace de travail, puis le canal qui recevra les alertes.",
+          "Cliquez sur « Autoriser » : Slack crée le webhook entrant et vous renvoie sur PostShip, qui affiche « Slack connecté ».",
+        ],
+      },
+      {
+        heading: "En collant l'URL vous-même",
+        body: "Le webhook entrant se crée depuis votre propre application Slack.",
+        steps: [
+          "Rendez-vous sur api.slack.com/apps et créez une application (« From scratch »), rattachée à votre espace de travail.",
+          "Dans le menu de gauche, ouvrez « Incoming Webhooks » et activez l'option.",
+          "Cliquez sur « Add New Webhook to Workspace », choisissez le canal, autorisez, puis copiez l'URL qui commence par https://hooks.slack.com/services/.",
+          "Collez cette URL dans le champ Slack de la page Intégrations et enregistrez.",
+        ],
+      },
+      {
+        heading: "Ce que vous recevez",
+        body: "Un message structuré : un titre avec le projet et l'état, un rappel du nombre d'URLs en échec, rétablies ou modifiées, une section par URL avec la raison de l'échec, le statut HTTP et le TTFB, et trois boutons — tableau de bord, incidents, réglages d'alertes. Le bouton principal passe en rouge quand quelque chose est en échec.",
+      },
+      {
+        heading: "Couper ou changer de canal",
+        body: "Le bouton « Désactiver » sous le champ Slack supprime l'URL enregistrée. Pour changer de canal, désactivez puis reconnectez — un webhook entrant Slack est lié à un canal précis et ne peut pas être redirigé après coup.",
+      },
+    ],
+  },
+  "connecter-telegram": {
+    title: "Connecter Telegram",
+    summary: "Recevoir les alertes dans une conversation Telegram.",
+    sections: [
+      {
+        body: "Telegram n'a pas de connexion en un clic : il faut créer un bot, puis lui indiquer à qui parler. Comptez deux minutes. Disponible à partir du plan Solo.",
+      },
+      {
+        heading: "Créer le bot",
+        body: "Tout se passe dans Telegram, avec le bot officiel @BotFather.",
+        steps: [
+          "Ouvrez une conversation avec @BotFather et envoyez /newbot.",
+          "Donnez un nom, puis un identifiant se terminant par « bot ».",
+          "@BotFather répond avec un token de la forme 123456:AbC-... : c'est le token du bot.",
+        ],
+      },
+      {
+        heading: "Trouver le chat ID",
+        body: "Le token dit quel bot parle ; le chat ID dit à qui.",
+        steps: [
+          "Envoyez n'importe quel message à votre nouveau bot (ou ajoutez-le à un groupe et écrivez-y un message).",
+          "Ouvrez https://api.telegram.org/bot<votre-token>/getUpdates dans un navigateur.",
+          "Relevez la valeur de chat.id dans la réponse — un nombre, négatif s'il s'agit d'un groupe.",
+        ],
+      },
+      {
+        heading: "Renseigner PostShip",
+        body: "Depuis Intégrations, section Alertes, collez le token dans le premier champ Telegram et le chat ID dans le second, puis enregistrez. Laisser un champ vide ne l'efface pas : il conserve la valeur déjà enregistrée. Le bot répond aussi à quelques commandes depuis la conversation — voir la page Bot Telegram.",
       },
     ],
   },

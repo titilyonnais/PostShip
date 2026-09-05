@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import { buildAlertCopy, describeAlertItemShort } from "@/lib/alert-copy";
+import { buildDiscordPayload, buildSlackPayload } from "@/lib/chat-alerts";
 import { describeMissingCode } from "@/lib/check-labels";
 import {
   escapeHtml,
@@ -240,6 +241,7 @@ async function sendFailEmail(
 
 async function sendDiscordAlert(
   webhookUrl: string,
+  projectId: string,
   projectName: string,
   items: AlertItem[],
 ) {
@@ -253,19 +255,16 @@ async function sendDiscordAlert(
     return;
   }
 
-  const { discordDescription } = buildAlertCopy(projectName, items);
-
   await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      embeds: [{ title: `PostShip — ${projectName}`, description: discordDescription }],
-    }),
+    body: JSON.stringify(buildDiscordPayload(projectId, projectName, items)),
   });
 }
 
 async function sendSlackAlert(
   webhookUrl: string,
+  projectId: string,
   projectName: string,
   items: AlertItem[],
 ) {
@@ -279,14 +278,10 @@ async function sendSlackAlert(
     return;
   }
 
-  const { slackText } = buildAlertCopy(projectName, items);
-
   await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text: `*PostShip — ${projectName}*\n${slackText}`,
-    }),
+    body: JSON.stringify(buildSlackPayload(projectId, projectName, items)),
   });
 }
 
@@ -386,7 +381,7 @@ export async function dispatchAlerts(
 
   if (project.ownerPlanAllowsChatWebhooks && project.discord_webhook_url) {
     try {
-      await sendDiscordAlert(project.discord_webhook_url, project.name, items);
+      await sendDiscordAlert(project.discord_webhook_url, project.id, project.name, items);
       if (recordDedup) await recordAlertEvents(supabase, project.id, items, "discord");
     } catch (err) {
       console.error("Échec envoi Discord", err);
@@ -395,7 +390,7 @@ export async function dispatchAlerts(
 
   if (project.ownerPlanAllowsChatWebhooks && project.slack_webhook_url) {
     try {
-      await sendSlackAlert(project.slack_webhook_url, project.name, items);
+      await sendSlackAlert(project.slack_webhook_url, project.id, project.name, items);
       if (recordDedup) await recordAlertEvents(supabase, project.id, items, "slack");
     } catch (err) {
       console.error("Échec envoi Slack", err);

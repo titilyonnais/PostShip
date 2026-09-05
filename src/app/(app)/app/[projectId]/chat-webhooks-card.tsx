@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MessageSquare, Zap } from "lucide-react";
+import { DocLink } from "@/components/doc-link";
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
@@ -25,6 +26,7 @@ function ChatWebhookSection({
   configured,
   connectHref,
   connectLabel,
+  docHref,
 }: {
   title: string;
   instructions: React.ReactNode;
@@ -39,13 +41,17 @@ function ChatWebhookSection({
   // provider doesn't have one (Telegram has no such flow).
   connectHref?: string;
   connectLabel?: string;
+  docHref: string;
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-      <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <MessageSquare className="size-3.5 text-brand-2" aria-hidden="true" />
-        {title}
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <MessageSquare className="size-3.5 text-brand-2" aria-hidden="true" />
+          {title}
+        </h3>
+        <DocLink href={docHref} />
+      </div>
       {connectHref && !configured && (
         <Link href={connectHref} className={buttonVariants({ variant: "default", size: "sm" })}>
           <Zap className="size-3.5" aria-hidden="true" />
@@ -110,10 +116,13 @@ function TelegramSection({
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-      <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <MessageSquare className="size-3.5 text-brand-2" aria-hidden="true" />
-        Telegram
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <MessageSquare className="size-3.5 text-brand-2" aria-hidden="true" />
+          Telegram
+        </h3>
+        <DocLink href="/docs/connecter-telegram" />
+      </div>
       <p className="text-xs text-muted-foreground">
         Créez un bot via @BotFather pour obtenir le token, puis récupérez le
         chat ID (envoyez un message au bot et consultez
@@ -208,6 +217,7 @@ export function ChatWebhooksCard({
           configured={!!project.discord_webhook_configured}
           connectHref={`/api/oauth/discord/start?projectId=${projectId}`}
           connectLabel="Connecter Discord"
+          docHref="/docs/connecter-discord"
         />
         <ChatWebhookSection
           title="Slack"
@@ -219,6 +229,7 @@ export function ChatWebhooksCard({
           configured={!!project.slack_webhook_configured}
           connectHref={`/api/oauth/slack/start?projectId=${projectId}`}
           connectLabel="Connecter Slack"
+          docHref="/docs/connecter-slack"
         />
         <TelegramSection
           action={setTelegramConfig.bind(null, projectId)}

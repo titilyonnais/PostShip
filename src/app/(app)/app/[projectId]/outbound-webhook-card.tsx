@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Webhook } from "lucide-react";
+import { DocLink } from "@/components/doc-link";
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
@@ -64,10 +65,13 @@ export function OutboundWebhookCard({
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-      <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <Webhook className="size-3.5 text-brand-2" aria-hidden="true" />
-        Webhook sortant
-      </h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <Webhook className="size-3.5 text-brand-2" aria-hidden="true" />
+          Webhook sortant
+        </h2>
+        <DocLink href="/docs/webhook-sortant" />
+      </div>
       {!allowed && (
         <p className="text-xs text-muted-foreground">
           Disponible à partir du plan Solo.{" "}

@@ -34,3 +34,14 @@ export function describeMissingCode(code: string): string {
   }
   return MISSING_LABELS[code] ?? code;
 }
+
+// The check type of a target (check_targets.kind). Shared between the
+// TargetKindBadge component and the Discord/Slack payload builders, which
+// can't import the component (it pulls lucide-react into server code).
+export const CHECK_KIND_LABEL: Record<string, string> = {
+  http: "HTTP",
+  og: "OG / Twitter",
+  sitemap: "Sitemap",
+  ssl: "SSL",
+  stripe_health: "Stripe health",
+};

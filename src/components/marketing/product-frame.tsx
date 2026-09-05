@@ -3,6 +3,12 @@
 // every instance is wrapped with role="img" + aria-label and its insides
 // are aria-hidden, same treatment as the terminal mock it replaces on the
 // home hero.
+//
+// Feedback fix: the outer frame is rounded-xl (12px), not the rounded-3xl
+// the app's own cards and dialogs use. This is meant to read as a real
+// application window sitting on the page — a 24px radius on something
+// this large looks like a sticker, not a screen. Rows inside step down to
+// rounded-lg so the nesting stays natural.
 
 const HEATMAP_SQUARES = Array.from({ length: 30 }, (_, i) => {
   if (i === 14) return "amber";
@@ -49,7 +55,7 @@ export function ProductFrame({
     <div
       role="img"
       aria-label={label}
-      className="overflow-hidden rounded-3xl border border-border bg-card shadow-[0_0_0_1px_rgba(255,255,255,0.02)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+      className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_0_0_1px_rgba(255,255,255,0.02)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
     >
       <div className="flex items-center gap-1.5 border-b border-border px-3 py-2" aria-hidden="true">
         <span className="size-2 rounded-full bg-[#f85149]" />
@@ -119,7 +125,7 @@ export function IncidentsFrame({ projectLabel = "acme" }: { projectLabel?: strin
         {INCIDENT_ROWS.map((row, index) => (
           <div
             key={row.url}
-            className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1"
+            className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1"
             style={{ animationDelay: `${index * 80}ms` }}
           >
             <span className="flex items-center gap-2 font-mono text-foreground">
@@ -143,7 +149,7 @@ export function DeploysFrame({ projectLabel = "acme" }: { projectLabel?: string 
       label="Page Déplois d'un projet PostShip : dernier déploiement Vercel, vérifié à T+0, T+2 et T+8 minutes, tout au vert"
     >
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary px-3 py-2 text-xs">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary px-3 py-2 text-xs">
           <span className="flex items-center gap-2">
             <span className="size-1.5 shrink-0 rounded-full bg-[#3fb950]" />
             <span className="font-medium">Vercel</span>
