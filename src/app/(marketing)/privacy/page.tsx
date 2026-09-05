@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { LEGAL } from "@/lib/legal";
 
+import { ConsentControls } from "./consent-controls";
+
 export const metadata = {
   title: "Confidentialité",
   description: "Politique de confidentialité de PostShip.",
@@ -174,17 +176,71 @@ export default function PrivacyPage() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-foreground">7. Cookies</h2>
+        <h2 className="text-sm font-medium text-foreground">
+          7. Journalisation technique et prévention de la fraude
+        </h2>
         <p>
-          PostShip utilise uniquement des cookies strictement nécessaires au
-          fonctionnement du service (maintien de votre session de
-          connexion). Aucun cookie publicitaire ni traceur analytique tiers
-          n&apos;est utilisé.
+          À chaque page consultée, PostShip enregistre côté serveur :
+          l&apos;adresse IP, la page demandée, la page de provenance, la langue
+          déclarée par le navigateur, ainsi que le navigateur, le système
+          d&apos;exploitation et le type d&apos;appareil déduits de
+          l&apos;en-tête <span className="font-mono">User-Agent</span>. Le pays,
+          la région, la ville approximative et le fuseau horaire sont fournis
+          par notre hébergeur Vercel à partir de l&apos;adresse IP : aucun
+          service de géolocalisation tiers n&apos;intervient.
+        </p>
+        <p>
+          <strong className="text-foreground">Base légale :</strong> intérêt
+          légitime (article 6.1.f du RGPD) à assurer la sécurité du service et à
+          prévenir la fraude et les abus — une finalité que le considérant 49
+          du RGPD reconnaît explicitement. Ces données ne servent ni à la
+          publicité, ni au profilage commercial, ni à la revente.
+        </p>
+        <p>
+          <strong className="text-foreground">Ce que nous ne collectons
+          pas :</strong> aucune empreinte numérique de navigateur (canvas,
+          WebGL, polices), aucun identifiant inter-sites, aucun traceur
+          publicitaire. Ces techniques exigeraient votre consentement et ne
+          répondent à aucun besoin de sécurité.
+        </p>
+        <p>
+          <strong className="text-foreground">Conservation :</strong> le
+          journal détaillé des visites est supprimé automatiquement au bout de
+          90 jours. Seul un compteur agrégé par adresse (nombre de visites,
+          date de dernière visite, pays) est conservé au-delà, sans historique
+          de navigation.
         </p>
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-foreground">8. Sécurité</h2>
+        <h2 className="text-sm font-medium text-foreground">8. Cookies</h2>
+        <p>
+          <strong className="text-foreground">Cookies strictement
+          nécessaires.</strong> PostShip dépose un cookie de session qui vous
+          maintient connecté. Sans lui, l&apos;authentification ne peut pas
+          fonctionner : il est exempté de consentement au titre de
+          l&apos;article 82 de la loi Informatique et Libertés. Il est déposé
+          uniquement après connexion et expire avec votre session.
+        </p>
+        <p>
+          <strong className="text-foreground">Mesure d&apos;audience.</strong>{" "}
+          Facultative, désactivée par défaut, et activée uniquement si vous
+          l&apos;acceptez dans la bannière. Vous pouvez revenir sur votre choix
+          à tout moment : refuser n&apos;a jamais demandé plus de clics
+          qu&apos;accepter, et un refus est conservé aussi longtemps qu&apos;un
+          accord.
+        </p>
+        <p>
+          Aucun cookie publicitaire, aucun traceur tiers, aucun partage avec
+          une régie.
+        </p>
+        <div>
+          <ConsentControls />
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium text-foreground">9. Sécurité</h2>
         <p>
           Connexions chiffrées (HTTPS), accès aux données restreint au
           niveau de la base par des règles de sécurité (Row Level Security),
@@ -195,7 +251,7 @@ export default function PrivacyPage() {
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium text-foreground">
-          9. Modifications
+          10. Modifications
         </h2>
         <p>
           Cette politique peut être mise à jour ; toute modification

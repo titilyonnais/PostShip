@@ -120,7 +120,9 @@ async function runSingleTarget(
   // deploy webhook — gates the V6 "mutated" alert (never runOneTarget or
   // the cron/manual path).
   deployHint?: string,
-): Promise<SingleTargetResult> {
+  // null when the target was skipped rather than run — today only the
+  // Stripe health plan gate.
+): Promise<SingleTargetResult | null> {
   const startedAt = new Date().toISOString();
 
   let result: CheckResult;
@@ -152,16 +154,13 @@ async function runSingleTarget(
       result = await runSslCheck({ url: target.url });
       break;
     case "stripe_health": {
+      // Not an error: the check never ran. Recording it as one produced a
+      // false uptime figure, a runner error in the journal on every
+      // cycle, and an alert to the customer every ten minutes about a
+      // plan they simply haven't bought. The URLs page marks these
+      // targets instead.
       if (!getPlanLimits(ownerPlan).stripeHealth) {
-        const details = { error: "Le plan actuel n'inclut pas Stripe health." };
-        result = {
-          outcome: "error",
-          http_status: null,
-          ttfb_ms: null,
-          details,
-          fingerprint: computeFingerprint("error", null, details),
-        };
-        break;
+        return null;
       }
       result = await runStripeHealthCheck(
         { url: stripeSuccessUrl ?? target.url },
@@ -333,6 +332,11 @@ export async function runOneTarget(targetId: string) {
     undefined,
     project.stripe_success_url,
   );
+
+  // Skipped rather than run — the Stripe health plan gate. Nothing to
+  // record, nothing to alert on.
+  if (!result) return null;
+
   const alertItems: AlertItem[] = [];
 
   if (result.outcome === "pass") {
@@ -629,7 +633,7 @@ export async function runProjectChecks(
 
   const ownerPlan = owner?.plan ?? "free";
 
-  const results = await runWithConcurrencyLimit(
+  const ranResults = await runWithConcurrencyLimit(
     (targets ?? []) as CheckTargetRow[],
     MAX_CONCURRENCY_PER_PROJECT,
     (target) =>
@@ -643,6 +647,10 @@ export async function runProjectChecks(
         deployHint,
       ),
   );
+
+  // Targets the plan doesn't cover return null: they never ran, so they
+  // must not count towards the project's status or its alerts.
+  const results = ranResults.filter((r): r is NonNullable<typeof r> => r !== null);
 
   const alertItems: AlertItem[] = [];
   for (const result of results) {

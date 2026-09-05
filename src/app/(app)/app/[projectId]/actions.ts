@@ -357,6 +357,15 @@ export async function runTargetNow(
 
   revalidatePath(`/app/${projectId}`);
   revalidatePath("/app");
+
+  // null means the check never ran because the plan doesn't cover it —
+  // saying "OK" or "échec" would both be untrue.
+  if (!result) {
+    return {
+      error: `${target.url} n'est pas vérifiée : ce type de check demande le plan Team.`,
+    };
+  }
+
   return {
     success:
       result.outcome === "pass"
