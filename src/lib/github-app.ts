@@ -123,3 +123,40 @@ export async function createInstallationToken(
   const body = (await response.json().catch(() => null)) as { token?: string } | null;
   return body?.token ?? null;
 }
+
+export type InstallationRepo = { id: number; fullName: string; private: boolean };
+
+// The repositories the user actually granted on GitHub's install screen.
+// Typing "owner/repo" by hand was a guess with no feedback: a typo, or a
+// repo outside the installation, both surfaced only as a Check Run that
+// silently never appeared.
+export async function listInstallationRepositories(
+  installationId: number,
+): Promise<InstallationRepo[] | null> {
+  const token = await createInstallationToken(installationId);
+  if (!token) return null;
+
+  const repos: InstallationRepo[] = [];
+  // An installation scoped to "All repositories" on a large account can
+  // run to hundreds; three pages is plenty for a picker, and the field
+  // still accepts a typed value for anything past it.
+  for (let page = 1; page <= 3; page += 1) {
+    const response = await githubFetch(
+      `/installation/repositories?per_page=100&page=${page}`,
+      token,
+    );
+    if (!response?.ok) break;
+
+    const body = (await response.json().catch(() => null)) as {
+      repositories?: { id: number; full_name: string; private: boolean }[];
+    } | null;
+    const batch = body?.repositories ?? [];
+
+    repos.push(
+      ...batch.map((r) => ({ id: r.id, fullName: r.full_name, private: r.private })),
+    );
+    if (batch.length < 100) break;
+  }
+
+  return repos.sort((a, b) => a.fullName.localeCompare(b.fullName));
+}

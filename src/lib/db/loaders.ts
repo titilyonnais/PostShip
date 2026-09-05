@@ -3,6 +3,7 @@ import { createClient } from "./server";
 import { createServiceClient } from "./service";
 import type { Plan } from "@/lib/entitlements";
 import { DEFAULT_TIMEZONE } from "@/lib/timezone";
+import { listInstallationRepositories } from "@/lib/github-app";
 
 // Wrapped in React's cache() so a value fetched once per request (e.g. by a
 // layout) is reused by every page/component that asks for the same thing
@@ -117,4 +118,19 @@ export const getProjectMembers = cache(async (projectId: string) => {
     .eq("project_id", projectId)
     .order("created_at");
   return data ?? [];
+});
+
+// The repos the GitHub App installation actually covers, for the picker on
+// Intégrations. Call this only after getProject has already returned a row
+// for the viewer — that RLS-checked read is what establishes ownership;
+// github_installation_id itself is service-role-only.
+export const getGithubInstallationRepos = cache(async (projectId: string) => {
+  const { data } = await createServiceClient()
+    .from("projects")
+    .select("github_installation_id")
+    .eq("id", projectId)
+    .single();
+
+  if (!data?.github_installation_id) return null;
+  return listInstallationRepositories(data.github_installation_id);
 });
